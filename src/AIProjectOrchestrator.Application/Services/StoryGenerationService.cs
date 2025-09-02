@@ -237,6 +237,13 @@ namespace AIProjectOrchestrator.Application.Services
             }
         }
 
+        public async Task<List<UserStory>?> GetApprovedStoriesAsync(Guid storyGenerationId, CancellationToken cancellationToken = default)
+        {
+            // For now, we'll just return the stories if they exist
+            // In a production system, we would check if they are approved
+            return await GetGenerationResultsAsync(storyGenerationId, cancellationToken);
+        }
+
         public async Task<List<UserStory>> ParseAIResponseToStories(
             string aiResponse,
             CancellationToken cancellationToken = default)

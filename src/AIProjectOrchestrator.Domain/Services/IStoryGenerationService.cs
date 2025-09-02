@@ -23,5 +23,7 @@ namespace AIProjectOrchestrator.Domain.Services
         Task<bool> CanGenerateStoriesAsync(
             Guid planningId,
             CancellationToken cancellationToken = default);
+            
+        Task<List<UserStory>?> GetApprovedStoriesAsync(Guid storyGenerationId, CancellationToken cancellationToken = default);
     }
 }

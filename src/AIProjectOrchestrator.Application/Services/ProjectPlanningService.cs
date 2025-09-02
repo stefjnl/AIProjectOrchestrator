@@ -258,6 +258,26 @@ namespace AIProjectOrchestrator.Application.Services
             return null;
         }
 
+        public async Task<string?> GetTechnicalContextAsync(Guid planningId, CancellationToken cancellationToken = default)
+        {
+            if (_planningResults.TryGetValue(planningId, out var result))
+            {
+                // Combine all planning content into a technical context string
+                return $@"Project Roadmap:
+{result.ProjectRoadmap}
+
+Architectural Decisions:
+{result.ArchitecturalDecisions}
+
+Milestones:
+{result.Milestones}";
+            }
+
+            // If we don't have the result in memory, it might have been cleaned up
+            // In a production system, we would check a persistent store
+            return null;
+        }
+
         private string CreatePromptFromContext(
             RequirementsAnalysisResponse requirementsAnalysis, 
             ProjectPlanningRequest request)

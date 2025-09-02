@@ -52,6 +52,9 @@ builder.Services.AddScoped<IProjectPlanningService, ProjectPlanningService>();
 // Add story generation service
 builder.Services.AddScoped<IStoryGenerationService, StoryGenerationService>();
 
+// Add code generation service
+builder.Services.AddScoped<ICodeGenerationService, CodeGenerationService>();
+
 // Add instruction service configuration
 builder.Services.Configure<InstructionSettings>(
     builder.Configuration.GetSection(InstructionSettings.SectionName));
