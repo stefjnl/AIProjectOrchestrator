@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\..\Instructions\**" CopyToOutputDirectory="PreserveNewest" LinkBase="Instructions\" />
+    <None Include="..\..\..\Instructions\**" CopyToOutputDirectory="Always" LinkBase="Instructions\" />
   </ItemGroup>
 
 </Project>

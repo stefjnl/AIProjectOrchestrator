@@ -28,21 +28,41 @@ namespace AIProjectOrchestrator.Application.Services
             _logger = logger;
             _cache = new ConcurrentDictionary<string, CachedInstruction>();
             
-            // Try to find the instructions directory in a few possible locations
-            var currentDirectory = Directory.GetCurrentDirectory();
-            var possiblePaths = new[]
-            {
-                Path.Combine(currentDirectory, _settings.InstructionsPath),
-                Path.Combine(currentDirectory, "..", "..", "..", "..", _settings.InstructionsPath),
-                Path.Combine(currentDirectory, "..", "..", "..", _settings.InstructionsPath),
-                Path.Combine(currentDirectory, "bin", "Debug", "net9.0", _settings.InstructionsPath),
-                Path.Combine(currentDirectory, "bin", "Release", "net9.0", _settings.InstructionsPath)
-            };
-
-            _fullInstructionsPath = possiblePaths.FirstOrDefault(Directory.Exists) ?? 
-                                   Path.Combine(currentDirectory, _settings.InstructionsPath);
-
+            // Use AppContext.BaseDirectory to find the instructions directory
+            // This should work in both development and CI environments
+            var baseDirectory = AppContext.BaseDirectory;
+            _fullInstructionsPath = Path.Combine(baseDirectory, _settings.InstructionsPath);
+            
             _logger.LogInformation("InstructionService initialized with path: {Path}", _fullInstructionsPath);
+            
+            // Log the contents of the directory for debugging
+            if (Directory.Exists(_fullInstructionsPath))
+            {
+                var files = Directory.GetFiles(_fullInstructionsPath);
+                _logger.LogInformation("Found {Count} files in instructions directory: {Files}", files.Length, string.Join(", ", files.Select(Path.GetFileName)));
+            }
+            else
+            {
+                _logger.LogWarning("Instructions directory not found at: {Path}", _fullInstructionsPath);
+                
+                // Try to find the directory in parent directories for fallback
+                var currentDir = baseDirectory;
+                for (int i = 0; i < 5; i++)
+                {
+                    var parentDir = Directory.GetParent(currentDir)?.FullName;
+                    if (string.IsNullOrEmpty(parentDir))
+                        break;
+                        
+                    var possiblePath = Path.Combine(parentDir, _settings.InstructionsPath);
+                    if (Directory.Exists(possiblePath))
+                    {
+                        _fullInstructionsPath = possiblePath;
+                        _logger.LogInformation("Found instructions directory at fallback path: {Path}", _fullInstructionsPath);
+                        break;
+                    }
+                    currentDir = parentDir;
+                }
+            }
         }
 
         public async Task<InstructionContent> GetInstructionAsync(string serviceName, CancellationToken cancellationToken = default)
@@ -53,10 +73,20 @@ namespace AIProjectOrchestrator.Application.Services
             var fileName = GetInstructionFileName(serviceName);
             var filePath = Path.Combine(_fullInstructionsPath, fileName);
 
+            _logger.LogInformation("Looking for instruction file at: {FilePath}", filePath);
+
             // Check if file exists
             if (!File.Exists(filePath))
             {
                 _logger.LogWarning("Instruction file not found: {FilePath}", filePath);
+                
+                // Log directory contents for debugging
+                if (Directory.Exists(_fullInstructionsPath))
+                {
+                    var files = Directory.GetFiles(_fullInstructionsPath);
+                    _logger.LogInformation("Available files in directory: {Files}", string.Join(", ", files.Select(Path.GetFileName)));
+                }
+                
                 return new InstructionContent
                 {
                     ServiceName = serviceName,
