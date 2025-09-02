@@ -13,6 +13,7 @@ using Microsoft.Extensions.Options;
 using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Infrastructure.AI;
 using AIProjectOrchestrator.API.HealthChecks;
+using AIProjectOrchestrator.Domain.Models.Review;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,7 +29,8 @@ builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks()
     .AddCheck<ClaudeHealthCheck>("claude")
     .AddCheck<LMStudioHealthCheck>("lmstudio")
-    .AddCheck<OpenRouterHealthCheck>("openrouter");
+    .AddCheck<OpenRouterHealthCheck>("openrouter")
+    .AddCheck<ReviewHealthCheck>("review");
 
 // Add Entity Framework
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -50,6 +52,10 @@ builder.Services.AddSingleton<IInstructionService, InstructionService>();
 // Configure AI Provider settings
 builder.Services.Configure<AIProviderSettings>(
     builder.Configuration.GetSection(AIProviderSettings.SectionName));
+
+// Configure Review settings
+builder.Services.Configure<ReviewSettings>(
+    builder.Configuration.GetSection(ReviewSettings.SectionName));
 
 // Register HTTP clients for each provider
 builder.Services.AddHttpClient<ClaudeClient>()
@@ -80,6 +86,12 @@ builder.Services.AddSingleton<IAIClient, OpenRouterClient>();
 
 // Register factory for accessing specific clients
 builder.Services.AddSingleton<IAIClientFactory, AIClientFactory>();
+
+// Register Review service as singleton (for in-memory storage consistency)
+builder.Services.AddSingleton<IReviewService, ReviewService>();
+
+// Register background cleanup service
+builder.Services.AddHostedService<ReviewCleanupService>();
 
 var app = builder.Build();
 

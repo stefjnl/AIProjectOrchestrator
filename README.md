@@ -15,7 +15,8 @@ AIProjectOrchestrator/
 │   ├── AIProjectOrchestrator.UnitTests/
 │   └── AIProjectOrchestrator.IntegrationTests/
 ├── docs/                                    # Documentation folder
-│   ├── user-stories/                        # User stories and requirements
+│   ├── 01 user-stories/                     # User stories and requirements
+    ├── 02 prompts/                          # Prompts for the LLM based on the user story
 │   ├── architecture/                        # Architecture decisions, diagrams
 │   └── setup/                               # Setup and deployment guides
 ├── Dockerfile                               # Multi-stage .NET 9 API build
