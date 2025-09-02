@@ -18,6 +18,7 @@ namespace AIProjectOrchestrator.Application.Services
         private readonly IReviewService _reviewService;
         private readonly ILogger<RequirementsAnalysisService> _logger;
         private readonly ConcurrentDictionary<Guid, RequirementsAnalysisStatus> _analysisStatuses;
+        private readonly ConcurrentDictionary<Guid, RequirementsAnalysisResponse> _analysisResults;
 
         public RequirementsAnalysisService(
             IInstructionService instructionService,
@@ -30,6 +31,7 @@ namespace AIProjectOrchestrator.Application.Services
             _reviewService = reviewService;
             _logger = logger;
             _analysisStatuses = new ConcurrentDictionary<Guid, RequirementsAnalysisStatus>();
+            _analysisResults = new ConcurrentDictionary<Guid, RequirementsAnalysisResponse>();
         }
 
         public async Task<RequirementsAnalysisResponse> AnalyzeRequirementsAsync(
@@ -128,7 +130,7 @@ namespace AIProjectOrchestrator.Application.Services
                 _logger.LogInformation("Requirements analysis {AnalysisId} completed successfully. Review ID: {ReviewId}", 
                     analysisId, reviewResponse.ReviewId);
 
-                return new RequirementsAnalysisResponse
+                var response = new RequirementsAnalysisResponse
                 {
                     AnalysisId = analysisId,
                     ProjectDescription = request.ProjectDescription,
@@ -137,6 +139,11 @@ namespace AIProjectOrchestrator.Application.Services
                     Status = RequirementsAnalysisStatus.PendingReview,
                     CreatedAt = DateTime.UtcNow
                 };
+
+                // Store the analysis result for later retrieval
+                _analysisResults[analysisId] = response;
+
+                return response;
             }
             catch (Exception ex)
             {
@@ -160,20 +167,68 @@ namespace AIProjectOrchestrator.Application.Services
             return RequirementsAnalysisStatus.Failed;
         }
 
+        public async Task<RequirementsAnalysisResponse?> GetAnalysisResultsAsync(
+            Guid analysisId,
+            CancellationToken cancellationToken = default)
+        {
+            if (_analysisResults.TryGetValue(analysisId, out var result))
+            {
+                return result;
+            }
+            
+            // If we don't have the result in memory, it might have been cleaned up
+            // In a production system, we would check a persistent store
+            return null;
+        }
+
+        public async Task<string?> GetAnalysisResultContentAsync(
+            Guid analysisId,
+            CancellationToken cancellationToken = default)
+        {
+            if (_analysisResults.TryGetValue(analysisId, out var result))
+            {
+                return result.AnalysisResult;
+            }
+            
+            // If we don't have the result in memory, it might have been cleaned up
+            // In a production system, we would check a persistent store
+            return null;
+        }
+
+        public async Task<bool> CanAnalyzeRequirementsAsync(
+            Guid projectId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                // For now, always allow requirements analysis
+                // In a production system, this might check:
+                // - If the project exists
+                // - If requirements analysis hasn't already been completed
+                // - If there are any business rules preventing analysis
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking if requirements can be analyzed for project {ProjectId}", projectId);
+                return false;
+            }
+        }
+
         private string CreatePromptFromRequest(RequirementsAnalysisRequest request)
         {
             var prompt = $"Project Description: {request.ProjectDescription}";
-            
+
             if (!string.IsNullOrWhiteSpace(request.AdditionalContext))
             {
                 prompt += $"\n\nAdditional Context: {request.AdditionalContext}";
             }
-            
+
             if (!string.IsNullOrWhiteSpace(request.Constraints))
             {
                 prompt += $"\n\nConstraints: {request.Constraints}";
             }
-            
+
             return prompt;
         }
     }
