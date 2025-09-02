@@ -24,7 +24,7 @@
   </ItemGroup>
 
 <ItemGroup>
-  <Content Include="..\Instructions\**\*.md">
+  <Content Include="..\..\Instructions\**\*.md">
     <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     <Link>Instructions\%(RecursiveDir)%(Filename)%(Extension)</Link>
   </Content>
