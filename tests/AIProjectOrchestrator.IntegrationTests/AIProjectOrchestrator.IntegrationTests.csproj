@@ -23,4 +23,11 @@
     <ProjectReference Include="..\..\src\AIProjectOrchestrator.API\AIProjectOrchestrator.API.csproj" />
   </ItemGroup>
 
+<ItemGroup>
+  <Content Include="..\..\Instructions\**\*.md">
+    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    <Link>Instructions\%(RecursiveDir)%(Filename)%(Extension)</Link>
+  </Content>
+</ItemGroup>
+
 </Project>

@@ -56,6 +56,7 @@ AIProjectOrchestrator/
 - **Interfaces**: Start with "I" and match implementation (IModelClient)
 - **DTOs**: Descriptive names with "Request"/"Response" suffixes
 - **Entities**: Clear domain names without technical suffixes
+ - **Classes**: Use file-scoped namespaces and primary constructors where possible
 
 ## AI Integration Patterns
 

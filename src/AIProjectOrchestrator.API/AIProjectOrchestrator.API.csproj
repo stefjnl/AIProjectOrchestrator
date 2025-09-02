@@ -16,4 +16,8 @@
     <ProjectReference Include="..\AIProjectOrchestrator.Application\AIProjectOrchestrator.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\..\Instructions\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
