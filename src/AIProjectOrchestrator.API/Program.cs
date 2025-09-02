@@ -23,6 +23,7 @@ builder.Host.UseSerilog((context, configuration) =>
         .ReadFrom.Configuration(context.Configuration));
 
 // Add services to the container.
+builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 // Add health checks
@@ -41,6 +42,9 @@ builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
 
 // Add services
 builder.Services.AddScoped<IProjectService, ProjectService>();
+
+// Add requirements analysis service
+builder.Services.AddScoped<IRequirementsAnalysisService, RequirementsAnalysisService>();
 
 // Add instruction service configuration
 builder.Services.Configure<InstructionSettings>(
@@ -102,6 +106,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Map controllers
+app.MapControllers();
 
 // Map health checks endpoint
 app.MapHealthChecks("/health");
