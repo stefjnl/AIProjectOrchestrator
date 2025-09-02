@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\AIProjectOrchestrator.Application\AIProjectOrchestrator.Application.csproj" />
     <ProjectReference Include="..\..\src\AIProjectOrchestrator.Domain\AIProjectOrchestrator.Domain.csproj" />
+    <ProjectReference Include="..\..\src\AIProjectOrchestrator.Infrastructure\AIProjectOrchestrator.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

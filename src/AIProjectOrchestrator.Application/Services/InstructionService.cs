@@ -1,6 +1,6 @@
 using AIProjectOrchestrator.Domain.Models;
 using AIProjectOrchestrator.Domain.Services;
-using AIProjectOrchestrator.Application.Configuration;
+using AIProjectOrchestrator.Domain.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
