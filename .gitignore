@@ -1,0 +1,71 @@
+# .NET Core
+*.dll
+*.exe
+*.json
+*.log
+*.pdb
+*.user
+*.userosscache
+*.suo
+*.vspscc
+*.vssscc
+build/
+[Dd]ebug*/
+[Dd]ebugPublic/
+[Rr]elease*/
+x64/
+x86/
+build-arm*/
+build-arm64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+# Visual Studio
+*.dbmdl
+*.jfm
+*.mtj
+*.scc
+*.vscode
+*.vs/
+*.vscodelog
+
+# Visual Studio 2015/2017 cache/options directory
+.vs/
+
+# Visual Studio 2017 auto generated files
+aspnetcore-https/
+aspnetcore-http/..
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker
+.dockerignore
+.env
+Dockerfile*
+docker-compose*
+docker-compose-override*
+
+# IDE
+*.idea/
+*.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+
+# User-specific files
+*.user
+*.userosscache
+*.suo
+*.userprefs
+
+# Test results
+TestResults/

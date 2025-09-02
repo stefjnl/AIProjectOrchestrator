@@ -1,0 +1,98 @@
+# US-001: Service Configuration System
+
+## User Story
+**As a** developer  
+**I want** a service that loads AI instruction files and provides them to orchestrator services  
+**So that** each AI service can access its specific behavioral instructions without file I/O concerns
+
+## Context
+The AI Project Orchestrator needs different AI services (RequirementsAnalysisService, ProjectPlanningService, etc.) to have access to their specific instruction prompts. These instructions define the AI's role, constraints, output format, and behavior for each specialized task.
+
+## Acceptance Criteria
+
+### Core Functionality
+- [ ] **File Loading**: Load `.md` instruction files from `/Instructions/` directory
+- [ ] **Service Mapping**: Map service names to instruction files using convention:
+  - `RequirementsAnalysisService` → `RequirementsAnalyst.md`
+  - `ProjectPlanningService` → `ProjectPlanner.md`
+  - `StoryGenerationService` → `StoryGenerator.md`
+- [ ] **Content Delivery**: Return instruction content as structured data to requesting services
+- [ ] **Interface Contract**: Define `IInstructionService` in Domain layer with clear method signatures
+
+### Validation & Error Handling
+- [ ] **Basic Validation**: Verify file exists and contains readable content (minimum 100 characters)
+- [ ] **Error Handling**: Return meaningful error messages when files are missing or corrupted
+- [ ] **Graceful Degradation**: Service continues to function with default/fallback instructions when files unavailable
+- [ ] **Content Validation**: Ensure loaded content is valid UTF-8 encoded markdown
+
+### Configuration
+- [ ] **Directory Configuration**: Make instructions directory path configurable via appsettings.json
+- [ ] **Service Registration**: Properly register service in DI container with appropriate lifetime (Singleton recommended)
+- [ ] **Logging**: Log file loading operations and errors with correlation IDs
+
+### Testing Requirements
+- [ ] **Unit Tests**: Test instruction loading, validation, and error scenarios
+- [ ] **Integration Tests**: Verify file system integration and DI registration
+- [ ] **Test Coverage**: Minimum 80% code coverage for instruction service components
+- [ ] **Sample Files**: Include at least one sample instruction file for testing
+
+## Implementation Guidelines
+
+### Technical Approach
+1. **Start Simple**: File-based loading in Application layer
+2. **Interface First**: Define `IInstructionService` contract in Domain layer
+3. **Basic Implementation**: Simple file reading with basic validation
+4. **Single Test**: Use one sample instruction file to validate approach
+5. **Defer Complexity**: Hot-reloading and advanced features in future iterations
+
+### Interface Design
+```csharp
+public interface IInstructionService
+{
+    Task<InstructionContent> GetInstructionAsync(string serviceName, CancellationToken cancellationToken = default);
+    Task<bool> IsValidInstructionAsync(string serviceName, CancellationToken cancellationToken = default);
+}
+```
+
+### File Structure Expected
+```
+Instructions/
+├── RequirementsAnalyst.md
+├── ProjectPlanner.md
+├── StoryGenerator.md
+└── CodeReviewer.md
+```
+
+## Definition of Done
+- [ ] `IInstructionService` interface defined in Domain layer
+- [ ] `InstructionService` implementation in Application layer
+- [ ] Service registered in DI container
+- [ ] Unit tests written and passing
+- [ ] Integration test demonstrates end-to-end functionality
+- [ ] Sample `RequirementsAnalyst.md` file created for testing
+- [ ] Configuration section added to appsettings.json
+- [ ] Error logging implemented with structured logging
+- [ ] Code builds and all existing tests continue to pass
+
+## Out of Scope (Future Stories)
+- Hot-reloading of instruction files during runtime
+- Instruction file versioning or history
+- Complex validation rules or schema enforcement
+- Performance optimization or caching strategies
+- Web UI for instruction management
+
+## Technical Notes
+- Use `ILogger<InstructionService>` for structured logging
+- Consider `IOptions<InstructionSettings>` pattern for configuration
+- File reading should be async (`File.ReadAllTextAsync`)
+- Use proper exception handling and custom exceptions where appropriate
+- Follow Clean Architecture principles - no file I/O in Domain layer
+
+## Testing Strategy
+Create sample `RequirementsAnalyst.md` with realistic content (~500+ words) including:
+- Role definition
+- Task constraints  
+- Output format requirements
+- Example scenarios
+
+This ensures testing covers realistic instruction complexity, not just trivial file reading scenarios.

@@ -1,0 +1,22 @@
+# Set default behavior to automatically normalize line endings
+* text=auto
+
+# Explicitly define text files
+*.cs     text diff=csharp
+*.yml    text
+*.yaml   text
+*.json   text
+*.md     text
+*.txt    text
+*.sh     text eol=lf
+*.bat    text eol=crlf
+
+# Keep images and other binaries untouched
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.dll binary
+*.exe binary
+*.zip binary
