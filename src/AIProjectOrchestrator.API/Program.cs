@@ -7,8 +7,12 @@ using AIProjectOrchestrator.Infrastructure.Repositories;
 using AIProjectOrchestrator.Application.Interfaces;
 using AIProjectOrchestrator.Application.Services;
 using AIProjectOrchestrator.Domain.Services;
-using AIProjectOrchestrator.Application.Configuration;
+using AIProjectOrchestrator.Domain.Configuration;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
+using AIProjectOrchestrator.Domain.Models.AI;
+using AIProjectOrchestrator.Infrastructure.AI;
+using AIProjectOrchestrator.API.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,7 +25,10 @@ builder.Host.UseSerilog((context, configuration) =>
 builder.Services.AddOpenApi();
 
 // Add health checks
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddCheck<ClaudeHealthCheck>("claude")
+    .AddCheck<LMStudioHealthCheck>("lmstudio")
+    .AddCheck<OpenRouterHealthCheck>("openrouter");
 
 // Add Entity Framework
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -39,6 +46,40 @@ builder.Services.Configure<InstructionSettings>(
 
 // Add instruction service
 builder.Services.AddSingleton<IInstructionService, InstructionService>();
+
+// Configure AI Provider settings
+builder.Services.Configure<AIProviderSettings>(
+    builder.Configuration.GetSection(AIProviderSettings.SectionName));
+
+// Register HTTP clients for each provider
+builder.Services.AddHttpClient<ClaudeClient>()
+    .ConfigureHttpClient((serviceProvider, client) => {
+        var settings = serviceProvider.GetRequiredService<IOptions<AIProviderSettings>>().Value.Claude;
+        client.BaseAddress = new Uri(settings.BaseUrl);
+        client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
+    });
+
+builder.Services.AddHttpClient<LMStudioClient>()
+    .ConfigureHttpClient((serviceProvider, client) => {
+        var settings = serviceProvider.GetRequiredService<IOptions<AIProviderSettings>>().Value.LMStudio;
+        client.BaseAddress = new Uri(settings.BaseUrl);
+        client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
+    });
+
+builder.Services.AddHttpClient<OpenRouterClient>()
+    .ConfigureHttpClient((serviceProvider, client) => {
+        var settings = serviceProvider.GetRequiredService<IOptions<AIProviderSettings>>().Value.OpenRouter;
+        client.BaseAddress = new Uri(settings.BaseUrl);
+        client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
+    });
+
+// Register AI clients as singletons
+builder.Services.AddSingleton<IAIClient, ClaudeClient>();
+builder.Services.AddSingleton<IAIClient, LMStudioClient>();
+builder.Services.AddSingleton<IAIClient, OpenRouterClient>();
+
+// Register factory for accessing specific clients
+builder.Services.AddSingleton<IAIClientFactory, AIClientFactory>();
 
 var app = builder.Build();
 

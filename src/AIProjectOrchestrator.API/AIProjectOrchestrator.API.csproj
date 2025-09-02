@@ -14,6 +14,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AIProjectOrchestrator.Application\AIProjectOrchestrator.Application.csproj" />
+    <ProjectReference Include="..\AIProjectOrchestrator.Infrastructure\AIProjectOrchestrator.Infrastructure.csproj" />
+    <ProjectReference Include="..\AIProjectOrchestrator.Domain\AIProjectOrchestrator.Domain.csproj" />
   </ItemGroup>
 
   <ItemGroup>

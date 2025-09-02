@@ -1,4 +1,4 @@
-namespace AIProjectOrchestrator.Application.Configuration
+namespace AIProjectOrchestrator.Domain.Configuration
 {
     public class InstructionSettings
     {

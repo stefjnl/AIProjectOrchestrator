@@ -1,0 +1,367 @@
+# Qwen Implementation Prompt: US-002A Multi-Provider AI Client Interface
+
+## Context
+You are implementing a multi-provider AI client system for an AI Project Orchestrator built with .NET 9 Clean Architecture. The existing solution has Domain, Application, Infrastructure, and API layers with proper dependency injection, Entity Framework Core, working Docker containerization, and an instruction service system (US-001).
+
+## Objective
+Create a unified interface for calling AI models across different providers (Claude API, LM Studio, OpenRouter) with proper error handling, retry logic, and comprehensive testing. This enables AI orchestration services to make model calls without provider-specific code.
+
+## Implementation Requirements
+
+### 1. Domain Layer Models and Interface
+
+**Location**: `src/AIProjectOrchestrator.Domain/Models/AI/AIRequest.cs`
+```csharp
+public class AIRequest
+{
+    public string Prompt { get; set; } = string.Empty;
+    public string SystemMessage { get; set; } = string.Empty;
+    public string ModelName { get; set; } = string.Empty;
+    public double Temperature { get; set; } = 0.7;
+    public int MaxTokens { get; set; } = 1000;
+    public Dictionary<string, object> AdditionalProperties { get; set; } = new();
+}
+```
+
+**Location**: `src/AIProjectOrchestrator.Domain/Models/AI/AIResponse.cs`
+```csharp
+public class AIResponse
+{
+    public string Content { get; set; } = string.Empty;
+    public int TokensUsed { get; set; }
+    public string ProviderName { get; set; } = string.Empty;
+    public bool IsSuccess { get; set; }
+    public string? ErrorMessage { get; set; }
+    public TimeSpan ResponseTime { get; set; }
+    public Dictionary<string, object> Metadata { get; set; } = new();
+}
+```
+
+**Location**: `src/AIProjectOrchestrator.Domain/Services/IAIClient.cs`
+```csharp
+public interface IAIClient
+{
+    string ProviderName { get; }
+    Task<AIResponse> CallAsync(AIRequest request, CancellationToken cancellationToken = default);
+    Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default);
+}
+```
+
+### 2. Domain Layer Exceptions
+
+**Location**: `src/AIProjectOrchestrator.Domain/Exceptions/AIProviderException.cs`
+```csharp
+public class AIProviderException : Exception
+{
+    public string ProviderName { get; }
+    public AIProviderException(string providerName, string message) : base(message)
+        => ProviderName = providerName;
+    public AIProviderException(string providerName, string message, Exception innerException) 
+        : base(message, innerException) => ProviderName = providerName;
+}
+
+public class AIRateLimitException : AIProviderException
+{
+    public TimeSpan RetryAfter { get; }
+    public AIRateLimitException(string providerName, TimeSpan retryAfter) 
+        : base(providerName, $"Rate limit exceeded for {providerName}. Retry after {retryAfter}")
+        => RetryAfter = retryAfter;
+}
+
+public class AITimeoutException : AIProviderException
+{
+    public AITimeoutException(string providerName, TimeSpan timeout)
+        : base(providerName, $"Request to {providerName} timed out after {timeout}") { }
+}
+```
+
+### 3. Application Layer Configuration
+
+**Location**: `src/AIProjectOrchestrator.Application/Configuration/AIProviderSettings.cs`
+```csharp
+public class AIProviderSettings
+{
+    public const string SectionName = "AIProviders";
+    
+    public ClaudeSettings Claude { get; set; } = new();
+    public LMStudioSettings LMStudio { get; set; } = new();
+    public OpenRouterSettings OpenRouter { get; set; } = new();
+}
+
+public class ClaudeSettings
+{
+    public string ApiKey { get; set; } = string.Empty;
+    public string BaseUrl { get; set; } = "https://api.anthropic.com";
+    public int TimeoutSeconds { get; set; } = 30;
+    public int MaxRetries { get; set; } = 3;
+    public string DefaultModel { get; set; } = "claude-3-sonnet-20240229";
+}
+
+public class LMStudioSettings
+{
+    public string BaseUrl { get; set; } = "http://100.74.43.85:1234";
+    public int TimeoutSeconds { get; set; } = 60;
+    public int MaxRetries { get; set; } = 2;
+    public string DefaultModel { get; set; } = "qwen-coder";
+}
+
+public class OpenRouterSettings
+{
+    public string ApiKey { get; set; } = string.Empty;
+    public string BaseUrl { get; set; } = "https://openrouter.ai/api/v1";
+    public int TimeoutSeconds { get; set; } = 30;
+    public int MaxRetries { get; set; } = 3;
+    public string DefaultModel { get; set; } = "anthropic/claude-3-sonnet";
+}
+```
+
+### 4. Infrastructure Layer Client Implementations
+
+**Location**: `src/AIProjectOrchestrator.Infrastructure/AI/ClaudeClient.cs`
+
+Implement Claude client with:
+- Anthropic API format: POST to `/v1/messages`
+- Headers: `x-api-key`, `anthropic-version: 2023-06-01`, `content-type: application/json`
+- Request body format: `{"model": "...", "max_tokens": 1000, "messages": [{"role": "user", "content": "..."}]}`
+- Handle Claude-specific response format and error codes
+- Implement retry logic with exponential backoff (1s, 2s, 4s)
+- Log all requests/responses with sanitized API keys
+
+**Location**: `src/AIProjectOrchestrator.Infrastructure/AI/LMStudioClient.cs`
+
+Implement LM Studio client with:
+- OpenAI-compatible API format: POST to `/v1/chat/completions`
+- Headers: `content-type: application/json` (no authentication for local)
+- Request body format: `{"model": "...", "messages": [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}], "temperature": 0.7, "max_tokens": 1000}`
+- Handle OpenAI-compatible response format
+- Different timeout handling for local network calls
+- Log all requests/responses with performance metrics
+
+**Location**: `src/AIProjectOrchestrator.Infrastructure/AI/OpenRouterClient.cs`
+
+Implement OpenRouter client with:
+- OpenAI-compatible API format: POST to `/v1/chat/completions`
+- Headers: `authorization: Bearer <key>`, `http-referer: <app-name>`, `x-title: <app-name>`
+- Request body format: Same as LM Studio but with provider-specific model names
+- Handle OpenRouter-specific error responses and rate limiting
+- Implement retry logic with proper backoff
+- Log all requests/responses with provider routing information
+
+### 5. Infrastructure Layer Base Client
+
+**Location**: `src/AIProjectOrchestrator.Infrastructure/AI/BaseAIClient.cs`
+
+Create abstract base class with:
+- Common HTTP client handling using `IHttpClientFactory`
+- Shared retry logic with exponential backoff
+- Common logging patterns with correlation IDs
+- Shared timeout and cancellation token handling
+- Performance measurement and metrics collection
+
+### 6. Configuration Setup
+
+**Location**: `src/AIProjectOrchestrator.API/appsettings.json`
+```json
+{
+  "AIProviders": {
+    "Claude": {
+      "ApiKey": "",
+      "BaseUrl": "https://api.anthropic.com",
+      "TimeoutSeconds": 30,
+      "MaxRetries": 3,
+      "DefaultModel": "claude-3-sonnet-20240229"
+    },
+    "LMStudio": {
+      "BaseUrl": "http://100.74.43.85:1234",
+      "TimeoutSeconds": 60,
+      "MaxRetries": 2,
+      "DefaultModel": "qwen-coder"
+    },
+    "OpenRouter": {
+      "ApiKey": "",
+      "BaseUrl": "https://openrouter.ai/api/v1",
+      "TimeoutSeconds": 30,
+      "MaxRetries": 3,
+      "DefaultModel": "anthropic/claude-3-sonnet"
+    }
+  }
+}
+```
+
+**Location**: `src/AIProjectOrchestrator.API/appsettings.Development.json`
+```json
+{
+  "AIProviders": {
+    "Claude": {
+      "ApiKey": "test-key-for-development"
+    },
+    "OpenRouter": {
+      "ApiKey": "test-key-for-development"
+    }
+  }
+}
+```
+
+### 7. Dependency Injection Registration
+
+**Location**: `src/AIProjectOrchestrator.API/Program.cs`
+
+Add registration code:
+```csharp
+// Configure AI Provider settings
+builder.Services.Configure<AIProviderSettings>(
+    builder.Configuration.GetSection(AIProviderSettings.SectionName));
+
+// Register HTTP clients for each provider
+builder.Services.AddHttpClient<ClaudeClient>()
+    .ConfigureHttpClient((serviceProvider, client) => {
+        var settings = serviceProvider.GetRequiredService<IOptions<AIProviderSettings>>().Value.Claude;
+        client.BaseAddress = new Uri(settings.BaseUrl);
+        client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
+    });
+
+// Similar registrations for LMStudioClient and OpenRouterClient
+
+// Register AI clients as singletons
+builder.Services.AddSingleton<IAIClient, ClaudeClient>();
+builder.Services.AddSingleton<IAIClient, LMStudioClient>();
+builder.Services.AddSingleton<IAIClient, OpenRouterClient>();
+
+// Register factory or resolver pattern for accessing specific clients
+builder.Services.AddSingleton<IAIClientFactory, AIClientFactory>();
+```
+
+### 8. Testing Implementation
+
+**Unit Tests** (`tests/AIProjectOrchestrator.UnitTests/AI/`):
+
+Create test files:
+- `AIRequestTests.cs` - Model validation and serialization
+- `AIResponseTests.cs` - Model validation and deserialization  
+- `ClaudeClientTests.cs` - Request formatting, response parsing, error handling
+- `LMStudioClientTests.cs` - OpenAI format compatibility, local endpoint handling
+- `OpenRouterClientTests.cs` - Provider routing, authentication, error scenarios
+- `AIClientFactoryTests.cs` - Client resolution and configuration
+
+Use `Microsoft.Extensions.Http` testing utilities and mock HTTP responses.
+
+**Integration Tests** (`tests/AIProjectOrchestrator.IntegrationTests/AI/`):
+
+Create test files:
+- `ClaudeClientIntegrationTests.cs` - Real API calls (skip if no API key)
+- `LMStudioClientIntegrationTests.cs` - Local server calls
+- `OpenRouterClientIntegrationTests.cs` - Real API calls (skip if no API key)
+- `AIProviderHealthChecksIntegrationTests.cs` - Health check endpoints
+
+Use test categories `[Category("Integration")]` and `[Category("RequiresApiKey")]` for conditional execution.
+
+### 9. Health Check Integration
+
+**Location**: `src/AIProjectOrchestrator.API/Program.cs`
+
+Add health checks for AI providers:
+```csharp
+builder.Services.AddHealthChecks()
+    .AddCheck<ClaudeHealthCheck>("claude")
+    .AddCheck<LMStudioHealthCheck>("lmstudio")
+    .AddCheck<OpenRouterHealthCheck>("openrouter");
+```
+
+Create health check classes that test basic connectivity to each provider.
+
+### 10. API Controller for Testing
+
+**Location**: `src/AIProjectOrchestrator.API/Controllers/AITestController.cs`
+
+Create controller for manual testing:
+```csharp
+[ApiController]
+[Route("api/[controller]")]
+public class AITestController : ControllerBase
+{
+    [HttpPost("claude")]
+    public async Task<ActionResult<AIResponse>> TestClaude([FromBody] AIRequest request) { ... }
+    
+    [HttpPost("lmstudio")]
+    public async Task<ActionResult<AIResponse>> TestLMStudio([FromBody] AIRequest request) { ... }
+    
+    [HttpPost("openrouter")]
+    public async Task<ActionResult<AIResponse>> TestOpenRouter([FromBody] AIRequest request) { ... }
+}
+```
+
+## Technical Implementation Details
+
+### HTTP Client Best Practices
+- Use `IHttpClientFactory` to avoid socket exhaustion
+- Configure different timeouts per provider based on expected response times
+- Implement proper disposal patterns
+- Use correlation IDs for request tracing across providers
+
+### Retry Logic Implementation
+- Only retry on transient failures: 408, 429, 500, 502, 503, 504
+- Use exponential backoff with jitter: base delays of 1s, 2s, 4s
+- Respect `Retry-After` headers when present
+- Log retry attempts with correlation IDs
+
+### Error Handling Strategy
+- Convert HTTP status codes to appropriate custom exceptions
+- Preserve original error messages from providers
+- Log errors with full context but sanitize sensitive data
+- Provide meaningful error messages for common failure scenarios
+
+### Logging Requirements
+- Log request/response for each AI call with sanitized content
+- Include correlation IDs for tracing across services  
+- Log performance metrics (response time, token usage, success rate)
+- Use structured logging with consistent property names
+- Implement different log levels: Debug for full payloads, Info for summaries
+
+### Security Considerations
+- Store API keys in user secrets for development
+- Sanitize API keys in logs (show only first 8 characters)
+- Use HTTPS for all external API calls
+- Validate input parameters to prevent injection attacks
+- Implement rate limiting to prevent abuse
+
+## Performance Requirements
+- All AI calls must be fully asynchronous with proper cancellation token support
+- Response time logging with millisecond precision
+- Memory-efficient request/response handling
+- Connection pooling through HttpClientFactory
+- Concurrent request support with thread safety
+
+## Definition of Done
+- [ ] All interfaces, models, and implementations compile without errors
+- [ ] All AI clients registered in DI container as Singletons
+- [ ] Unit tests achieve >85% code coverage and pass
+- [ ] Integration tests successfully call real API endpoints (when API keys available)
+- [ ] Configuration properly loads from appsettings.json with validation
+- [ ] Structured logging implemented with correlation IDs and performance metrics
+- [ ] Error handling covers all specified failure scenarios with custom exceptions
+- [ ] Health checks implemented for all providers
+- [ ] Test controller endpoints functional for manual testing
+- [ ] Retry logic working with exponential backoff
+- [ ] All existing tests continue to pass
+- [ ] Docker containers build and run successfully
+- [ ] API documentation updated with new AI testing endpoints
+
+## Critical Evaluation Points
+
+When reviewing the generated code, examine:
+1. **HTTP Client Management**: Proper use of IHttpClientFactory, timeout configuration, resource disposal
+2. **Async Patterns**: Correct async/await usage, cancellation token propagation, task handling
+3. **Error Handling**: Comprehensive exception hierarchy, meaningful error messages, proper logging
+4. **Configuration Management**: IOptions pattern usage, validation, environment-specific settings
+5. **Dependency Injection**: Correct lifetimes, proper abstraction boundaries, factory patterns
+6. **Testing Strategy**: Comprehensive unit tests, realistic integration tests, proper mocking
+7. **Security**: API key handling, input validation, secure HTTP communication
+8. **Performance**: Memory efficiency, connection reuse, concurrent request handling
+
+## Implementation Notes
+- Implement Claude client first as it has the most specific API format requirements
+- Use the existing logging infrastructure (Serilog) for consistency
+- Follow existing project conventions for folder structure and naming
+- Ensure all new code follows Clean Architecture dependency rules
+- Test with real API endpoints when possible, but gracefully handle missing API keys
+- Focus on making the code production-ready with proper error handling and monitoring
