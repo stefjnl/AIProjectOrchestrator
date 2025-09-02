@@ -46,6 +46,12 @@ builder.Services.AddScoped<IProjectService, ProjectService>();
 // Add requirements analysis service
 builder.Services.AddScoped<IRequirementsAnalysisService, RequirementsAnalysisService>();
 
+// Add project planning service
+builder.Services.AddScoped<IProjectPlanningService, ProjectPlanningService>();
+
+// Add story generation service
+builder.Services.AddScoped<IStoryGenerationService, StoryGenerationService>();
+
 // Add instruction service configuration
 builder.Services.Configure<InstructionSettings>(
     builder.Configuration.GetSection(InstructionSettings.SectionName));
