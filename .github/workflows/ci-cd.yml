@@ -38,8 +38,17 @@ jobs:
     - name: Build Docker image
       run: docker build -t ai-project-orchestrator .
 
-    - name: Push to container registry (example with GitHub Container Registry)
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Push to GitHub Container Registry
       run: |
-        echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin 2>/dev/null
-        docker tag ai-project-orchestrator ghcr.io/${{ github.repository_owner }}/ai-project-orchestrator:latest
-        docker push ghcr.io/${{ github.repository_owner }}/ai-project-orchestrator:latest
+        IMAGE_ID=ghcr.io/${{ github.actor }}/ai-project-orchestrator
+        # Change all uppercase to lowercase
+        IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+        docker tag ai-project-orchestrator $IMAGE_ID:latest
+        docker push $IMAGE_ID:latest
