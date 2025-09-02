@@ -215,6 +215,18 @@ namespace AIProjectOrchestrator.Application.Services
             }
         }
 
+        public async Task<string?> GetBusinessContextAsync(Guid analysisId, CancellationToken cancellationToken = default)
+        {
+            if (_analysisResults.TryGetValue(analysisId, out var result))
+            {
+                return result.AnalysisResult;
+            }
+
+            // If we don't have the result in memory, it might have been cleaned up
+            // In a production system, we would check a persistent store
+            return null;
+        }
+
         private string CreatePromptFromRequest(RequirementsAnalysisRequest request)
         {
             var prompt = $"Project Description: {request.ProjectDescription}";
