@@ -47,7 +47,6 @@ yarn-error.log*
 # Docker
 .dockerignore
 .env
-Dockerfile*
 docker-compose*
 docker-compose-override*
 

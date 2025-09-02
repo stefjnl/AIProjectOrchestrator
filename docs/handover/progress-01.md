@@ -66,7 +66,7 @@ Developer typically follows: Brainstorm → Vision/Plan/Roadmap → User Stories
 
 ### Project Structure (Completed)
 ```
-C:\git\AIProjectOrchestrator\
+C:\\git\\AIProjectOrchestrator\\
 ├── src/
 │   ├── AIProjectOrchestrator.API/           # Web API layer
 │   ├── AIProjectOrchestrator.Application/   # Business logic, services  
@@ -79,9 +79,9 @@ C:\git\AIProjectOrchestrator\
 │   ├── user-stories/                        # User stories and requirements
 │   ├── architecture/                        # Architecture decisions, diagrams  
 │   └── setup/                               # Setup and deployment guides
+├── Dockerfile                              # Multi-stage .NET 9 API build
 ├── docker-compose.yml                       # PostgreSQL + API services
 ├── .github/workflows/                       # CI/CD automation
-├── Dockerfile                              # API containerization
 ├── .gitignore                              # .NET specific ignores
 └── README.md                               # Setup instructions
 ```
@@ -195,8 +195,8 @@ dotnet test
 
 ### Key Configuration Files
 - **appsettings.json**: Basic configuration (no secrets)
-- **docker-compose.yml**: PostgreSQL + API container orchestration
 - **Dockerfile**: Multi-stage .NET 9 API build
+- **docker-compose.yml**: PostgreSQL + API container orchestration
 - **.github/workflows/**: CI/CD automation (build, test, deploy)
 
 ## Critical Implementation Notes

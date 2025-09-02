@@ -18,6 +18,7 @@ AIProjectOrchestrator/
 │   ├── user-stories/                        # User stories and requirements
 │   ├── architecture/                        # Architecture decisions, diagrams
 │   └── setup/                               # Setup and deployment guides
+├── Dockerfile                               # Multi-stage .NET 9 API build
 ├── docker-compose.yml
 ├── .github/workflows/
 └── README.md
