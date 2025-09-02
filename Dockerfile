@@ -12,6 +12,10 @@ COPY ["src/AIProjectOrchestrator.API/AIProjectOrchestrator.API.csproj", "src/AIP
 COPY ["src/AIProjectOrchestrator.Application/AIProjectOrchestrator.Application.csproj", "src/AIProjectOrchestrator.Application/"]
 COPY ["src/AIProjectOrchestrator.Domain/AIProjectOrchestrator.Domain.csproj", "src/AIProjectOrchestrator.Domain/"]
 COPY ["src/AIProjectOrchestrator.Infrastructure/AIProjectOrchestrator.Infrastructure.csproj", "src/AIProjectOrchestrator.Infrastructure/"]
+
+# Copy instruction files
+COPY Instructions ./Instructions
+
 RUN dotnet restore "./src/AIProjectOrchestrator.API/AIProjectOrchestrator.API.csproj"
 
 # Copy everything else and build
