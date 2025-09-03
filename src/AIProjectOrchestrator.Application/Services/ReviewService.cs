@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using AIProjectOrchestrator.Domain.Models.Review;
+using AIProjectOrchestrator.Domain.Models.Review.Dashboard;
 using AIProjectOrchestrator.Domain.Services;
 using AIProjectOrchestrator.Domain.Configuration;
 
@@ -284,6 +285,44 @@ namespace AIProjectOrchestrator.Application.Services
             }
 
             return expiredCount;
+        }
+        
+        // Add to ReviewService (Application layer)
+        public async Task<ReviewDashboardData> GetDashboardDataAsync(CancellationToken cancellationToken)
+        {
+            // Aggregate pending reviews from in-memory storage
+            // Cross-reference with requirements/planning/story services to build workflow status
+            // Return structured data for dashboard consumption
+            
+            var pendingReviews = await GetPendingReviewsAsync(cancellationToken);
+            
+            var dashboardData = new ReviewDashboardData
+            {
+                PendingReviews = pendingReviews.Select(r => new PendingReviewItem
+                {
+                    ReviewId = r.Id,
+                    ServiceType = r.ServiceName,
+                    Title = r.PipelineStage,
+                    Content = r.Content,
+                    OriginalRequest = r.OriginalRequest?.Prompt ?? string.Empty,
+                    SubmittedAt = r.SubmittedAt
+                }).ToList(),
+                ActiveWorkflows = new List<WorkflowStatusItem>(), // Will be implemented later
+                LastUpdated = DateTime.UtcNow
+            };
+
+            return dashboardData;
+        }
+
+        public async Task<WorkflowStatusItem?> GetWorkflowStatusAsync(Guid projectId, CancellationToken cancellationToken = default)
+        {
+            // Track complete workflow status across all services
+            // Requirements status, Planning status, Stories status
+            // Return current stage and next required action
+            
+            // This is a placeholder implementation
+            // In a real implementation, we would query the actual workflow status
+            return null;
         }
     }
 }
