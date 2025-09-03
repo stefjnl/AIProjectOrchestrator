@@ -103,6 +103,18 @@ namespace AIProjectOrchestrator.UnitTests.Code
             _mockStoryGenerationService.Setup(x => x.GetApprovedStoriesAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(stories);
 
+            // Setup dependency validation chain
+            var planningId = Guid.NewGuid();
+            var requirementsAnalysisId = Guid.NewGuid();
+            _mockStoryGenerationService.Setup(x => x.GetPlanningIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(planningId);
+            _mockProjectPlanningService.Setup(x => x.GetPlanningStatusAsync(planningId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(AIProjectOrchestrator.Domain.Models.ProjectPlanningStatus.Approved);
+            _mockProjectPlanningService.Setup(x => x.GetRequirementsAnalysisIdAsync(planningId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(requirementsAnalysisId);
+            _mockRequirementsAnalysisService.Setup(x => x.GetAnalysisStatusAsync(requirementsAnalysisId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(AIProjectOrchestrator.Domain.Models.RequirementsAnalysisStatus.Approved);
+
             _mockInstructionService.Setup(x => x.GetInstructionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(instructionContent);
 
@@ -206,6 +218,18 @@ namespace AIProjectOrchestrator.UnitTests.Code
             _mockStoryGenerationService.Setup(x => x.GetApprovedStoriesAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(stories);
 
+            // Setup dependency validation chain
+            var planningId = Guid.NewGuid();
+            var requirementsAnalysisId = Guid.NewGuid();
+            _mockStoryGenerationService.Setup(x => x.GetPlanningIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(planningId);
+            _mockProjectPlanningService.Setup(x => x.GetPlanningStatusAsync(planningId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(AIProjectOrchestrator.Domain.Models.ProjectPlanningStatus.Approved);
+            _mockProjectPlanningService.Setup(x => x.GetRequirementsAnalysisIdAsync(planningId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(requirementsAnalysisId);
+            _mockRequirementsAnalysisService.Setup(x => x.GetAnalysisStatusAsync(requirementsAnalysisId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(AIProjectOrchestrator.Domain.Models.RequirementsAnalysisStatus.Approved);
+
             _mockInstructionService.Setup(x => x.GetInstructionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(instructionContent);
 
@@ -273,6 +297,18 @@ namespace AIProjectOrchestrator.UnitTests.Code
 
             _mockStoryGenerationService.Setup(x => x.GetApprovedStoriesAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(stories);
+
+            // Setup dependency validation chain
+            var planningId = Guid.NewGuid();
+            var requirementsAnalysisId = Guid.NewGuid();
+            _mockStoryGenerationService.Setup(x => x.GetPlanningIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(planningId);
+            _mockProjectPlanningService.Setup(x => x.GetPlanningStatusAsync(planningId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(AIProjectOrchestrator.Domain.Models.ProjectPlanningStatus.Approved);
+            _mockProjectPlanningService.Setup(x => x.GetRequirementsAnalysisIdAsync(planningId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(requirementsAnalysisId);
+            _mockRequirementsAnalysisService.Setup(x => x.GetAnalysisStatusAsync(requirementsAnalysisId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(AIProjectOrchestrator.Domain.Models.RequirementsAnalysisStatus.Approved);
 
             _mockInstructionService.Setup(x => x.GetInstructionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(instructionContent);
@@ -349,6 +385,18 @@ namespace AIProjectOrchestrator.UnitTests.Code
 
             _mockStoryGenerationService.Setup(x => x.GetApprovedStoriesAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(stories);
+
+            // Setup dependency validation chain
+            var planningId = Guid.NewGuid();
+            var requirementsAnalysisId = Guid.NewGuid();
+            _mockStoryGenerationService.Setup(x => x.GetPlanningIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(planningId);
+            _mockProjectPlanningService.Setup(x => x.GetPlanningStatusAsync(planningId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(AIProjectOrchestrator.Domain.Models.ProjectPlanningStatus.Approved);
+            _mockProjectPlanningService.Setup(x => x.GetRequirementsAnalysisIdAsync(planningId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(requirementsAnalysisId);
+            _mockRequirementsAnalysisService.Setup(x => x.GetAnalysisStatusAsync(requirementsAnalysisId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(AIProjectOrchestrator.Domain.Models.RequirementsAnalysisStatus.Approved);
 
             _mockInstructionService.Setup(x => x.GetInstructionAsync("CodeGenerator_claude", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(instructionContent);
@@ -434,6 +482,18 @@ namespace AIProjectOrchestrator.UnitTests.Code
             _mockStoryGenerationService.Setup(x => x.GetApprovedStoriesAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(stories);
 
+            // Setup dependency validation chain
+            var planningId = Guid.NewGuid();
+            var requirementsAnalysisId = Guid.NewGuid();
+            _mockStoryGenerationService.Setup(x => x.GetPlanningIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(planningId);
+            _mockProjectPlanningService.Setup(x => x.GetPlanningStatusAsync(planningId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(AIProjectOrchestrator.Domain.Models.ProjectPlanningStatus.Approved);
+            _mockProjectPlanningService.Setup(x => x.GetRequirementsAnalysisIdAsync(planningId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(requirementsAnalysisId);
+            _mockRequirementsAnalysisService.Setup(x => x.GetAnalysisStatusAsync(requirementsAnalysisId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(AIProjectOrchestrator.Domain.Models.RequirementsAnalysisStatus.Approved);
+
             _mockInstructionService.Setup(x => x.GetInstructionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(instructionContent);
 
@@ -512,6 +572,18 @@ namespace AIProjectOrchestrator.UnitTests.Code
             _mockStoryGenerationService.Setup(x => x.GetApprovedStoriesAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(stories);
 
+            // Setup dependency validation chain
+            var planningId = Guid.NewGuid();
+            var requirementsAnalysisId = Guid.NewGuid();
+            _mockStoryGenerationService.Setup(x => x.GetPlanningIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(planningId);
+            _mockProjectPlanningService.Setup(x => x.GetPlanningStatusAsync(planningId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(AIProjectOrchestrator.Domain.Models.ProjectPlanningStatus.Approved);
+            _mockProjectPlanningService.Setup(x => x.GetRequirementsAnalysisIdAsync(planningId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(requirementsAnalysisId);
+            _mockRequirementsAnalysisService.Setup(x => x.GetAnalysisStatusAsync(requirementsAnalysisId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(AIProjectOrchestrator.Domain.Models.RequirementsAnalysisStatus.Approved);
+
             _mockInstructionService.Setup(x => x.GetInstructionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(instructionContent);
 
@@ -576,6 +648,18 @@ namespace AIProjectOrchestrator.UnitTests.Code
             _mockStoryGenerationService.Setup(x => x.GetApprovedStoriesAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(stories);
 
+            // Setup dependency validation chain
+            var planningId = Guid.NewGuid();
+            var requirementsAnalysisId = Guid.NewGuid();
+            _mockStoryGenerationService.Setup(x => x.GetPlanningIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(planningId);
+            _mockProjectPlanningService.Setup(x => x.GetPlanningStatusAsync(planningId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(AIProjectOrchestrator.Domain.Models.ProjectPlanningStatus.Approved);
+            _mockProjectPlanningService.Setup(x => x.GetRequirementsAnalysisIdAsync(planningId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(requirementsAnalysisId);
+            _mockRequirementsAnalysisService.Setup(x => x.GetAnalysisStatusAsync(requirementsAnalysisId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(AIProjectOrchestrator.Domain.Models.RequirementsAnalysisStatus.Approved);
+
             _mockInstructionService.Setup(x => x.GetInstructionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(instructionContent);
 
@@ -633,7 +717,7 @@ namespace AIProjectOrchestrator.UnitTests.Code
                 new CodeArtifact
                 {
                     FileName = "ValidClass.cs",
-                    Content = "public class ValidClass { public int Value { get; set; } }",
+                    Content = "using System;\n\nnamespace TestNamespace\n{\n    public class ValidClass { public int Value { get; set; } }\n}",
                     FileType = "Implementation"
                 }
             };
@@ -660,14 +744,14 @@ namespace AIProjectOrchestrator.UnitTests.Code
                 new CodeArtifact
                 {
                     FileName = "InvalidClass.cs",
-                    Content = "", // Empty content
+                    Content = "invalid syntax {{{", // Invalid C# syntax
                     FileType = "Implementation"
                 }
             };
 
             // Act
             // Use reflection to invoke the private method
-            var method = typeof(CodeGenerationService).GetMethod("ValidateGeneratedCodeAsync", 
+            var method = typeof(CodeGenerationService).GetMethod("ValidateGeneratedCodeAsync",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
             var task = (Task<bool>)method.Invoke(_service, new object[] { artifacts, CancellationToken.None });
             var result = await task;
@@ -679,7 +763,7 @@ namespace AIProjectOrchestrator.UnitTests.Code
         }
 
         [Fact]
-        public async Task GetGenerationStatusAsync_ValidId_ReturnsCorrectStatus()
+        public async Task GetStatusAsync_ValidId_ReturnsCorrectStatus()
         {
             // Arrange
             var storyGenerationId = Guid.NewGuid();
@@ -729,6 +813,18 @@ namespace AIProjectOrchestrator.UnitTests.Code
 
             _mockStoryGenerationService.Setup(x => x.GetApprovedStoriesAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(stories);
+
+            // Setup dependency validation chain
+            var planningId = Guid.NewGuid();
+            var requirementsAnalysisId = Guid.NewGuid();
+            _mockStoryGenerationService.Setup(x => x.GetPlanningIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(planningId);
+            _mockProjectPlanningService.Setup(x => x.GetPlanningStatusAsync(planningId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(AIProjectOrchestrator.Domain.Models.ProjectPlanningStatus.Approved);
+            _mockProjectPlanningService.Setup(x => x.GetRequirementsAnalysisIdAsync(planningId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(requirementsAnalysisId);
+            _mockRequirementsAnalysisService.Setup(x => x.GetAnalysisStatusAsync(requirementsAnalysisId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(AIProjectOrchestrator.Domain.Models.RequirementsAnalysisStatus.Approved);
 
             _mockInstructionService.Setup(x => x.GetInstructionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(instructionContent);
@@ -748,14 +844,14 @@ namespace AIProjectOrchestrator.UnitTests.Code
             var generationResult = await _service.GenerateCodeAsync(request, CancellationToken.None);
 
             // Act
-            var status = await _service.GetGenerationStatusAsync(generationResult.GenerationId, CancellationToken.None);
+            var status = await _service.GetStatusAsync(generationResult.GenerationId, CancellationToken.None);
 
             // Assert
             Assert.Equal(CodeGenerationStatus.PendingReview, status);
         }
 
         [Fact]
-        public async Task GetGenerationResultsAsync_ValidApprovedId_ReturnsCodeArtifacts()
+        public async Task GetGeneratedCodeAsync_ValidApprovedId_ReturnsCodeArtifacts()
         {
             // Arrange
             var storyGenerationId = Guid.NewGuid();
@@ -806,6 +902,18 @@ namespace AIProjectOrchestrator.UnitTests.Code
             _mockStoryGenerationService.Setup(x => x.GetApprovedStoriesAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(stories);
 
+            // Setup dependency validation chain
+            var planningId = Guid.NewGuid();
+            var requirementsAnalysisId = Guid.NewGuid();
+            _mockStoryGenerationService.Setup(x => x.GetPlanningIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(planningId);
+            _mockProjectPlanningService.Setup(x => x.GetPlanningStatusAsync(planningId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(AIProjectOrchestrator.Domain.Models.ProjectPlanningStatus.Approved);
+            _mockProjectPlanningService.Setup(x => x.GetRequirementsAnalysisIdAsync(planningId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(requirementsAnalysisId);
+            _mockRequirementsAnalysisService.Setup(x => x.GetAnalysisStatusAsync(requirementsAnalysisId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(AIProjectOrchestrator.Domain.Models.RequirementsAnalysisStatus.Approved);
+
             _mockInstructionService.Setup(x => x.GetInstructionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(instructionContent);
 
@@ -824,11 +932,12 @@ namespace AIProjectOrchestrator.UnitTests.Code
             var generationResult = await _service.GenerateCodeAsync(request, CancellationToken.None);
 
             // Act
-            var result = await _service.GetGenerationResultsAsync(generationResult.GenerationId, CancellationToken.None);
+            var result = await _service.GetGeneratedCodeAsync(generationResult.GenerationId, CancellationToken.None);
 
             // Assert
             Assert.NotNull(result);
-            Assert.NotEmpty(result);
+            Assert.NotNull(result.Artifacts);
+            Assert.NotEmpty(result.Artifacts);
         }
 
         [Fact]
@@ -898,10 +1007,10 @@ namespace AIProjectOrchestrator.UnitTests.Code
 
             // Assert
             Assert.NotNull(result);
-            Assert.Equal("API/Controllers/", result[0].RelativePath);
-            Assert.Equal("Application/Services/", result[1].RelativePath);
+            Assert.Equal("Controllers/", result[0].RelativePath);
+            Assert.Equal("Services/", result[1].RelativePath);
             Assert.Equal("Tests/", result[2].RelativePath);
-            Assert.Equal("Domain/Models/", result[3].RelativePath);
+            Assert.Equal("Models/", result[3].RelativePath);
         }
     }
 }

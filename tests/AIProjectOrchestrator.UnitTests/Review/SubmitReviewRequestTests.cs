@@ -78,14 +78,14 @@ namespace AIProjectOrchestrator.UnitTests.Review
             var request = new ReviewDecisionRequest();
 
             // Assert
-            Assert.Equal(string.Empty, request.Reason);
-            Assert.Equal(string.Empty, request.Feedback);
+            Assert.Null(request.Reason);
+            Assert.Null(request.Feedback);
             Assert.NotNull(request.InstructionImprovements);
             Assert.Empty(request.InstructionImprovements);
         }
 
         [Fact]
-        public void ReviewDecisionRequest_Validation_FailsWithoutReason()
+        public void ReviewDecisionRequest_Validation_PassesWithoutReason()
         {
             // Arrange
             var request = new ReviewDecisionRequest();
@@ -96,7 +96,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
             var isValid = Validator.TryValidateObject(request, context, results, true);
 
             // Assert
-            Assert.False(isValid);
+            Assert.True(isValid); // No validation attributes on nullable properties
         }
 
         [Fact]

@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using AIProjectOrchestrator.Domain.Models;
 using AIProjectOrchestrator.Domain.Services;
 using AIProjectOrchestrator.Domain.Models.Code;
 using AIProjectOrchestrator.Domain.Models.Stories;
@@ -149,37 +150,64 @@ namespace AIProjectOrchestrator.Application.Services
             }
         }
 
-        public Task<CodeGenerationStatus> GetGenerationStatusAsync(
-            Guid generationId,
-            CancellationToken cancellationToken = default)
+        public async Task<CodeGenerationStatus> GetStatusAsync(Guid codeGenerationId, CancellationToken cancellationToken = default)
         {
-            if (_generationResults.TryGetValue(generationId, out var result))
+            if (_generationResults.TryGetValue(codeGenerationId, out var result))
             {
-                return Task.FromResult(result.Status);
+                return result.Status;
             }
 
             // If we don't have the status in memory, it might have been cleaned up
             // In a production system, we would check a persistent store
-            return Task.FromResult(CodeGenerationStatus.Failed);
+            return CodeGenerationStatus.Failed;
         }
 
-        public Task<List<CodeArtifact>?> GetGenerationResultsAsync(
-            Guid generationId,
-            CancellationToken cancellationToken = default)
+        public async Task<CodeArtifactsResult> GetGeneratedCodeAsync(Guid codeGenerationId, CancellationToken cancellationToken = default)
         {
-            if (_generationResults.TryGetValue(generationId, out var result))
+            if (_generationResults.TryGetValue(codeGenerationId, out var result))
             {
                 var allFiles = new List<CodeArtifact>();
                 if (result.GeneratedFiles != null)
                     allFiles.AddRange(result.GeneratedFiles);
                 if (result.TestFiles != null)
                     allFiles.AddRange(result.TestFiles);
-                return Task.FromResult<List<CodeArtifact>?>(allFiles);
+                    
+                // Calculate file types distribution
+                var fileTypes = new Dictionary<string, int>();
+                foreach (var file in allFiles)
+                {
+                    if (fileTypes.ContainsKey(file.FileType))
+                        fileTypes[file.FileType]++;
+                    else
+                        fileTypes[file.FileType] = 1;
+                }
+                
+                // Calculate total size
+                long totalSize = 0;
+                foreach (var file in allFiles)
+                {
+                    totalSize += Encoding.UTF8.GetByteCount(file.Content);
+                }
+
+                return new CodeArtifactsResult
+                {
+                    GenerationId = codeGenerationId,
+                    Artifacts = allFiles,
+                    GeneratedAt = result.CreatedAt,
+                    PackageName = $"GeneratedCode_{codeGenerationId}",
+                    TotalSizeBytes = totalSize,
+                    FileCount = allFiles.Count,
+                    FileTypes = fileTypes
+                };
             }
 
             // If we don't have the result in memory, it might have been cleaned up
             // In a production system, we would check a persistent store
-            return Task.FromResult<List<CodeArtifact>?>(null);
+            return new CodeArtifactsResult
+            {
+                GenerationId = codeGenerationId,
+                Artifacts = new List<CodeArtifact>()
+            };
         }
 
         public async Task<bool> CanGenerateCodeAsync(
@@ -199,23 +227,6 @@ namespace AIProjectOrchestrator.Application.Services
             }
         }
 
-        public Task<List<CodeArtifact>> GetGeneratedFilesAsync(
-            Guid generationId,
-            CancellationToken cancellationToken = default)
-        {
-            if (_generationResults.TryGetValue(generationId, out var result))
-            {
-                var allFiles = new List<CodeArtifact>();
-                if (result.GeneratedFiles != null)
-                    allFiles.AddRange(result.GeneratedFiles);
-                if (result.TestFiles != null)
-                    allFiles.AddRange(result.TestFiles);
-                return Task.FromResult(allFiles);
-            }
-
-            return Task.FromResult(new List<CodeArtifact>());
-        }
-
         public async Task<byte[]?> GetGeneratedFilesZipAsync(
             Guid generationId,
             CancellationToken cancellationToken = default)
@@ -232,16 +243,47 @@ namespace AIProjectOrchestrator.Application.Services
                 if (result.TestFiles != null)
                     allFiles.AddRange(result.TestFiles);
 
+                // Create the required folder structure
                 foreach (var file in allFiles)
                 {
-                    var entry = archive.CreateEntry($"{file.RelativePath}{file.FileName}");
+                    // Create folder structure matching the required pattern
+                    string entryPath;
+                    if (file.RelativePath.StartsWith("Controllers/"))
+                    {
+                        entryPath = $"Generated Code Package/API/Controllers/{file.FileName}";
+                    }
+                    else if (file.RelativePath.StartsWith("Services/"))
+                    {
+                        if (file.RelativePath.StartsWith("Services/Interfaces/"))
+                        {
+                            entryPath = $"Generated Code Package/Application/Interfaces/{file.FileName}";
+                        }
+                        else
+                        {
+                            entryPath = $"Generated Code Package/Application/Services/{file.FileName}";
+                        }
+                    }
+                    else if (file.RelativePath.StartsWith("Models/"))
+                    {
+                        entryPath = $"Generated Code Package/Domain/Models/{file.FileName}";
+                    }
+                    else if (file.RelativePath.StartsWith("Tests/"))
+                    {
+                        entryPath = $"Generated Code Package/Tests/{file.FileName}";
+                    }
+                    else
+                    {
+                        entryPath = $"Generated Code Package/Infrastructure/{file.FileName}";
+                    }
+
+                    var entry = archive.CreateEntry(entryPath);
                     using var entryStream = entry.Open();
                     using var writer = new StreamWriter(entryStream);
                     await writer.WriteAsync(file.Content);
                 }
 
                 // Add README with implementation guide
-                var readmeEntry = archive.CreateEntry("README.md");
+                var readmeEntry = archive.CreateEntry("Generated Code Package/README.md");
                 using var readmeStream = readmeEntry.Open();
                 using var readmeWriter = new StreamWriter(readmeStream);
                 await readmeWriter.WriteAsync(GenerateImplementationGuide(result));
@@ -271,6 +313,44 @@ namespace AIProjectOrchestrator.Application.Services
                     storyGenerationId);
                 throw new InvalidOperationException("Stories not found or not approved");
             }
+
+            // Get the planning ID from the story generation
+            var planningId = await _storyGenerationService.GetPlanningIdAsync(storyGenerationId, cancellationToken);
+            if (!planningId.HasValue)
+            {
+                _logger.LogWarning("Code generation failed: Planning ID not found for story generation {StoryGenerationId}",
+                    storyGenerationId);
+                throw new InvalidOperationException("Planning ID not found");
+            }
+
+            // Check that project planning is approved
+            var planningStatus = await _projectPlanningService.GetPlanningStatusAsync(planningId.Value, cancellationToken);
+            if (planningStatus != AIProjectOrchestrator.Domain.Models.ProjectPlanningStatus.Approved)
+            {
+                _logger.LogWarning("Code generation failed: Project planning {PlanningId} is not approved",
+                    planningId.Value);
+                throw new InvalidOperationException("Project planning is not approved");
+            }
+
+            // Get the requirements analysis ID from the planning
+            var requirementsAnalysisId = await _projectPlanningService.GetRequirementsAnalysisIdAsync(
+                planningId.Value, cancellationToken);
+            if (!requirementsAnalysisId.HasValue)
+            {
+                _logger.LogWarning("Code generation failed: Requirements analysis ID not found for planning {PlanningId}",
+                    planningId.Value);
+                throw new InvalidOperationException("Requirements analysis ID not found");
+            }
+
+            // Check that requirements analysis is approved
+            var requirementsStatus = await _requirementsAnalysisService.GetAnalysisStatusAsync(
+                requirementsAnalysisId.Value, cancellationToken);
+            if (requirementsStatus != AIProjectOrchestrator.Domain.Models.RequirementsAnalysisStatus.Approved)
+            {
+                _logger.LogWarning("Code generation failed: Requirements analysis {RequirementsAnalysisId} is not approved",
+                    requirementsAnalysisId.Value);
+                throw new InvalidOperationException("Requirements analysis is not approved");
+            }
         }
 
         private async Task<ComprehensiveContext> RetrieveComprehensiveContextAsync(Guid storyGenerationId, CancellationToken cancellationToken)
@@ -278,19 +358,53 @@ namespace AIProjectOrchestrator.Application.Services
             // Get user stories
             var stories = await _storyGenerationService.GetApprovedStoriesAsync(storyGenerationId, cancellationToken) ?? new List<UserStory>();
 
-            // Get planning context (architectural decisions, technical constraints)
-            // We need to get the planning ID from the story generation ID, which isn't directly available
-            // For now, we'll just use empty context
-            var technicalContext = string.Empty;
+            // Get the planning ID from the story generation
+            var planningId = await _storyGenerationService.GetPlanningIdAsync(storyGenerationId, cancellationToken);
 
-            // Get requirements context (business rules)
-            // We need to get the requirements ID from the planning ID, which isn't directly available
-            // For now, we'll just use empty context
-            var businessContext = string.Empty;
+            string technicalContext = string.Empty;
+            string businessContext = string.Empty;
+
+            if (planningId.HasValue)
+            {
+                // Get planning context (architectural decisions, technical constraints)
+                technicalContext = await _projectPlanningService.GetTechnicalContextAsync(planningId.Value, cancellationToken) ?? string.Empty;
+
+                // Get the requirements analysis ID from the planning
+                var requirementsAnalysisId = await _projectPlanningService.GetRequirementsAnalysisIdAsync(
+                    planningId.Value, cancellationToken);
+
+                if (requirementsAnalysisId.HasValue)
+                {
+                    // Get requirements context (business rules)
+                    businessContext = await _requirementsAnalysisService.GetBusinessContextAsync(
+                        requirementsAnalysisId.Value, cancellationToken) ?? string.Empty;
+                }
+            }
 
             // Monitor total context size
-            var totalContextSize = Encoding.UTF8.GetByteCount(string.Join("", stories.Select(s => s.Title + s.Description)) + technicalContext + businessContext);
+            var totalContextSize = Encoding.UTF8.GetByteCount(
+                string.Join("", stories.Select(s => s.Title + s.Description)) + 
+                technicalContext + 
+                businessContext);
+                
             _logger.LogInformation("Comprehensive context size: {TokenCount} bytes", totalContextSize);
+
+            // Apply token optimization if context is too large
+            if (totalContextSize > 150000) // Roughly 37.5K tokens
+            {
+                _logger.LogWarning("Context size is large ({TokenCount} bytes), applying optimization", totalContextSize);
+                stories = OptimizeStoriesContext(stories);
+                technicalContext = OptimizeTechnicalContext(technicalContext);
+                businessContext = OptimizeBusinessContext(businessContext);
+                
+                // Recalculate size after optimization
+                totalContextSize = Encoding.UTF8.GetByteCount(
+                    string.Join("", stories.Select(s => s.Title + s.Description)) + 
+                    technicalContext + 
+                    businessContext);
+                    
+                _logger.LogInformation("Context size after optimization: {TokenCount} bytes", totalContextSize);
+            }
 
             return new ComprehensiveContext
             {
@@ -299,6 +413,59 @@ namespace AIProjectOrchestrator.Application.Services
                 BusinessContext = businessContext,
                 EstimatedTokens = totalContextSize / 4 // Rough approximation of tokens
             };
+        }
+
+        private List<UserStory> OptimizeStoriesContext(List<UserStory> stories)
+        {
+            // Filter and prioritize stories based on relevance
+            // For now, we'll just truncate descriptions if they're too long
+            var optimizedStories = new List<UserStory>();
+            
+            foreach (var story in stories)
+            {
+                var optimizedStory = new UserStory
+                {
+                    Title = story.Title,
+                    Description = story.Description.Length > 500 ? story.Description.Substring(0, 500) + "..." : story.Description,
+                    AcceptanceCriteria = story.AcceptanceCriteria.Take(5).ToList(), // Limit to 5 criteria
+                    Priority = story.Priority,
+                    EstimatedComplexity = story.EstimatedComplexity
+                };
+                
+                optimizedStories.Add(optimizedStory);
+            }
+            
+            return optimizedStories;
+        }
+
+        private string OptimizeTechnicalContext(string technicalContext)
+        {
+            // Compress technical context by removing redundant information
+            if (string.IsNullOrEmpty(technicalContext))
+                return technicalContext;
+                
+            // For now, we'll just truncate if it's too long
+            if (technicalContext.Length > 2000)
+            {
+                return technicalContext.Substring(0, 2000) + "...";
+            }
+            
+            return technicalContext;
+        }
+
+        private string OptimizeBusinessContext(string businessContext)
+        {
+            // Compress business context by removing redundant information
+            if (string.IsNullOrEmpty(businessContext))
+                return businessContext;
+                
+            // For now, we'll just truncate if it's too long
+            if (businessContext.Length > 2000)
+            {
+                return businessContext.Substring(0, 2000) + "...";
+            }
+            
+            return businessContext;
         }
 
         private async Task<string> SelectOptimalModelAsync(List<UserStory> stories, string technicalContext, CancellationToken cancellationToken)
@@ -312,19 +479,45 @@ namespace AIProjectOrchestrator.Application.Services
             var complexity = AnalyzeStoryComplexity(stories);
             var availableModels = await GetAvailableModelsAsync(cancellationToken);
 
-            if (complexity.HasArchitecturalDecisions && availableModels.Contains("claude"))
-                return "claude";
-            if (complexity.IsCRUDHeavy && availableModels.Contains("qwen3-coder"))
-                return "qwen3-coder";
+            // Check model health status
+            var modelHealth = await CheckModelHealthAsync(cancellationToken);
 
-            // Prefer Claude as the default model for general cases
-            if (availableModels.Contains("claude"))
+            // Route based on story characteristics
+            if (complexity.HasArchitecturalDecisions && availableModels.Contains("claude") && modelHealth["claude"])
                 return "claude";
-            if (availableModels.Contains("deepseek"))
+                
+            if (complexity.IsCRUDHeavy && availableModels.Contains("qwen3-coder") && modelHealth["qwen3-coder"])
+                return "qwen3-coder";
+                
+            if (complexity.IsHighComplexity && availableModels.Contains("deepseek") && modelHealth["deepseek"])
                 return "deepseek";
 
-            // Fallback to first available model
-            return availableModels.FirstOrDefault() ?? "claude";
+            // If we need an alternative implementation for validation
+            if (stories.Any(s => s.Description.Contains("validate", StringComparison.OrdinalIgnoreCase) || 
+                               s.Description.Contains("compare", StringComparison.OrdinalIgnoreCase)) &&
+                availableModels.Contains("deepseek") && modelHealth["deepseek"])
+                return "deepseek";
+
+            // Prefer Claude as the default model for general cases if it's healthy
+            if (availableModels.Contains("claude") && modelHealth["claude"])
+                return "claude";
+                
+            // Fallback to other models based on health status
+            if (availableModels.Contains("qwen3-coder") && modelHealth["qwen3-coder"])
+                return "qwen3-coder";
+                
+            if (availableModels.Contains("deepseek") && modelHealth["deepseek"])
+                return "deepseek";
+
+            // Fallback to first available healthy model
+            foreach (var model in availableModels)
+            {
+                if (modelHealth.ContainsKey(model) && modelHealth[model])
+                    return model;
+            }
+
+            // Final fallback to Claude if no healthy models found
+            return "claude";
         }
 
         private async Task<List<CodeArtifact>> GenerateTestFilesAsync(
@@ -426,8 +619,10 @@ namespace AIProjectOrchestrator.Application.Services
             return ParseAIResponseToCodeArtifacts(aiResponse.Content, "Implementation");
         }
 
-        private Task<bool> ValidateGeneratedCodeAsync(List<CodeArtifact> artifacts, CancellationToken cancellationToken)
+        private async Task<bool> ValidateGeneratedCodeAsync(List<CodeArtifact> artifacts, CancellationToken cancellationToken)
         {
+            var allValid = true;
+            
             foreach (var artifact in artifacts)
             {
                 try
@@ -438,32 +633,117 @@ namespace AIProjectOrchestrator.Application.Services
 
                     // Log validation results
                     if (!artifact.CompilationValid)
+                    {
                         _logger.LogWarning("Validation failed for {FileName}: Content is empty", artifact.FileName);
+                        allValid = false;
+                        continue;
+                    }
+
+                    // Perform basic syntax validation for C# files
+                    if (artifact.FileName.EndsWith(".cs"))
+                    {
+                        var syntaxErrors = await ValidateCSharpSyntaxAsync(artifact.Content, cancellationToken);
+                        if (syntaxErrors.Any())
+                        {
+                            artifact.ValidationErrors.AddRange(syntaxErrors);
+                            artifact.CompilationValid = false;
+                            allValid = false;
+                            _logger.LogWarning("Syntax validation failed for {FileName}: {ErrorCount} errors found", 
+                                artifact.FileName, syntaxErrors.Count);
+                        }
+                    }
+
+                    // Check for test coverage indicators in test files
+                    if (artifact.FileType == "Test")
+                    {
+                        var coverageInfo = AnalyzeTestCoverage(artifact.Content);
+                        if (coverageInfo.MissingTests.Any())
+                        {
+                            artifact.ValidationErrors.Add($"Potential missing tests: {string.Join(", ", coverageInfo.MissingTests)}");
+                            _logger.LogInformation("Test coverage analysis for {FileName}: {MissingCount} potential gaps identified", 
+                                artifact.FileName, coverageInfo.MissingTests.Count);
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error validating {FileName}", artifact.FileName);
                     artifact.CompilationValid = false;
                     artifact.ValidationErrors.Add($"Validation error: {ex.Message}");
+                    allValid = false;
                 }
             }
 
-            return Task.FromResult(artifacts.All(a => a.CompilationValid));
+            return allValid;
+        }
+
+        private async Task<List<string>> ValidateCSharpSyntaxAsync(string codeContent, CancellationToken cancellationToken)
+        {
+            // In a real implementation, this would use Roslyn or similar to validate C# syntax
+            // For now, we'll do basic checks
+            var errors = new List<string>();
+            
+            // Check for basic C# structure
+            if (!codeContent.Contains("using System") && !codeContent.Contains("namespace "))
+            {
+                errors.Add("Missing basic C# structure (using statements or namespace declaration)");
+            }
+            
+            // Check for balanced braces
+            var openBraces = codeContent.Count(c => c == '{');
+            var closeBraces = codeContent.Count(c => c == '}');
+            if (openBraces != closeBraces)
+            {
+                errors.Add($"Unbalanced braces: {openBraces} opening, {closeBraces} closing");
+            }
+            
+            // Check for basic class structure
+            if (codeContent.Contains("class ") && !codeContent.Contains("public") && !codeContent.Contains("private"))
+            {
+                // This is a very basic check - in a real implementation we'd use proper parsing
+            }
+            
+            return errors;
+        }
+
+        private TestCoverageInfo AnalyzeTestCoverage(string testContent)
+        {
+            // In a real implementation, this would analyze the test content to determine coverage
+            // For now, we'll just return a basic structure
+            var coverageInfo = new TestCoverageInfo();
+            
+            // Simple heuristic to identify potential missing tests
+            var potentialMissing = new List<string>();
+            
+            if (!testContent.Contains("TestMethod") && !testContent.Contains("Fact") && !testContent.Contains("Theory"))
+            {
+                potentialMissing.Add("No test methods identified");
+            }
+            
+            if (!testContent.Contains("Assert"))
+            {
+                potentialMissing.Add("No assertions found");
+            }
+            
+            coverageInfo.MissingTests = potentialMissing;
+            return coverageInfo;
         }
 
         private List<CodeArtifact> OrganizeGeneratedFiles(List<CodeArtifact> files)
         {
             foreach (var file in files)
             {
-                // Organize by Clean Architecture structure
+                // Organize by Clean Architecture structure matching the required pattern
                 if (file.FileName.EndsWith("Controller.cs"))
-                    file.RelativePath = "API/Controllers/";
-                else if (file.FileName.EndsWith("Service.cs"))
-                    file.RelativePath = "Application/Services/";
+                    file.RelativePath = "Controllers/";
+                else if (file.FileName.EndsWith("Service.cs") && !file.FileName.StartsWith("I"))
+                    file.RelativePath = "Services/";
+                else if (file.FileName.StartsWith("I") && file.FileName.EndsWith("Service.cs"))
+                    file.RelativePath = "Services/Interfaces/";
                 else if (file.FileName.EndsWith("Tests.cs"))
                     file.RelativePath = "Tests/";
                 else if (file.FileName.Contains("Model") || file.FileName.Contains("Request") || file.FileName.Contains("Response"))
-                    file.RelativePath = "Domain/Models/";
+                    file.RelativePath = "Models/";
                 else
                     file.RelativePath = "Infrastructure/";
 
@@ -630,18 +910,34 @@ namespace AIProjectOrchestrator.Application.Services
             var hasArchitecturalDecisions = stories.Any(s => 
                 s.Description.Contains("architecture", StringComparison.OrdinalIgnoreCase) ||
                 s.Description.Contains("design", StringComparison.OrdinalIgnoreCase) ||
-                s.Description.Contains("pattern", StringComparison.OrdinalIgnoreCase));
+                s.Description.Contains("pattern", StringComparison.OrdinalIgnoreCase) ||
+                s.Description.Contains("framework", StringComparison.OrdinalIgnoreCase) ||
+                s.Description.Contains("integration", StringComparison.OrdinalIgnoreCase));
 
             var isCrudHeavy = stories.All(s => 
-                s.Description.Contains("create", StringComparison.OrdinalIgnoreCase) ||
+                (s.Description.Contains("create", StringComparison.OrdinalIgnoreCase) ||
                 s.Description.Contains("read", StringComparison.OrdinalIgnoreCase) ||
                 s.Description.Contains("update", StringComparison.OrdinalIgnoreCase) ||
-                s.Description.Contains("delete", StringComparison.OrdinalIgnoreCase));
+                s.Description.Contains("delete", StringComparison.OrdinalIgnoreCase) ||
+                s.Description.Contains("list", StringComparison.OrdinalIgnoreCase) ||
+                s.Description.Contains("get", StringComparison.OrdinalIgnoreCase) ||
+                s.Description.Contains("add", StringComparison.OrdinalIgnoreCase) ||
+                s.Description.Contains("edit", StringComparison.OrdinalIgnoreCase) ||
+                s.Description.Contains("remove", StringComparison.OrdinalIgnoreCase)));
+
+            // Analyze story complexity based on acceptance criteria count and word count
+            var totalCriteria = stories.Sum(s => s.AcceptanceCriteria.Count);
+            var totalWords = stories.Sum(s => s.Description.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length);
+            
+            var isHighComplexity = totalCriteria > stories.Count * 3 || totalWords > stories.Count * 50;
+            var isLowComplexity = totalCriteria <= stories.Count * 2 && totalWords <= stories.Count * 20;
 
             return new StoryComplexity
             {
                 HasArchitecturalDecisions = hasArchitecturalDecisions,
-                IsCRUDHeavy = isCrudHeavy
+                IsCRUDHeavy = isCrudHeavy,
+                IsHighComplexity = isHighComplexity,
+                IsLowComplexity = isLowComplexity
             };
         }
 
@@ -650,6 +946,20 @@ namespace AIProjectOrchestrator.Application.Services
             // In a real implementation, this would check the health of each model provider
             // For now, we'll return a static list
             return new List<string> { "claude", "qwen3-coder", "deepseek" };
+        }
+
+        private async Task<Dictionary<string, bool>> CheckModelHealthAsync(CancellationToken cancellationToken)
+        {
+            // In a real implementation, this would check the actual health of each model provider
+            // For now, we'll assume all models are healthy
+            var healthStatus = new Dictionary<string, bool>
+            {
+                { "claude", true },
+                { "qwen3-coder", true },
+                { "deepseek", true }
+            };
+
+            return healthStatus;
         }
 
         private string GetModelName(string modelName)
@@ -730,6 +1040,14 @@ namespace AIProjectOrchestrator.Application.Services
         {
             public bool HasArchitecturalDecisions { get; set; }
             public bool IsCRUDHeavy { get; set; }
+            public bool IsHighComplexity { get; set; }
+            public bool IsLowComplexity { get; set; }
+        }
+
+        private class TestCoverageInfo
+        {
+            public List<string> MissingTests { get; set; } = new List<string>();
+            public double EstimatedCoveragePercentage { get; set; } = 0.0;
         }
     }
 }

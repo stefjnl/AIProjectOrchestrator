@@ -43,13 +43,13 @@ namespace AIProjectOrchestrator.API.Controllers
         }
 
         [HttpGet("{generationId:guid}/status")]
-        public async Task<ActionResult<CodeGenerationStatus>> GetGenerationStatus(
+        public async Task<ActionResult<CodeGenerationStatus>> GetStatus(
             Guid generationId,
             CancellationToken cancellationToken)
         {
             try
             {
-                var status = await _codeGenerationService.GetGenerationStatusAsync(generationId, cancellationToken);
+                var status = await _codeGenerationService.GetStatusAsync(generationId, cancellationToken);
                 return Ok(status);
             }
             catch (Exception ex)
@@ -58,28 +58,20 @@ namespace AIProjectOrchestrator.API.Controllers
             }
         }
 
-        [HttpGet("{generationId:guid}/results")]
-        public async Task<ActionResult<CodeGenerationResponse>> GetGenerationResults(
+        [HttpGet("{generationId:guid}/artifacts")]
+        public async Task<ActionResult<CodeArtifactsResult>> GetGeneratedCode(
             Guid generationId,
             CancellationToken cancellationToken)
         {
             try
             {
-                var results = await _codeGenerationService.GetGenerationResultsAsync(generationId, cancellationToken);
-                if (results == null)
+                var results = await _codeGenerationService.GetGeneratedCodeAsync(generationId, cancellationToken);
+                if (results.Artifacts == null || results.Artifacts.Count == 0)
                 {
                     return NotFound(new { error = "Not found", message = "Code generation results not found" });
                 }
                 
-                // Create a response object with the results
-                var response = new CodeGenerationResponse
-                {
-                    GenerationId = generationId,
-                    GeneratedFiles = results,
-                    Status = await _codeGenerationService.GetGenerationStatusAsync(generationId, cancellationToken)
-                };
-                
-                return Ok(response);
+                return Ok(results);
             }
             catch (Exception ex)
             {
@@ -96,31 +88,6 @@ namespace AIProjectOrchestrator.API.Controllers
             {
                 var canGenerate = await _codeGenerationService.CanGenerateCodeAsync(storyGenerationId, cancellationToken);
                 return Ok(canGenerate);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
-            }
-        }
-
-        [HttpGet("{generationId:guid}/files")]
-        public async Task<ActionResult<CodeGenerationResponse>> GetGeneratedFiles(
-            Guid generationId,
-            CancellationToken cancellationToken)
-        {
-            try
-            {
-                var files = await _codeGenerationService.GetGeneratedFilesAsync(generationId, cancellationToken);
-                
-                // Create a response object with the files
-                var response = new CodeGenerationResponse
-                {
-                    GenerationId = generationId,
-                    GeneratedFiles = files,
-                    Status = await _codeGenerationService.GetGenerationStatusAsync(generationId, cancellationToken)
-                };
-                
-                return Ok(response);
             }
             catch (Exception ex)
             {
