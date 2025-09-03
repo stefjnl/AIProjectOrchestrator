@@ -1,0 +1,26 @@
+<div class="card review-card">
+    <div class="card-body">
+        <h5 class="card-title">@Review.ServiceName</h5>
+        <p class="card-text">@Review.Content.Substring(0, Math.Min(100, Review.Content.Length))...</p>
+        <div class="d-flex justify-content-between align-items-center">
+            <StatusBadge Status="@Review.Status.ToString()" />
+            <small class="text-muted">@Review.SubmittedAt.ToString("g")</small>
+        </div>
+        <div class="mt-2">
+            <button class="btn btn-sm btn-primary" @onclick="ViewReview">Review</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public ReviewSubmission Review { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<ReviewSubmission> OnView { get; set; }
+
+    private async Task ViewReview()
+    {
+        await OnView.InvokeAsync(Review);
+    }
+}

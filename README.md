@@ -10,10 +10,12 @@ AIProjectOrchestrator/
 │   ├── AIProjectOrchestrator.API/           # Web API layer
 │   ├── AIProjectOrchestrator.Application/   # Business logic, services
 │   ├── AIProjectOrchestrator.Domain/        # Domain entities, interfaces
-│   └── AIProjectOrchestrator.Infrastructure/ # Data access, external APIs
+│   ├── AIProjectOrchestrator.Infrastructure/ # Data access, external APIs
+│   └── AIProjectOrchestrator.Web/           # Blazor Server Web UI
 ├── tests/
 │   ├── AIProjectOrchestrator.UnitTests/
-│   └── AIProjectOrchestrator.IntegrationTests/
+│   ├── AIProjectOrchestrator.IntegrationTests/
+│   └── AIProjectOrchestrator.Web.Tests/
 ├── docs/                                    # Documentation folder
 │   ├── 01 user-stories/                     # User stories and requirements
     ├── 02 prompts/                          # Prompts for the LLM based on the user story
@@ -33,7 +35,7 @@ AIProjectOrchestrator/
 - Docker Desktop
 - Visual Studio Code or Visual Studio 2022
 
-### Running the Application Locally
+### Running the Application with Docker (Recommended)
 
 1. Clone the repository
 2. Navigate to the project root directory
@@ -42,17 +44,30 @@ AIProjectOrchestrator/
    docker-compose up --build
    ```
 
+This will start three services:
+- **API**: http://localhost:8086
+- **Web UI**: http://localhost:8087
+- **Database**: PostgreSQL on port 5432
+
 ### Running the Application Without Docker
 
+#### Running the API
 1. Clone the repository
 2. Navigate to the project root directory
 3. Restore dependencies:
    ```bash
    dotnet restore
    ```
-4. Run the application:
+4. Run the API:
    ```bash
    dotnet run --project src/AIProjectOrchestrator.API
+   ```
+
+#### Running the Web UI
+1. Ensure the API is running (by default on https://localhost:5001)
+2. In a separate terminal, run the Web UI:
+   ```bash
+   dotnet run --project src/AIProjectOrchestrator.Web
    ```
 
 ### Running Tests
@@ -68,9 +83,21 @@ dotnet test
 - `GET /api/projects/{id}` - Get a specific project
 - `POST /api/projects` - Create a new project
 
+## Web UI
+
+The Web UI is a Blazor Server application that provides a complete interface for:
+- Managing projects
+- Monitoring AI workflow progress
+- Reviewing AI-generated content
+- Approving or rejecting AI outputs
+
+Access the Web UI at http://localhost:8087 when running with Docker, or https://localhost:5002 when running locally.
+
 ## Configuration
 
-The application can be configured using `appsettings.json` files in the `AIProjectOrchestrator.API` project.
+The application can be configured using `appsettings.json` files in the respective projects:
+- API configuration: `src/AIProjectOrchestrator.API/appsettings.json`
+- Web UI configuration: `src/AIProjectOrchestrator.Web/appsettings.json`
 
 ## Health Check
 

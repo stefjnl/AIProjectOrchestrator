@@ -1,0 +1,84 @@
+@page "/review"
+
+<PageTitle>Review Queue</PageTitle>
+
+<h1>Review Queue</h1>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4>Pending Reviews</h4>
+            </div>
+            <div class="card-body">
+                @if (reviews == null)
+                {
+                    <p><em>Loading...</em></p>
+                }
+                else if (reviews.Any())
+                {
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Service</th>
+                                <th>Submitted</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var review in reviews)
+                            {
+                                <tr>
+                                    <td>@review.ServiceName</td>
+                                    <td>@review.SubmittedAt.ToString("g")</td>
+                                    <td><StatusBadge Status="@review.Status.ToString()" /></td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary" @onclick="() => ViewReview(review.Id)">Review</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <p>No pending reviews.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IEnumerable<ReviewSubmission> reviews = new List<ReviewSubmission>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadReviews();
+    }
+
+    private async Task LoadReviews()
+    {
+        try
+        {
+            reviews = await APIClient.GetPendingReviewsAsync();
+        }
+        catch (Exception ex)
+        {
+            // Handle error
+            Console.WriteLine($"Error loading reviews: {ex.Message}");
+        }
+    }
+
+    private void ViewReview(Guid reviewId)
+    {
+        Navigation.NavigateTo($"/review/{reviewId}");
+    }
+
+    [Inject]
+    private IAPIClient APIClient { get; set; } = default!;
+
+    [Inject]
+    private NavigationManager Navigation { get; set; } = default!;
+}

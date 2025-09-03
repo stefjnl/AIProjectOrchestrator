@@ -1,0 +1,77 @@
+<div class="progress-tracker">
+    <div class="progress-step @(CurrentStage == "Requirements" ? "active" : "")">
+        <div class="step-number">1</div>
+        <div class="step-label">Requirements</div>
+    </div>
+    <div class="progress-step @(CurrentStage == "Planning" ? "active" : "")">
+        <div class="step-number">2</div>
+        <div class="step-label">Planning</div>
+    </div>
+    <div class="progress-step @(CurrentStage == "Stories" ? "active" : "")">
+        <div class="step-number">3</div>
+        <div class="step-label">Stories</div>
+    </div>
+    <div class="progress-step @(CurrentStage == "Code" ? "active" : "")">
+        <div class="step-number">4</div>
+        <div class="step-label">Code</div>
+    </div>
+</div>
+
+<style>
+.progress-tracker {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    margin: 2rem 0;
+}
+
+.progress-tracker::before {
+    content: "";
+    position: absolute;
+    top: 1.5rem;
+    left: 0;
+    right: 0;
+    height: 0.25rem;
+    background-color: #e0e0e0;
+    z-index: 1;
+}
+
+.progress-step {
+    text-align: center;
+    position: relative;
+    z-index: 2;
+}
+
+.step-number {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    background-color: #e0e0e0;
+    color: #666;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin: 0 auto 0.5rem;
+}
+
+.step-label {
+    font-size: 0.875rem;
+    color: #666;
+}
+
+.progress-step.active .step-number {
+    background-color: #007bff;
+    color: white;
+}
+
+.progress-step.active .step-label {
+    color: #007bff;
+    font-weight: bold;
+}
+</style>
+
+@code {
+    [Parameter]
+    public string CurrentStage { get; set; } = "Requirements";
+}

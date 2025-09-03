@@ -1,0 +1,16 @@
+<span class="badge @BadgeClass">@Status</span>
+
+@code {
+    [Parameter]
+    public string Status { get; set; } = "Unknown";
+
+    private string BadgeClass => Status.ToLower() switch
+    {
+        "approved" => "bg-success",
+        "pending" or "pendingreview" => "bg-warning",
+        "rejected" => "bg-danger",
+        "processing" => "bg-info",
+        "failed" => "bg-danger",
+        _ => "bg-secondary"
+    };
+}

@@ -1,0 +1,110 @@
+@page "/projects"
+
+<PageTitle>Projects</PageTitle>
+
+<h1>Projects</h1>
+
+<div class="row mb-3">
+    <div class="col-12">
+        <button class="btn btn-primary" @onclick="CreateNewProject">Create New Project</button>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4>Project List</h4>
+            </div>
+            <div class="card-body">
+                @if (projects == null)
+                {
+                    <p><em>Loading...</em></p>
+                }
+                else if (projects.Any())
+                {
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Description</th>
+                                <th>Created Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var project in projects)
+                            {
+                                <tr>
+                                    <td>@project.Name</td>
+                                    <td>@project.Description</td>
+                                    <td>@project.CreatedAt.ToString("g")</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary" @onclick="() => ViewProject(project.Id)">View</button>
+                                        <button class="btn btn-sm btn-danger" @onclick="() => DeleteProject(project.Id)">Delete</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <p>No projects found.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private IEnumerable<Project> projects = new List<Project>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProjects();
+    }
+
+    private async Task LoadProjects()
+    {
+        try
+        {
+            projects = await APIClient.GetProjectsAsync();
+        }
+        catch (Exception ex)
+        {
+            // Handle error
+            Console.WriteLine($"Error loading projects: {ex.Message}");
+        }
+    }
+
+    private void CreateNewProject()
+    {
+        Navigation.NavigateTo("/projects/create");
+    }
+
+    private void ViewProject(int projectId)
+    {
+        Navigation.NavigateTo($"/projects/{projectId}");
+    }
+
+    private async Task DeleteProject(int projectId)
+    {
+        try
+        {
+            await APIClient.DeleteProjectAsync(projectId);
+            await LoadProjects(); // Refresh the list
+        }
+        catch (Exception ex)
+        {
+            // Handle error
+            Console.WriteLine($"Error deleting project: {ex.Message}");
+        }
+    }
+
+    [Inject]
+    private IAPIClient APIClient { get; set; } = default!;
+
+    [Inject]
+    private NavigationManager Navigation { get; set; } = default!;
+}

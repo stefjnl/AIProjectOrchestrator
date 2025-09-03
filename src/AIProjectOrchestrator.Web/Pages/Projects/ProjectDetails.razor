@@ -1,0 +1,127 @@
+@page "/projects/{ProjectId:int}"
+
+<PageTitle>Project Details</PageTitle>
+
+<h1>Project Details</h1>
+
+@if (project == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-12">
+            <h2>@project.Name</h2>
+            <p>@project.Description</p>
+            <p>Created: @project.CreatedAt.ToString("g")</p>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Workflow Progress</h4>
+                </div>
+                <div class="card-body">
+                    <WorkflowProgress CurrentStage="currentStage" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <ul class="nav nav-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="requirements-tab" data-bs-toggle="tab" data-bs-target="#requirements" type="button" role="tab">Requirements</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="planning-tab" data-bs-toggle="tab" data-bs-target="#planning" type="button" role="tab">Planning</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="stories-tab" data-bs-toggle="tab" data-bs-target="#stories" type="button" role="tab">Stories</button>
+                </li>
+            </ul>
+            <div class="tab-content">
+                <div class="tab-pane fade show active" id="requirements" role="tabpanel">
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <h5>Requirements Analysis</h5>
+                            <button class="btn btn-primary" @onclick="StartRequirementsAnalysis">Start Analysis</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="planning" role="tabpanel">
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <h5>Project Planning</h5>
+                            <p>Start planning once requirements are approved.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="stories" role="tabpanel">
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <h5>Story Generation</h5>
+                            <p>Generate stories once planning is approved.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int ProjectId { get; set; }
+
+    private Project? project;
+    @* private string currentStage = "Requirements"; *@
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProject();
+    }
+
+    private async Task LoadProject()
+    {
+        try
+        {
+            project = await APIClient.GetProjectAsync(ProjectId);
+        }
+        catch (Exception ex)
+        {
+            // Handle error
+            Console.WriteLine($"Error loading project: {ex.Message}");
+        }
+    }
+
+    private async Task StartRequirementsAnalysis()
+    {
+        if (project == null) return;
+
+        try
+        {
+            var request = new RequirementsAnalysisRequest
+                {
+                    ProjectDescription = project.Description
+                };
+            var response = await APIClient.AnalyzeRequirementsAsync(request);
+            // Redirect to review or update UI
+        }
+        catch (Exception ex)
+        {
+            // Handle error
+            Console.WriteLine($"Error starting requirements analysis: {ex.Message}");
+        }
+    }
+
+    [Inject]
+    private IAPIClient APIClient { get; set; } = default!;
+
+    [Inject]
+    private NavigationManager Navigation { get; set; } = default!;
+}

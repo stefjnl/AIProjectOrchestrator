@@ -1,0 +1,67 @@
+@import url('open-iconic/font/css/open-iconic-bootstrap.min.css');
+
+html, body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+h1:focus {
+    outline: none;
+}
+
+a, .btn-link {
+    color: #0071c1;
+}
+
+.btn-primary {
+    color: #fff;
+    background-color: #1b6ec2;
+    border-color: #1861ac;
+}
+
+.content {
+    padding-top: 1.1rem;
+}
+
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid #26b050;
+}
+
+.invalid {
+    outline: 1px solid red;
+}
+
+.validation-message {
+    color: red;
+}
+
+#blazor-error-ui {
+    background: lightyellow;
+    bottom: 0;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+}
+
+    #blazor-error-ui .dismiss {
+        cursor: pointer;
+        position: absolute;
+        right: 0.75rem;
+        top: 0.5rem;
+    }
+
+.blazor-error-boundary {
+    background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHZpZXdCb3g9IjAgMCA1NiA0OSIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQwIDcuNzY0MDJMMy44MDYwNiAzOC41NzgxQzEuMzg4MDYgNDAuNzAxMSAxLjM4ODA2IDQ0LjU5ODkgMy44MDYwNiA0Ni43MzE5QzYuMjI0MDYgNDguODY0OSAxMC4xMzYxIDQ4Ljg2NDkgMTIuNTU0MSA0Ni43MzE5TDQ4Ljc0ODEgMTUuOTEwNUw0MC43NiA3Ljc2NDAyWk0zMi42OTYgOC40NTg4NkMzNC4xMDk5IDguNDU4ODYgMzUuMjU2OSA3LjMyMzg2IDM1LjI1NjkgNS45Mzk4NkMzNS4yNTY5IDQuNTU1ODYgMzQuMTA5OSAzLjQyMDg2IDMyLjY5NiAzLjQyMDg2QzMxLjI4MjEgMy40MjA4NiAzMC4xMzUxIDQuNTU1ODYgMzAuMTM1MSA1LjkzOTg2QzMwLjEzNTEgNy4zMjM4NiAzMS4yODIxIDguNDU4ODYgMzIuNjk2IDguNDU4ODZaTTI0LjQ0OSAyNS44MDY5QzI1Ljg2MjkgMjUuODA2OSAyNy4wMDk5IDI0LjY3MTkgMjcuMDA5OSAyMy4yODc5QzI3LjAwOTkgMjEuOTAzOSAyNS44NjI5IDIwLjc2ODkgMjQuNDQ5IDIwLjc2ODlDMjMuMDM1MSAyMC43Njg5IDIxLjg4ODEgMjEuOTAzOSAyMS44ODgxIDIzLjI4NzlDMjEuODg4MSAyNC42NzE5IDIzLjAzNTEgMjUuODA2OSAyNC40NDkgMjUuODA2OVoiIGZpbGw9IiNGRkU1MDAiLz4KPC9zdmc+);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    width: 100%;
+    height: 100%;
+    display: inline-block;
+}
+
+.blazor-error-boundary::after {
+    content: "An error has occurred."
+}

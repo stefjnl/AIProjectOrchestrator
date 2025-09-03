@@ -1,0 +1,58 @@
+@page "/"
+
+<PageTitle>Dashboard</PageTitle>
+
+<h1>AI Project Orchestrator Dashboard</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4>Quick Actions</h4>
+            </div>
+            <div class="card-body">
+                <button class="btn btn-primary" @onclick="CreateNewProject">Create New Project</button>
+                <button class="btn btn-secondary" @onclick="ViewReviewQueue">Review Queue</button>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h4>System Status</h4>
+            </div>
+            <div class="card-body">
+                <p>AI Providers: <span class="badge bg-success">All Available</span></p>
+                <p>Pending Reviews: <span class="badge bg-warning">0</span></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h4>Recent Projects</h4>
+            </div>
+            <div class="card-body">
+                <p>No projects found. Create your first project to get started.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private void CreateNewProject()
+    {
+        Navigation.NavigateTo("/projects/create");
+    }
+
+    private void ViewReviewQueue()
+    {
+        Navigation.NavigateTo("/review");
+    }
+
+    [Inject]
+    private NavigationManager Navigation { get; set; } = default!;
+}
