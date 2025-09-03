@@ -116,6 +116,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// Enable static file serving
+app.UseStaticFiles();
+
 // Map controllers
 app.MapControllers();
 

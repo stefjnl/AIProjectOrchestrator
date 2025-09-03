@@ -25,10 +25,9 @@ namespace AIProjectOrchestrator.Domain.Models.Review
 
     public class ReviewDecisionRequest
     {
-        [Required]
-        public string Reason { get; set; } = string.Empty;
-        
-        public string Feedback { get; set; } = string.Empty;
+        public string? Reason { get; set; }
+
+        public string? Feedback { get; set; }
         public Dictionary<string, string> InstructionImprovements { get; set; } = new();
     }
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AIProjectOrchestrator.Domain.Models.Review;
+using AIProjectOrchestrator.Domain.Models.Review.Dashboard;
 
 namespace AIProjectOrchestrator.Domain.Services
 {
@@ -15,5 +16,9 @@ namespace AIProjectOrchestrator.Domain.Services
         Task<IEnumerable<ReviewSubmission>> GetPendingReviewsAsync(CancellationToken cancellationToken = default);
         Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default);
         Task<int> CleanupExpiredReviewsAsync(CancellationToken cancellationToken = default);
+        
+        // Add to IReviewService (Domain layer)
+        Task<ReviewDashboardData> GetDashboardDataAsync(CancellationToken cancellationToken = default);
+        Task<WorkflowStatusItem?> GetWorkflowStatusAsync(Guid projectId, CancellationToken cancellationToken = default);
     }
 }
