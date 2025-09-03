@@ -679,7 +679,7 @@ namespace AIProjectOrchestrator.UnitTests.Code
         }
 
         [Fact]
-        public async Task GetGenerationStatusAsync_ValidId_ReturnsCorrectStatus()
+        public async Task GetStatusAsync_ValidId_ReturnsCorrectStatus()
         {
             // Arrange
             var storyGenerationId = Guid.NewGuid();
@@ -748,14 +748,14 @@ namespace AIProjectOrchestrator.UnitTests.Code
             var generationResult = await _service.GenerateCodeAsync(request, CancellationToken.None);
 
             // Act
-            var status = await _service.GetGenerationStatusAsync(generationResult.GenerationId, CancellationToken.None);
+            var status = await _service.GetStatusAsync(generationResult.GenerationId, CancellationToken.None);
 
             // Assert
             Assert.Equal(CodeGenerationStatus.PendingReview, status);
         }
 
         [Fact]
-        public async Task GetGenerationResultsAsync_ValidApprovedId_ReturnsCodeArtifacts()
+        public async Task GetGeneratedCodeAsync_ValidApprovedId_ReturnsCodeArtifacts()
         {
             // Arrange
             var storyGenerationId = Guid.NewGuid();
@@ -824,11 +824,12 @@ namespace AIProjectOrchestrator.UnitTests.Code
             var generationResult = await _service.GenerateCodeAsync(request, CancellationToken.None);
 
             // Act
-            var result = await _service.GetGenerationResultsAsync(generationResult.GenerationId, CancellationToken.None);
+            var result = await _service.GetGeneratedCodeAsync(generationResult.GenerationId, CancellationToken.None);
 
             // Assert
             Assert.NotNull(result);
-            Assert.NotEmpty(result);
+            Assert.NotNull(result.Artifacts);
+            Assert.NotEmpty(result.Artifacts);
         }
 
         [Fact]

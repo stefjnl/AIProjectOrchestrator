@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.Extensions.Logging;
 using Moq;
 using AIProjectOrchestrator.Domain.Models.Review;
 using AIProjectOrchestrator.Domain.Services;
@@ -16,12 +17,14 @@ namespace AIProjectOrchestrator.UnitTests.Review
     public class ReviewControllerTests
     {
         private readonly Mock<IReviewService> _mockReviewService;
+        private readonly Mock<ILogger<ReviewController>> _mockLogger;
         private readonly ReviewController _controller;
 
         public ReviewControllerTests()
         {
             _mockReviewService = new Mock<IReviewService>();
-            _controller = new ReviewController(_mockReviewService.Object);
+            _mockLogger = new Mock<ILogger<ReviewController>>();
+            _controller = new ReviewController(_mockReviewService.Object, _mockLogger.Object);
         }
 
         [Fact]
@@ -182,11 +185,11 @@ namespace AIProjectOrchestrator.UnitTests.Review
                 Message = "Review approved successfully"
             };
 
-            _mockReviewService.Setup(s => s.ApproveReviewAsync(reviewId, null, CancellationToken.None))
+            _mockReviewService.Setup(s => s.ApproveReviewAsync(reviewId, It.IsAny<ReviewDecisionRequest>(), CancellationToken.None))
                 .ReturnsAsync(response);
 
             // Act
-            var result = await _controller.ApproveReview(reviewId, null, CancellationToken.None);
+            var result = await _controller.ApproveReview(reviewId, CancellationToken.None);
 
             // Assert
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
@@ -201,11 +204,11 @@ namespace AIProjectOrchestrator.UnitTests.Review
             // Arrange
             var reviewId = Guid.NewGuid();
 
-            _mockReviewService.Setup(s => s.ApproveReviewAsync(reviewId, null, CancellationToken.None))
+            _mockReviewService.Setup(s => s.ApproveReviewAsync(reviewId, It.IsAny<ReviewDecisionRequest>(), CancellationToken.None))
                 .ThrowsAsync(new InvalidOperationException("Review not found"));
 
             // Act
-            var result = await _controller.ApproveReview(reviewId, null, CancellationToken.None);
+            var result = await _controller.ApproveReview(reviewId, CancellationToken.None);
 
             // Assert
             var notFoundResult = Assert.IsType<NotFoundObjectResult>(result.Result);

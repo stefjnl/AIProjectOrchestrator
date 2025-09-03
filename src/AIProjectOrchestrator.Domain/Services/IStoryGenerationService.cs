@@ -25,5 +25,7 @@ namespace AIProjectOrchestrator.Domain.Services
             CancellationToken cancellationToken = default);
             
         Task<List<UserStory>?> GetApprovedStoriesAsync(Guid storyGenerationId, CancellationToken cancellationToken = default);
+        
+        Task<Guid?> GetPlanningIdAsync(Guid storyGenerationId, CancellationToken cancellationToken = default);
     }
 }
