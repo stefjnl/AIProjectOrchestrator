@@ -28,5 +28,11 @@ namespace AIProjectOrchestrator.Domain.Services
             CancellationToken cancellationToken = default);
             
         Task<string?> GetTechnicalContextAsync(Guid planningId, CancellationToken cancellationToken = default);
+        
+        // Method to update planning status when review is approved
+        Task UpdatePlanningStatusAsync(
+            Guid planningId,
+            ProjectPlanningStatus status,
+            CancellationToken cancellationToken = default);
     }
 }

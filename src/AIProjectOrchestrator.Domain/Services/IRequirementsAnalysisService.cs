@@ -28,5 +28,11 @@ namespace AIProjectOrchestrator.Domain.Services
             CancellationToken cancellationToken = default);
             
         Task<string?> GetBusinessContextAsync(Guid analysisId, CancellationToken cancellationToken = default);
+        
+        // Method to update analysis status when review is approved
+        Task UpdateAnalysisStatusAsync(
+            Guid analysisId,
+            RequirementsAnalysisStatus status,
+            CancellationToken cancellationToken = default);
     }
 }

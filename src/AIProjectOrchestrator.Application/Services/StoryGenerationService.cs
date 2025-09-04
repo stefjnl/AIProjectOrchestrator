@@ -425,5 +425,16 @@ namespace AIProjectOrchestrator.Application.Services
 
             return prompt.ToString();
         }
+        
+        public async Task UpdateGenerationStatusAsync(
+            Guid generationId,
+            StoryGenerationStatus status,
+            CancellationToken cancellationToken = default)
+        {
+            // Update the in-memory status
+            _generationStatuses[generationId] = status;
+            
+            _logger.LogInformation("Updated story generation {GenerationId} status to {Status}", generationId, status);
+        }
     }
 }

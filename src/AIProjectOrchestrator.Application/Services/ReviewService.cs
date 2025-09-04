@@ -10,6 +10,7 @@ using AIProjectOrchestrator.Domain.Models.Review;
 using AIProjectOrchestrator.Domain.Models.Review.Dashboard;
 using AIProjectOrchestrator.Domain.Services;
 using AIProjectOrchestrator.Domain.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AIProjectOrchestrator.Application.Services
 {
@@ -18,14 +19,26 @@ namespace AIProjectOrchestrator.Application.Services
         private readonly ConcurrentDictionary<Guid, ReviewSubmission> _reviews;
         private readonly ILogger<ReviewService> _logger;
         private readonly IOptions<ReviewSettings> _settings;
+        private readonly IServiceProvider _serviceProvider;
+        private IRequirementsAnalysisService? _requirementsAnalysisService;
+        private IProjectPlanningService? _projectPlanningService;
+        private IStoryGenerationService? _storyGenerationService;
 
         public ReviewService(
             ILogger<ReviewService> logger,
-            IOptions<ReviewSettings> settings)
+            IOptions<ReviewSettings> settings,
+            IServiceProvider serviceProvider,
+            IRequirementsAnalysisService? requirementsAnalysisService,
+            IProjectPlanningService? projectPlanningService,
+            IStoryGenerationService? storyGenerationService)
         {
             _reviews = new ConcurrentDictionary<Guid, ReviewSubmission>();
             _logger = logger;
             _settings = settings;
+            _serviceProvider = serviceProvider;
+            _requirementsAnalysisService = requirementsAnalysisService;
+            _projectPlanningService = projectPlanningService;
+            _storyGenerationService = storyGenerationService;
         }
 
         public async Task<ReviewResponse> SubmitForReviewAsync(SubmitReviewRequest request, CancellationToken cancellationToken = default)
@@ -333,24 +346,79 @@ namespace AIProjectOrchestrator.Application.Services
             // This method will be called after a review is approved
             // It should trigger the next stage in the workflow based on the review metadata
             _logger.LogInformation("Review {ReviewId} approved, triggering workflow progression", reviewId);
-            
+
             // For now, we'll just log the metadata
             foreach (var kvp in review.Metadata)
             {
                 _logger.LogDebug("Review {ReviewId} metadata: {Key} = {Value}", reviewId, kvp.Key, kvp.Value);
             }
-            
+
+            // Create a new scope to resolve scoped services
+            using (var scope = _serviceProvider.CreateScope())
+            {
+                // Check if this is a requirements analysis review
+                if (review.ServiceName == "RequirementsAnalysis" && review.PipelineStage == "Analysis")
+                {
+                    // Extract the analysis ID from metadata
+                    if (review.Metadata.TryGetValue("AnalysisId", out var analysisIdObj) &&
+                        Guid.TryParse(analysisIdObj.ToString(), out var analysisId))
+                    {
+                        // Resolve the service from the new scope
+                        var requirementsService = scope.ServiceProvider.GetRequiredService<IRequirementsAnalysisService>();
+
+                        // Update the requirements analysis status to Approved
+                        await requirementsService.UpdateAnalysisStatusAsync(
+                            analysisId,
+                            AIProjectOrchestrator.Domain.Models.RequirementsAnalysisStatus.Approved,
+                            cancellationToken);
+
+                        _logger.LogInformation("Updated requirements analysis {AnalysisId} status to Approved", analysisId);
+                    }
+                }
+                // Check if this is a project planning review
+                else if (review.ServiceName == "ProjectPlanning" && review.PipelineStage == "Planning")
+                {
+                    // Extract the planning ID from metadata
+                    if (review.Metadata.TryGetValue("PlanningId", out var planningIdObj) &&
+                        Guid.TryParse(planningIdObj.ToString(), out var planningId))
+                    {
+                        // Resolve the service from the new scope
+                        var planningService = scope.ServiceProvider.GetRequiredService<IProjectPlanningService>();
+
+                        // Update the project planning status to Approved
+                        await planningService.UpdatePlanningStatusAsync(
+                            planningId,
+                            AIProjectOrchestrator.Domain.Models.ProjectPlanningStatus.Approved,
+                            cancellationToken);
+
+                        _logger.LogInformation("Updated project planning {PlanningId} status to Approved", planningId);
+                    }
+                }
+                // Check if this is a story generation review
+                else if (review.ServiceName == "StoryGeneration" && review.PipelineStage == "Stories")
+                {
+                    // Extract the generation ID from metadata
+                    if (review.Metadata.TryGetValue("GenerationId", out var generationIdObj) &&
+                        Guid.TryParse(generationIdObj.ToString(), out var generationId))
+                    {
+                        // Resolve the service from the new scope
+                        var storyService = scope.ServiceProvider.GetRequiredService<IStoryGenerationService>();
+
+                        // Update the story generation status to Approved
+                        await storyService.UpdateGenerationStatusAsync(
+                            generationId,
+                            AIProjectOrchestrator.Domain.Models.Stories.StoryGenerationStatus.Approved,
+                            cancellationToken);
+
+                        _logger.LogInformation("Updated story generation {GenerationId} status to Approved", generationId);
+                    }
+                }
+            }
+
             // In a real implementation, we would:
             // 1. Check the ServiceName and PipelineStage
             // 2. Based on that, trigger the next stage in the workflow
             // 3. Update project state or notify relevant services
-            
-            // Example logic:
-            // if (review.ServiceName == "RequirementsAnalysis" && review.PipelineStage == "Analysis")
-            // {
-            //     // Enable project planning for this project
-            //     // This would require a project tracking system
-            // }
         }
     }
 }

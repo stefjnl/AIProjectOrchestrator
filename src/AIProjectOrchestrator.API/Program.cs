@@ -122,7 +122,14 @@ builder.Services.AddSingleton<IAIClient, LMStudioClient>();
 builder.Services.AddSingleton<IAIClientFactory, AIClientFactory>();
 
 // Register Review service as singleton (for in-memory storage consistency)
-builder.Services.AddSingleton<IReviewService, ReviewService>();
+builder.Services.AddSingleton<IReviewService>(serviceProvider =>
+{
+    var logger = serviceProvider.GetRequiredService<ILogger<ReviewService>>();
+    var settings = serviceProvider.GetRequiredService<IOptions<ReviewSettings>>();
+    // We can't resolve scoped services here, so we'll resolve them when needed
+    // Store the service provider to resolve services on-demand
+    return new ReviewService(logger, settings, serviceProvider, null, null, null);
+});
 
 // Register background cleanup service
 builder.Services.AddHostedService<ReviewCleanupService>();

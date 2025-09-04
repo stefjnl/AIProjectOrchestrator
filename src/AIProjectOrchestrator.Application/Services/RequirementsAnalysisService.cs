@@ -227,6 +227,23 @@ namespace AIProjectOrchestrator.Application.Services
             // In a production system, we would check a persistent store
             return null;
         }
+        
+        public async Task UpdateAnalysisStatusAsync(
+            Guid analysisId,
+            RequirementsAnalysisStatus status,
+            CancellationToken cancellationToken = default)
+        {
+            // Update the in-memory status
+            _analysisStatuses[analysisId] = status;
+            
+            // If we have the result in memory, also update its status
+            if (_analysisResults.TryGetValue(analysisId, out var result))
+            {
+                result.Status = status;
+            }
+            
+            _logger.LogInformation("Updated requirements analysis {AnalysisId} status to {Status}", analysisId, status);
+        }
 
         private string CreatePromptFromRequest(RequirementsAnalysisRequest request)
         {

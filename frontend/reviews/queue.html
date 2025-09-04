@@ -63,10 +63,10 @@
                             <pre class="review-text">${review.content.substring(0, 500)}${review.content.length > 500 ? '...' : ''}</pre>
                         </div>
                         <div class="review-actions">
-                            <button class="btn btn-success" onclick="approveReviewFromQueue('${review.id}')">
+                            <button class="btn btn-success" onclick="approveReviewFromQueue('${review.id}', this)">
                                 <i class="fas fa-check"></i> Approve
                             </button>
-                            <button class="btn btn-danger" onclick="rejectReviewFromQueue('${review.id}')">
+                            <button class="btn btn-danger" onclick="rejectReviewFromQueue('${review.id}', this)">
                                 <i class="fas fa-times"></i> Reject
                             </button>
                             <button class="btn btn-secondary" onclick="viewReviewDetails('${review.id}')">
@@ -85,7 +85,15 @@
             }
         }
         
-        async function approveReviewFromQueue(reviewId) {
+        async function approveReviewFromQueue(reviewId, button) {
+            const reviewCard = button.closest('.review-card');
+            const approveButton = reviewCard.querySelector('.btn-success');
+            const rejectButton = reviewCard.querySelector('.btn-danger');
+
+            approveButton.disabled = true;
+            rejectButton.disabled = true;
+            approveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Approving...';
+
             try {
                 await approveReview(reviewId);
                 // Show success message
@@ -97,12 +105,23 @@
             } catch (error) {
                 console.error('Error approving review:', error);
                 alert('Error approving review: ' + error.message);
+                approveButton.disabled = false;
+                rejectButton.disabled = false;
+                approveButton.innerHTML = '<i class="fas fa-check"></i> Approve';
             }
         }
         
-        async function rejectReviewFromQueue(reviewId) {
+        async function rejectReviewFromQueue(reviewId, button) {
+            const reviewCard = button.closest('.review-card');
+            const approveButton = reviewCard.querySelector('.btn-success');
+            const rejectButton = reviewCard.querySelector('.btn-danger');
+
             const feedback = prompt('Please provide feedback for rejection:');
             if (feedback) {
+                approveButton.disabled = true;
+                rejectButton.disabled = true;
+                rejectButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Rejecting...';
+
                 try {
                     await rejectReview(reviewId, { reason: 'User rejection', feedback: feedback });
                     // Reload the reviews list
@@ -110,6 +129,9 @@
                 } catch (error) {
                     console.error('Error rejecting review:', error);
                     alert('Error rejecting review: ' + error.message);
+                    approveButton.disabled = false;
+                    rejectButton.disabled = false;
+                    rejectButton.innerHTML = '<i class="fas fa-times"></i> Reject';
                 }
             }
         }

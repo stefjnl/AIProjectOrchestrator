@@ -221,7 +221,7 @@ namespace AIProjectOrchestrator.Application.Services
                 // For now, we'll assume that if it exists and has a ReviewId, it's approved
                 // In a more sophisticated system, we would check the review status
                 return analysisResult.ReviewId != Guid.Empty && 
-                       analysisResult.Status == RequirementsAnalysisStatus.PendingReview; // Approved requirements would be in PendingReview status
+                       analysisResult.Status == RequirementsAnalysisStatus.Approved; // Fixed: Check for Approved status
             }
             catch (Exception ex)
             {
@@ -277,6 +277,23 @@ Milestones:
             // If we don't have the result in memory, it might have been cleaned up
             // In a production system, we would check a persistent store
             return null;
+        }
+        
+        public async Task UpdatePlanningStatusAsync(
+            Guid planningId,
+            ProjectPlanningStatus status,
+            CancellationToken cancellationToken = default)
+        {
+            // Update the in-memory status
+            _planningStatuses[planningId] = status;
+            
+            // If we have the result in memory, also update its status
+            if (_planningResults.TryGetValue(planningId, out var result))
+            {
+                result.Status = status;
+            }
+            
+            _logger.LogInformation("Updated project planning {PlanningId} status to {Status}", planningId, status);
         }
 
         private string CreatePromptFromContext(

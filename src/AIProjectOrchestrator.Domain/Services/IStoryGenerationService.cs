@@ -27,5 +27,11 @@ namespace AIProjectOrchestrator.Domain.Services
         Task<List<UserStory>?> GetApprovedStoriesAsync(Guid storyGenerationId, CancellationToken cancellationToken = default);
         
         Task<Guid?> GetPlanningIdAsync(Guid storyGenerationId, CancellationToken cancellationToken = default);
+        
+        // Method to update story generation status when review is approved
+        Task UpdateGenerationStatusAsync(
+            Guid generationId,
+            StoryGenerationStatus status,
+            CancellationToken cancellationToken = default);
     }
 }
