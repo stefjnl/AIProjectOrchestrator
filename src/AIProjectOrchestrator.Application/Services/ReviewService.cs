@@ -165,6 +165,9 @@ namespace AIProjectOrchestrator.Application.Services
 
             _logger.LogInformation("Review {ReviewId} approved successfully", reviewId);
 
+            // Notify that the review has been approved to trigger workflow progression
+            await NotifyReviewApprovedAsync(reviewId, review, cancellationToken);
+
             return new ReviewResponse
             {
                 ReviewId = review.Id,
@@ -323,6 +326,31 @@ namespace AIProjectOrchestrator.Application.Services
             // This is a placeholder implementation
             // In a real implementation, we would query the actual workflow status
             return null;
+        }
+        
+        public async Task NotifyReviewApprovedAsync(Guid reviewId, ReviewSubmission review, CancellationToken cancellationToken = default)
+        {
+            // This method will be called after a review is approved
+            // It should trigger the next stage in the workflow based on the review metadata
+            _logger.LogInformation("Review {ReviewId} approved, triggering workflow progression", reviewId);
+            
+            // For now, we'll just log the metadata
+            foreach (var kvp in review.Metadata)
+            {
+                _logger.LogDebug("Review {ReviewId} metadata: {Key} = {Value}", reviewId, kvp.Key, kvp.Value);
+            }
+            
+            // In a real implementation, we would:
+            // 1. Check the ServiceName and PipelineStage
+            // 2. Based on that, trigger the next stage in the workflow
+            // 3. Update project state or notify relevant services
+            
+            // Example logic:
+            // if (review.ServiceName == "RequirementsAnalysis" && review.PipelineStage == "Analysis")
+            // {
+            //     // Enable project planning for this project
+            //     // This would require a project tracking system
+            // }
         }
     }
 }

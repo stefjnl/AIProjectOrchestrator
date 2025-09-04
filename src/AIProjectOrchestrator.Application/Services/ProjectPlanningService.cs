@@ -150,7 +150,8 @@ namespace AIProjectOrchestrator.Application.Services
                     Metadata = new System.Collections.Generic.Dictionary<string, object>
                     {
                         { "PlanningId", planningId },
-                        { "RequirementsAnalysisId", request.RequirementsAnalysisId }
+                        { "RequirementsAnalysisId", request.RequirementsAnalysisId },
+                        { "ProjectId", "unknown" } // Will be updated when we have project tracking
                     }
                 };
 

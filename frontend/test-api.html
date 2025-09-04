@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>API Test</h1>
+    <button onclick="testApi()">Test API Functions</button>
+    <div id="output"></div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        async function testApi() {
+            const output = document.getElementById('output');
+            output.innerHTML = 'Testing API functions...<br>';
+            
+            try {
+                // Test if the function exists
+                if (typeof canCreateProjectPlan === 'undefined') {
+                    output.innerHTML += 'canCreateProjectPlan is not defined<br>';
+                } else {
+                    output.innerHTML += 'canCreateProjectPlan is defined<br>';
+                }
+                
+                // Test calling the function with a dummy ID
+                // This will likely fail with a 404, but we want to see if the function can be called
+                try {
+                    const result = await canCreateProjectPlan('00000000-0000-0000-0000-000000000000');
+                    output.innerHTML += 'API call successful: ' + JSON.stringify(result) + '<br>';
+                } catch (error) {
+                    output.innerHTML += 'API call failed (expected): ' + error.message + '<br>';
+                }
+            } catch (error) {
+                output.innerHTML += 'Error: ' + error.message + '<br>';
+            }
+        }
+    </script>
+</body>
+</html>

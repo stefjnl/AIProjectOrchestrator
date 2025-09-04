@@ -15,7 +15,22 @@ class APIClient {
             throw new Error(`API Error: ${response.status} - ${response.statusText}`);
         }
         
-        return await response.json();
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return await response.json();
+        } else {
+            // Handle text responses
+            const text = await response.text();
+            // Try to parse as JSON first, if that fails, check if it's a boolean string
+            try {
+                return JSON.parse(text);
+            } catch {
+                // Check if it's a boolean string
+                if (text === 'true') return true;
+                if (text === 'false') return false;
+                return text;
+            }
+        }
     }
     
     static async post(endpoint, data) {
@@ -95,9 +110,52 @@ async function getRequirementsStatus(id) {
     return await APIClient.get(`/requirements/${id}/status`);
 }
 
+// Project Planning API functions
+async function createProjectPlan(request) {
+    return await APIClient.post('/projectplanning/create', request);
+}
+
+async function getProjectPlanningStatus(id) {
+    return await APIClient.get(`/projectplanning/${id}/status`);
+}
+
+async function canCreateProjectPlan(requirementsAnalysisId) {
+    return await APIClient.get(`/projectplanning/can-create/${requirementsAnalysisId}`);
+}
+
+// Story Generation API functions
+async function generateStories(request) {
+    return await APIClient.post('/stories/generate', request);
+}
+
+async function getStoryGenerationStatus(id) {
+    return await APIClient.get(`/stories/${id}/status`);
+}
+
+async function canGenerateStories(planningId) {
+    return await APIClient.get(`/stories/can-generate/${planningId}`);
+}
+
+// Code Generation API functions
+async function generateCode(request) {
+    return await APIClient.post('/code/generate', request);
+}
+
+async function getCodeGenerationStatus(id) {
+    return await APIClient.get(`/code/${id}/status`);
+}
+
+async function canGenerateCode(storyGenerationId) {
+    return await APIClient.get(`/code/can-generate/${storyGenerationId}`);
+}
+
 // Review API functions
 async function getPendingReviews() {
     return await APIClient.get('/review/pending');
+}
+
+async function getReview(reviewId) {
+    return await APIClient.get(`/review/${reviewId}`);
 }
 
 async function approveReview(id, feedback = null) {
@@ -112,3 +170,25 @@ async function rejectReview(id, feedback) {
 async function getHealthStatus() {
     return await APIClient.get('/health');
 }
+
+// Make functions globally available
+window.getProjects = getProjects;
+window.getProject = getProject;
+window.createProject = createProject;
+window.updateProject = updateProject;
+window.deleteProject = deleteProject;
+window.analyzeRequirements = analyzeRequirements;
+window.getRequirementsStatus = getRequirementsStatus;
+window.createProjectPlan = createProjectPlan;
+window.getProjectPlanningStatus = getProjectPlanningStatus;
+window.canCreateProjectPlan = canCreateProjectPlan;
+window.generateStories = generateStories;
+window.getStoryGenerationStatus = getStoryGenerationStatus;
+window.canGenerateStories = canGenerateStories;
+window.generateCode = generateCode;
+window.getCodeGenerationStatus = getCodeGenerationStatus;
+window.canGenerateCode = canGenerateCode;
+window.getPendingReviews = getPendingReviews;
+window.approveReview = approveReview;
+window.rejectReview = rejectReview;
+window.getHealthStatus = getHealthStatus;

@@ -154,7 +154,7 @@ app.UseStaticFiles();
 app.MapControllers();
 
 // Map health checks endpoint
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/api/health");
 
 app.Run();
 

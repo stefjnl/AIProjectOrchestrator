@@ -160,7 +160,8 @@ namespace AIProjectOrchestrator.Application.Services
                     Metadata = new Dictionary<string, object>
                     {
                         { "GenerationId", generationId },
-                        { "PlanningId", request.PlanningId }
+                        { "PlanningId", request.PlanningId },
+                        { "ProjectId", "unknown" } // Will be updated when we have project tracking
                     }
                 };
 

@@ -118,7 +118,8 @@ namespace AIProjectOrchestrator.Application.Services
                     Metadata = new System.Collections.Generic.Dictionary<string, object>
                     {
                         { "AnalysisId", analysisId },
-                        { "ProjectDescription", request.ProjectDescription }
+                        { "ProjectDescription", request.ProjectDescription },
+                        { "ProjectId", request.ProjectId ?? "unknown" } // Include project ID for workflow correlation
                     }
                 };
 

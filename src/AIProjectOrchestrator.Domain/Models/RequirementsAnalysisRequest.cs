@@ -11,5 +11,7 @@ namespace AIProjectOrchestrator.Domain.Models
         public string? AdditionalContext { get; set; }
         
         public string? Constraints { get; set; }
+        
+        public string? ProjectId { get; set; } // Added to track project ID for workflow correlation
     }
 }
