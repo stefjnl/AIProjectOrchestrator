@@ -116,7 +116,7 @@ namespace AIProjectOrchestrator.Application.Services
                     ServiceName = "CodeGeneration",
                     Content = SerializeCodeArtifacts(organizedFiles),
                     CorrelationId = correlationId,
-                    PipelineStage = "CodeGeneration",
+                    PipelineStage = "Implementation",
                     OriginalRequest = null, // Not applicable for code generation
                     AIResponse = null, // Not applicable for code generation
                     Metadata = new Dictionary<string, object>

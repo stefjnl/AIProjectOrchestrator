@@ -115,14 +115,31 @@
                     projectDescription: project.description
                 };
                 
+                console.log('=== STARTING REQUIREMENTS ANALYSIS ===');
+                console.log('Project ID:', projectId);
+                console.log('Request:', request);
+                
                 const response = await analyzeRequirements(request);
-                console.log('Requirements analysis started:', response);
+                console.log('=== ANALYSIS COMPLETE ===');
+                console.log('Full response:', JSON.stringify(response, null, 2));
+                console.log('Review ID:', response.reviewId);
+                console.log('Status:', response.status);
                 
                 // Update UI
-                document.getElementById('requirements-status').textContent = 'In Progress';
-                document.getElementById('requirements-status').className = 'stage-status status-loading';
+                document.getElementById('requirements-status').textContent = 'Pending Review';
+                document.getElementById('requirements-status').className = 'stage-status status-pending';
+                
+                // Show next step - redirect to review queue
+                if (response.reviewId && response.status === 1) {
+                    console.log('Analysis completed successfully - redirecting to review queue');
+                    const userAction = confirm('Analysis completed! Click OK to review the results, or Cancel to stay on this page.');
+                    if (userAction) {
+                        window.location.href = '/reviews/queue.html';
+                    }
+                }
             } catch (error) {
                 console.error('Error starting requirements analysis:', error);
+                console.error('Error details:', error.message);
                 alert('Error starting requirements analysis: ' + error.message);
             }
         }

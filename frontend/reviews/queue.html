@@ -38,6 +38,53 @@
     <script>
         document.addEventListener('DOMContentLoaded', loadPendingReviews);
         
+        async function loadPendingReviews() {
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const grid = document.getElementById('reviews-grid');
+            const noReviews = document.getElementById('no-reviews');
+            
+            try {
+                const reviews = await getPendingReviews();
+                loading.style.display = 'none';
+                
+                if (reviews.length === 0) {
+                    noReviews.style.display = 'block';
+                    return;
+                }
+                
+                grid.innerHTML = reviews.map(review => `
+                    <div class="review-card">
+                        <div class="review-header">
+                            <h3>${review.serviceName} - ${review.pipelineStage}</h3>
+                            <span class="review-date">${new Date(review.submittedAt).toLocaleString()}</span>
+                        </div>
+                        <div class="review-content">
+                            <pre class="review-text">${review.content.substring(0, 500)}${review.content.length > 500 ? '...' : ''}</pre>
+                        </div>
+                        <div class="review-actions">
+                            <button class="btn btn-success" onclick="approveReviewFromQueue('${review.id}')">
+                                <i class="fas fa-check"></i> Approve
+                            </button>
+                            <button class="btn btn-danger" onclick="rejectReviewFromQueue('${review.id}')">
+                                <i class="fas fa-times"></i> Reject
+                            </button>
+                            <button class="btn btn-secondary" onclick="viewReviewDetails('${review.id}')">
+                                <i class="fas fa-eye"></i> Details
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                
+                grid.style.display = 'grid';
+            } catch (err) {
+                loading.style.display = 'none';
+                error.textContent = `Error loading reviews: ${err.message}`;
+                error.style.display = 'block';
+                console.error('Error loading reviews:', err);
+            }
+        }
+        
         async function approveReviewFromQueue(reviewId) {
             try {
                 await approveReview(reviewId);
@@ -53,7 +100,7 @@
             const feedback = prompt('Please provide feedback for rejection:');
             if (feedback) {
                 try {
-                    await rejectReview(reviewId, feedback);
+                    await rejectReview(reviewId, { reason: 'User rejection', feedback: feedback });
                     // Reload the reviews list
                     await loadPendingReviews();
                 } catch (error) {
@@ -61,6 +108,11 @@
                     alert('Error rejecting review: ' + error.message);
                 }
             }
+        }
+        
+        function viewReviewDetails(reviewId) {
+            // For now, just show an alert with the review ID
+            alert('Review details would be shown here. Review ID: ' + reviewId);
         }
     </script>
 </body>
