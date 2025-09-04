@@ -966,10 +966,10 @@ namespace AIProjectOrchestrator.Application.Services
         {
             return modelName.ToLower() switch
             {
-                "claude" => "claude-3-5-sonnet-20240620",
+                "claude" => "qwen/qwen3-coder",
                 "qwen3-coder" => "qwen3-coder",
                 "deepseek" => "deepseek-coder",
-                _ => "claude-3-5-sonnet-20240620"
+                _ => "qwen/qwen3-coder"
             };
         }
 
@@ -977,10 +977,10 @@ namespace AIProjectOrchestrator.Application.Services
         {
             return modelName.ToLower() switch
             {
-                "claude" => "Claude",
+                "claude" => "OpenRouter", // Route Claude requests to OpenRouter
                 "qwen3-coder" => "LMStudio",
                 "deepseek" => "OpenRouter",
-                _ => "Claude"
+                _ => "OpenRouter"
             };
         }
 

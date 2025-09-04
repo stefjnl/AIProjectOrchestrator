@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Workflow - AI Orchestrator</title>
+    <link rel="stylesheet" href="/css/app.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">AI Project Orchestrator</div>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/projects/list.html">Projects</a>
+            <a href="/reviews/queue.html">Reviews</a>
+        </div>
+    </nav>
+
+    <main class="workflow-page">
+        <div class="page-header">
+            <h1>Project Workflow</h1>
+            <button class="btn btn-secondary" onclick="window.location.href='/projects/list.html'">
+                <i class="fas fa-arrow-left"></i> Back to Projects
+            </button>
+        </div>
+
+        <div class="workflow-container">
+            <div id="loading" class="loading">Loading project...</div>
+            <div id="error" class="error" style="display: none;"></div>
+            <div id="project-details" class="project-details" style="display: none;">
+                <h2 id="project-name"></h2>
+                <p id="project-description"></p>
+                
+                <div class="workflow-stages">
+                    <div class="stage-card" id="requirements-stage">
+                        <h3>Requirements Analysis</h3>
+                        <div class="stage-status" id="requirements-status">Not Started</div>
+                        <button class="btn btn-small" onclick="startRequirementsAnalysis()">
+                            <i class="fas fa-play"></i> Start Analysis
+                        </button>
+                    </div>
+                    
+                    <div class="stage-card" id="planning-stage">
+                        <h3>Project Planning</h3>
+                        <div class="stage-status" id="planning-status">Not Started</div>
+                        <button class="btn btn-small" onclick="startProjectPlanning()" disabled>
+                            <i class="fas fa-play"></i> Start Planning
+                        </button>
+                    </div>
+                    
+                    <div class="stage-card" id="stories-stage">
+                        <h3>Story Generation</h3>
+                        <div class="stage-status" id="stories-status">Not Started</div>
+                        <button class="btn btn-small" onclick="startStoryGeneration()" disabled>
+                            <i class="fas fa-play"></i> Generate Stories
+                        </button>
+                    </div>
+                    
+                    <div class="stage-card" id="code-stage">
+                        <h3>Code Generation</h3>
+                        <div class="stage-status" id="code-status">Not Started</div>
+                        <button class="btn btn-small" onclick="startCodeGeneration()" disabled>
+                            <i class="fas fa-play"></i> Generate Code
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/app.js"></script>
+    <script src="/js/utils.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', loadProjectWorkflow);
+        
+        async function loadProjectWorkflow() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectId = urlParams.get('id');
+            
+            if (!projectId) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').textContent = 'No project ID specified';
+                document.getElementById('error').style.display = 'block';
+                return;
+            }
+            
+            try {
+                const project = await getProject(projectId);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('project-name').textContent = project.name;
+                document.getElementById('project-description').textContent = project.description;
+                document.getElementById('project-details').style.display = 'block';
+            } catch (err) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').textContent = `Error loading project: ${err.message}`;
+                document.getElementById('error').style.display = 'block';
+                console.error('Error loading project:', err);
+            }
+        }
+        
+        async function startRequirementsAnalysis() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectId = urlParams.get('id');
+            
+            if (!projectId) return;
+            
+            try {
+                // Get project details first
+                const project = await getProject(projectId);
+                
+                // Start requirements analysis
+                const request = {
+                    projectDescription: project.description
+                };
+                
+                const response = await analyzeRequirements(request);
+                console.log('Requirements analysis started:', response);
+                
+                // Update UI
+                document.getElementById('requirements-status').textContent = 'In Progress';
+                document.getElementById('requirements-status').className = 'stage-status status-loading';
+            } catch (error) {
+                console.error('Error starting requirements analysis:', error);
+                alert('Error starting requirements analysis: ' + error.message);
+            }
+        }
+        
+        async function startProjectPlanning() {
+            // Implementation would go here
+            alert('Project planning would start here');
+        }
+        
+        async function startStoryGeneration() {
+            // Implementation would go here
+            alert('Story generation would start here');
+        }
+        
+        async function startCodeGeneration() {
+            // Implementation would go here
+            alert('Code generation would start here');
+        }
+    </script>
+</body>
+</html>

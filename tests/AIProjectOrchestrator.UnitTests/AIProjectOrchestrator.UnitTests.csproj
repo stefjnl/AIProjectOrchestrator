@@ -27,4 +27,8 @@
     <ProjectReference Include="..\..\src\AIProjectOrchestrator.Infrastructure\AIProjectOrchestrator.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\..\Instructions\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

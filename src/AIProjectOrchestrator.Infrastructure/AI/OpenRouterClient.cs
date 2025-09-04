@@ -22,6 +22,18 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             : base(httpClient, logger)
         {
             _settings = settings.Value.OpenRouter;
+            // Log settings for debugging
+            logger.LogInformation("OpenRouter Settings - BaseUrl: {BaseUrl}, ApiKey Length: {ApiKeyLength}, DefaultModel: {DefaultModel}", 
+                _settings.BaseUrl, _settings.ApiKey?.Length ?? 0, _settings.DefaultModel);
+            
+            // Log the actual API key prefix for debugging (first 10 characters)
+            if (!string.IsNullOrEmpty(_settings.ApiKey))
+            {
+                logger.LogInformation("OpenRouter API Key prefix: {ApiKeyPrefix}", _settings.ApiKey.Substring(0, Math.Min(10, _settings.ApiKey.Length)));
+            }
+            
+            // Also log the HttpClient BaseAddress in constructor
+            logger.LogInformation("OpenRouter HttpClient BaseAddress in constructor: {BaseAddress}", httpClient.BaseAddress?.ToString() ?? "NULL");
         }
 
         public override async Task<AIResponse> CallAsync(AIRequest request, CancellationToken cancellationToken = default)
@@ -47,12 +59,26 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                 var json = JsonSerializer.Serialize(openAIRequest);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 
+                // Log the HttpClient BaseAddress for debugging
+                _logger.LogInformation("OpenRouter HttpClient BaseAddress: {BaseAddress}", _httpClient.BaseAddress?.ToString() ?? "NULL");
+                
+                // Log the full request URL being constructed
+                var fullUrl = _httpClient.BaseAddress != null 
+                    ? new Uri(_httpClient.BaseAddress, "chat/completions").ToString()
+                    : "chat/completions";
+                _logger.LogInformation("OpenRouter Full Request URL: {FullUrl}", fullUrl);
+                
                 var requestMessage = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
                 {
                     Content = content
                 };
                 
-                requestMessage.Headers.Add("Authorization", $"Bearer {_settings.ApiKey}");
+                // Log the API key info (but not the actual key)
+                _logger.LogInformation("Using API Key - Length: {ApiKeyLength}, IsNullOrEmpty: {IsNullOrEmpty}", 
+                    _settings.ApiKey?.Length ?? 0, string.IsNullOrEmpty(_settings.ApiKey));
+                
+                // Add required headers for OpenRouter API
+                requestMessage.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _settings.ApiKey);
                 requestMessage.Headers.Add("HTTP-Referer", "AIProjectOrchestrator");
                 requestMessage.Headers.Add("X-Title", "AIProjectOrchestrator");
 
@@ -63,28 +89,48 @@ namespace AIProjectOrchestrator.Infrastructure.AI
 
                 var responseContent = await response.Content.ReadAsStringAsync();
                 
+                // Log response details for debugging
+                _logger.LogInformation("OpenRouter API Response - Status: {StatusCode}, Content Length: {ContentLength}, Content Start: {ContentStart}", 
+                    response.StatusCode, responseContent.Length, responseContent.Substring(0, Math.Min(200, responseContent.Length)));
+                
                 if (response.IsSuccessStatusCode)
                 {
-                    // Parse OpenAI-compatible response format
-                    using var doc = JsonDocument.Parse(responseContent);
-                    var root = doc.RootElement;
-                    
-                    var choices = root.GetProperty("choices");
-                    var firstChoice = choices[0];
-                    var message = firstChoice.GetProperty("message");
-                    var text = message.GetProperty("content").GetString() ?? string.Empty;
-                    
-                    var usage = root.GetProperty("usage");
-                    var tokensUsed = usage.GetProperty("completion_tokens").GetInt32();
-                    
-                    return new AIResponse
+                    try
                     {
-                        Content = text,
-                        TokensUsed = tokensUsed,
-                        ProviderName = ProviderName,
-                        IsSuccess = true,
-                        ResponseTime = DateTime.UtcNow - startTime
-                    };
+                        // Parse OpenAI-compatible response format
+                        using var doc = JsonDocument.Parse(responseContent);
+                        var root = doc.RootElement;
+                        
+                        var choices = root.GetProperty("choices");
+                        var firstChoice = choices[0];
+                        var message = firstChoice.GetProperty("message");
+                        var text = message.GetProperty("content").GetString() ?? string.Empty;
+                        
+                        var usage = root.GetProperty("usage");
+                        var tokensUsed = usage.GetProperty("completion_tokens").GetInt32();
+                        
+                        return new AIResponse
+                        {
+                            Content = text,
+                            TokensUsed = tokensUsed,
+                            ProviderName = ProviderName,
+                            IsSuccess = true,
+                            ResponseTime = DateTime.UtcNow - startTime
+                        };
+                    }
+                    catch (JsonException jsonEx)
+                    {
+                        _logger.LogError(jsonEx, "Failed to parse JSON response from OpenRouter. Response content: {ResponseContent}", responseContent);
+                        return new AIResponse
+                        {
+                            Content = string.Empty,
+                            TokensUsed = 0,
+                            ProviderName = ProviderName,
+                            IsSuccess = false,
+                            ErrorMessage = $"Failed to parse JSON response: {jsonEx.Message}. Response content starts with: {responseContent.Substring(0, Math.Min(100, responseContent.Length))}",
+                            ResponseTime = DateTime.UtcNow - startTime
+                        };
+                    }
                 }
                 else
                 {

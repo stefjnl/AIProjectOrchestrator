@@ -164,14 +164,21 @@ namespace AIProjectOrchestrator.Application.Services
         {
             // Convert service names to file names using convention:
             // RequirementsAnalysisService → RequirementsAnalyst.md
-            // ProjectPlanningService → ProjectPlanner.md 
+            // ProjectPlanningService → ProjectPlanner.md
             // StoryGenerationService → StoryGenerator.md
-            
-            return serviceName
-                .Replace("Service", ".md")
+
+            var fileName = serviceName
                 .Replace("Analysis", "Analyst")
                 .Replace("Planning", "Planner")
                 .Replace("Generation", "Generator");
+
+            // Always add .md extension if not already present
+            if (!fileName.EndsWith(".md"))
+            {
+                fileName += ".md";
+            }
+
+            return fileName;
         }
 
         private bool ValidateContent(string content, out string validationMessage)

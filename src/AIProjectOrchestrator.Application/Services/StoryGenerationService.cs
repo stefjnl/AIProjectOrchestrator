@@ -106,7 +106,7 @@ namespace AIProjectOrchestrator.Application.Services
                 {
                     SystemMessage = instructionContent.Content,
                     Prompt = CreatePromptFromContext(planningContent, requirementsContent, request),
-                    ModelName = "claude-3-5-sonnet-20240620", // Default model for story generation
+                    ModelName = "qwen/qwen3-coder", // Default model for story generation via OpenRouter
                     Temperature = 0.7,
                     MaxTokens = 4000 // Larger response expected for story generation
                 };
@@ -121,13 +121,13 @@ namespace AIProjectOrchestrator.Application.Services
                     _logger.LogWarning("Story generation {GenerationId} context size is large: {ContextSize} bytes", generationId, contextSize);
                 }
 
-                // Get Claude AI client
-                var aiClient = _aiClientFactory.GetClient("Claude");
+                // Get OpenRouter AI client
+                var aiClient = _aiClientFactory.GetClient("OpenRouter");
                 if (aiClient == null)
                 {
-                    _logger.LogError("Story generation {GenerationId} failed: Claude AI client not available", generationId);
+                    _logger.LogError("Story generation {GenerationId} failed: OpenRouter AI client not available", generationId);
                     _generationStatuses[generationId] = StoryGenerationStatus.Failed;
-                    throw new InvalidOperationException("Claude AI client is not available");
+                    throw new InvalidOperationException("OpenRouter AI client is not available");
                 }
 
                 _logger.LogDebug("Calling AI client for story generation {GenerationId}", generationId);
@@ -154,7 +154,7 @@ namespace AIProjectOrchestrator.Application.Services
                     ServiceName = "StoryGeneration",
                     Content = aiResponse.Content,
                     CorrelationId = correlationId,
-                    PipelineStage = "StoryGeneration",
+                    PipelineStage = "Stories",
                     OriginalRequest = aiRequest,
                     AIResponse = aiResponse,
                     Metadata = new Dictionary<string, object>

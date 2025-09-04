@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Queue - AI Orchestrator</title>
+    <link rel="stylesheet" href="/css/app.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">AI Project Orchestrator</div>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/projects/list.html">Projects</a>
+            <a href="/reviews/queue.html">Reviews</a>
+        </div>
+    </nav>
+
+    <main class="reviews-page">
+        <div class="page-header">
+            <h1>Pending Reviews</h1>
+        </div>
+
+        <div class="reviews-container">
+            <div id="loading" class="loading">Loading reviews...</div>
+            <div id="error" class="error" style="display: none;"></div>
+            <div id="reviews-grid" class="reviews-grid" style="display: none;"></div>
+            <div id="no-reviews" class="no-reviews" style="display: none;">
+                <p>No pending reviews at this time.</p>
+            </div>
+        </div>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/app.js"></script>
+    <script src="/js/utils.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', loadPendingReviews);
+        
+        async function approveReviewFromQueue(reviewId) {
+            try {
+                await approveReview(reviewId);
+                // Reload the reviews list
+                await loadPendingReviews();
+            } catch (error) {
+                console.error('Error approving review:', error);
+                alert('Error approving review: ' + error.message);
+            }
+        }
+        
+        async function rejectReviewFromQueue(reviewId) {
+            const feedback = prompt('Please provide feedback for rejection:');
+            if (feedback) {
+                try {
+                    await rejectReview(reviewId, feedback);
+                    // Reload the reviews list
+                    await loadPendingReviews();
+                } catch (error) {
+                    console.error('Error rejecting review:', error);
+                    alert('Error rejecting review: ' + error.message);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

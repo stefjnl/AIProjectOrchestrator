@@ -96,7 +96,7 @@ namespace AIProjectOrchestrator.Application.Services
                 {
                     SystemMessage = instructionContent.Content,
                     Prompt = CreatePromptFromContext(requirementsAnalysis, request),
-                    ModelName = "claude-3-5-sonnet-20240620", // Default model for project planning
+                    ModelName = "qwen/qwen3-coder", // Default model for project planning via OpenRouter
                     Temperature = 0.7,
                     MaxTokens = 4000 // Larger response expected for project planning
                 };
@@ -111,13 +111,13 @@ namespace AIProjectOrchestrator.Application.Services
                     _logger.LogWarning("Project planning {PlanningId} context size is large: {ContextSize} bytes", planningId, contextSize);
                 }
 
-                // Get Claude AI client
-                var aiClient = _aiClientFactory.GetClient("Claude");
+                // Get OpenRouter AI client
+                var aiClient = _aiClientFactory.GetClient("OpenRouter");
                 if (aiClient == null)
                 {
-                    _logger.LogError("Project planning {PlanningId} failed: Claude AI client not available", planningId);
+                    _logger.LogError("Project planning {PlanningId} failed: OpenRouter AI client not available", planningId);
                     _planningStatuses[planningId] = ProjectPlanningStatus.Failed;
-                    throw new InvalidOperationException("Claude AI client is not available");
+                    throw new InvalidOperationException("OpenRouter AI client is not available");
                 }
 
                 _logger.LogDebug("Calling AI client for project planning {PlanningId}", planningId);
@@ -144,7 +144,7 @@ namespace AIProjectOrchestrator.Application.Services
                     ServiceName = "ProjectPlanning",
                     Content = aiResponse.Content,
                     CorrelationId = correlationId,
-                    PipelineStage = "ProjectPlanning",
+                    PipelineStage = "Planning",
                     OriginalRequest = aiRequest,
                     AIResponse = aiResponse,
                     Metadata = new System.Collections.Generic.Dictionary<string, object>

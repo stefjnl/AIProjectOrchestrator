@@ -26,6 +26,17 @@ builder.Host.UseSerilog((context, configuration) =>
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
+// Add CORS policy for frontend
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 // Add health checks
 builder.Services.AddHealthChecks()
     .AddCheck<ClaudeHealthCheck>("claude")
@@ -70,7 +81,7 @@ builder.Services.Configure<AIProviderSettings>(
 builder.Services.Configure<ReviewSettings>(
     builder.Configuration.GetSection(ReviewSettings.SectionName));
 
-// Register HTTP clients for each provider
+// Register HTTP clients for each provider and AI clients as singletons
 builder.Services.AddHttpClient<ClaudeClient>()
     .ConfigureHttpClient((serviceProvider, client) => {
         var settings = serviceProvider.GetRequiredService<IOptions<AIProviderSettings>>().Value.Claude;
@@ -88,14 +99,24 @@ builder.Services.AddHttpClient<LMStudioClient>()
 builder.Services.AddHttpClient<OpenRouterClient>()
     .ConfigureHttpClient((serviceProvider, client) => {
         var settings = serviceProvider.GetRequiredService<IOptions<AIProviderSettings>>().Value.OpenRouter;
-        client.BaseAddress = new Uri(settings.BaseUrl);
+        // Ensure BaseAddress ends with trailing slash for proper URL construction
+        var baseUrl = settings.BaseUrl.TrimEnd('/') + "/";
+        client.BaseAddress = new Uri(baseUrl);
         client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
     });
 
-// Register AI clients as singletons
+// Register AI clients as singletons - OpenRouter uses the named HttpClient
+builder.Services.AddSingleton<IAIClient>(serviceProvider => {
+    var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+    var httpClient = httpClientFactory.CreateClient(nameof(OpenRouterClient));
+    var logger = serviceProvider.GetRequiredService<ILogger<OpenRouterClient>>();
+    var settings = serviceProvider.GetRequiredService<IOptions<AIProviderSettings>>();
+    logger.LogInformation("Creating OpenRouterClient with HttpClient BaseAddress: {BaseAddress}", httpClient.BaseAddress?.ToString() ?? "NULL");
+    return new OpenRouterClient(httpClient, logger, settings);
+});
+
 builder.Services.AddSingleton<IAIClient, ClaudeClient>();
 builder.Services.AddSingleton<IAIClient, LMStudioClient>();
-builder.Services.AddSingleton<IAIClient, OpenRouterClient>();
 
 // Register factory for accessing specific clients
 builder.Services.AddSingleton<IAIClientFactory, AIClientFactory>();
@@ -112,9 +133,19 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    
+    // Apply migrations on startup in development
+    using (var scope = app.Services.CreateScope())
+    {
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        context.Database.EnsureCreated();
+    }
 }
 
 app.UseHttpsRedirection();
+
+// Enable CORS
+app.UseCors();
 
 // Enable static file serving
 app.UseStaticFiles();

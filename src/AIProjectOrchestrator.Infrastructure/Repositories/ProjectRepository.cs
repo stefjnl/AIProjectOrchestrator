@@ -1,6 +1,7 @@
 using AIProjectOrchestrator.Domain.Entities;
 using AIProjectOrchestrator.Domain.Interfaces;
 using AIProjectOrchestrator.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace AIProjectOrchestrator.Infrastructure.Repositories
 {
@@ -15,32 +16,43 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
 
         public async Task<IEnumerable<Project>> GetAllAsync()
         {
-            // Implementation would go here
-            throw new NotImplementedException();
+            return await _context.Projects.ToListAsync();
         }
 
         public async Task<Project?> GetByIdAsync(int id)
         {
-            // Implementation would go here
-            throw new NotImplementedException();
+            return await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
         }
 
         public async Task<Project> AddAsync(Project project)
         {
-            // Implementation would go here
-            throw new NotImplementedException();
+            project.CreatedAt = DateTime.UtcNow;
+            project.UpdatedAt = DateTime.UtcNow;
+            
+            _context.Projects.Add(project);
+            await _context.SaveChangesAsync();
+            
+            return project;
         }
 
         public async Task<Project> UpdateAsync(Project project)
         {
-            // Implementation would go here
-            throw new NotImplementedException();
+            project.UpdatedAt = DateTime.UtcNow;
+            
+            _context.Projects.Update(project);
+            await _context.SaveChangesAsync();
+            
+            return project;
         }
 
         public async Task DeleteAsync(int id)
         {
-            // Implementation would go here
-            throw new NotImplementedException();
+            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id);
+            if (project != null)
+            {
+                _context.Projects.Remove(project);
+                await _context.SaveChangesAsync();
+            }
         }
     }
 }

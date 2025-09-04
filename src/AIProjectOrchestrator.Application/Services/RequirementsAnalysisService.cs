@@ -77,18 +77,18 @@ namespace AIProjectOrchestrator.Application.Services
                 {
                     SystemMessage = instructionContent.Content,
                     Prompt = CreatePromptFromRequest(request),
-                    ModelName = "claude-3-5-sonnet-20240620", // Default model for requirements analysis
+                    ModelName = "qwen/qwen3-coder", // Default model for requirements analysis via OpenRouter
                     Temperature = 0.7,
                     MaxTokens = 2000
                 };
 
-                // Get Claude AI client
-                var aiClient = _aiClientFactory.GetClient("Claude");
+                // Get OpenRouter AI client
+                var aiClient = _aiClientFactory.GetClient("OpenRouter");
                 if (aiClient == null)
                 {
-                    _logger.LogError("Requirements analysis {AnalysisId} failed: Claude AI client not available", analysisId);
+                    _logger.LogError("Requirements analysis {AnalysisId} failed: OpenRouter AI client not available", analysisId);
                     _analysisStatuses[analysisId] = RequirementsAnalysisStatus.Failed;
-                    throw new InvalidOperationException("Claude AI client is not available");
+                    throw new InvalidOperationException("OpenRouter AI client is not available");
                 }
 
                 _logger.LogDebug("Calling AI client for requirements analysis {AnalysisId}", analysisId);
@@ -112,7 +112,7 @@ namespace AIProjectOrchestrator.Application.Services
                     ServiceName = "RequirementsAnalysis",
                     Content = aiResponse.Content,
                     CorrelationId = correlationId,
-                    PipelineStage = "RequirementsAnalysis",
+                    PipelineStage = "Analysis",
                     OriginalRequest = aiRequest,
                     AIResponse = aiResponse,
                     Metadata = new System.Collections.Generic.Dictionary<string, object>
