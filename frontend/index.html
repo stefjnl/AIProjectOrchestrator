@@ -4,16 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Project Orchestrator</title>
-    <link rel="stylesheet" href="./css/styles.css">
+    <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
     <div class="container">
         <h1>Welcome to AI Project Orchestrator</h1>
         
         <div class="main-nav-buttons">
-            <a href="./projects/create.html"><button>Create New Project</button></a>
-            <a href="./projects/list.html"><button>View All Projects</button></a>
-            <a href="./reviews/queue.html"><button>Go To Review Queue</button></a>
+            <a href="/projects/create.html"><button>Create New Project</button></a>
+            <a href="/projects/list.html"><button>View All Projects</button></a>
+            <a href="/reviews/queue.html"><button>Go To Review Queue</button></a>
         </div>
 
         <div class="dashboard-overview">
@@ -40,7 +40,7 @@
         </div>
     </div>
 
-    <script src="./js/api.js"></script>
+    <script src="/js/api.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
             // Fetch and display system status
@@ -80,7 +80,7 @@
                         <h3>${escapeHTML(project.name)}</h3>
                         <p>${escapeHTML(project.description)}</p>
                     </div>
-                    <a href="/frontend/projects/workflow.html?projectId=${project.id}" class="action-link">Continue Workflow</a>
+                    <a href="/projects/workflow.html?projectId=${project.id}" class="action-link">Continue Workflow</a>
                 `;
                 recentList.appendChild(projectItem);
             });
