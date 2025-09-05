@@ -85,10 +85,10 @@
             try {
                 const project = await window.APIClient.getProject(workflowManager.projectId);
                 const request = {
-                    projectId: workflowManager.projectId,
-                    projectDescription: project.description,
-                    context: "",
-                    constraints: []
+                    ProjectDescription: project.description,
+                    AdditionalContext: "",
+                    Constraints: "",
+                    ProjectId: workflowManager.projectId
                 };
 
                 const response = await window.APIClient.analyzeRequirements(request);
