@@ -15,14 +15,25 @@ namespace AIProjectOrchestrator.UnitTests.Review
     public class ReviewInterfaceTests
     {
         private readonly Mock<IReviewService> _mockReviewService;
+        private readonly Mock<IRequirementsAnalysisService> _mockRequirementsAnalysisService;
+        private readonly Mock<IProjectPlanningService> _mockProjectPlanningService;
+        private readonly Mock<IStoryGenerationService> _mockStoryGenerationService;
         private readonly Mock<ILogger<ReviewController>> _mockLogger;
         private readonly ReviewController _controller;
 
         public ReviewInterfaceTests()
         {
             _mockReviewService = new Mock<IReviewService>();
+            _mockRequirementsAnalysisService = new Mock<IRequirementsAnalysisService>();
+            _mockProjectPlanningService = new Mock<IProjectPlanningService>();
+            _mockStoryGenerationService = new Mock<IStoryGenerationService>();
             _mockLogger = new Mock<ILogger<ReviewController>>();
-            _controller = new ReviewController(_mockReviewService.Object, _mockLogger.Object);
+            _controller = new ReviewController(
+                _mockReviewService.Object, 
+                _mockRequirementsAnalysisService.Object,
+                _mockProjectPlanningService.Object,
+                _mockStoryGenerationService.Object,
+                _mockLogger.Object);
         }
 
         [Fact]

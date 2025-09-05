@@ -116,7 +116,7 @@ namespace AIProjectOrchestrator.Application.Services
                     ServiceName = "CodeGeneration",
                     Content = SerializeCodeArtifacts(organizedFiles),
                     CorrelationId = correlationId,
-                    PipelineStage = "CodeGeneration",
+                    PipelineStage = "Implementation",
                     OriginalRequest = null, // Not applicable for code generation
                     AIResponse = null, // Not applicable for code generation
                     Metadata = new Dictionary<string, object>
@@ -216,9 +216,9 @@ namespace AIProjectOrchestrator.Application.Services
         {
             try
             {
-                // Check that stories exist and are approved
-                var stories = await _storyGenerationService.GetApprovedStoriesAsync(storyGenerationId, cancellationToken);
-                return stories != null && stories.Any();
+                // Check that stories exist and are approved by checking the status
+                var status = await _storyGenerationService.GetGenerationStatusAsync(storyGenerationId, cancellationToken);
+                return status == AIProjectOrchestrator.Domain.Models.Stories.StoryGenerationStatus.Approved;
             }
             catch (Exception ex)
             {
@@ -470,54 +470,8 @@ namespace AIProjectOrchestrator.Application.Services
 
         private async Task<string> SelectOptimalModelAsync(List<UserStory> stories, string technicalContext, CancellationToken cancellationToken)
         {
-            // Analyze story complexity and technical requirements
-            // Route complex architectural stories to Claude
-            // Route standard CRUD operations to Qwen3-coder
-            // Use DeepSeek for alternative implementations
-            // Consider model availability via health checks
-
-            var complexity = AnalyzeStoryComplexity(stories);
-            var availableModels = await GetAvailableModelsAsync(cancellationToken);
-
-            // Check model health status
-            var modelHealth = await CheckModelHealthAsync(cancellationToken);
-
-            // Route based on story characteristics
-            if (complexity.HasArchitecturalDecisions && availableModels.Contains("claude") && modelHealth["claude"])
-                return "claude";
-                
-            if (complexity.IsCRUDHeavy && availableModels.Contains("qwen3-coder") && modelHealth["qwen3-coder"])
-                return "qwen3-coder";
-                
-            if (complexity.IsHighComplexity && availableModels.Contains("deepseek") && modelHealth["deepseek"])
-                return "deepseek";
-
-            // If we need an alternative implementation for validation
-            if (stories.Any(s => s.Description.Contains("validate", StringComparison.OrdinalIgnoreCase) || 
-                               s.Description.Contains("compare", StringComparison.OrdinalIgnoreCase)) &&
-                availableModels.Contains("deepseek") && modelHealth["deepseek"])
-                return "deepseek";
-
-            // Prefer Claude as the default model for general cases if it's healthy
-            if (availableModels.Contains("claude") && modelHealth["claude"])
-                return "claude";
-                
-            // Fallback to other models based on health status
-            if (availableModels.Contains("qwen3-coder") && modelHealth["qwen3-coder"])
-                return "qwen3-coder";
-                
-            if (availableModels.Contains("deepseek") && modelHealth["deepseek"])
-                return "deepseek";
-
-            // Fallback to first available healthy model
-            foreach (var model in availableModels)
-            {
-                if (modelHealth.ContainsKey(model) && modelHealth[model])
-                    return model;
-            }
-
-            // Final fallback to Claude if no healthy models found
-            return "claude";
+            // Always use Qwen for consistency with other services
+            return "qwen3-coder";
         }
 
         private async Task<List<CodeArtifact>> GenerateTestFilesAsync(
@@ -966,10 +920,10 @@ namespace AIProjectOrchestrator.Application.Services
         {
             return modelName.ToLower() switch
             {
-                "claude" => "claude-3-5-sonnet-20240620",
-                "qwen3-coder" => "qwen3-coder",
-                "deepseek" => "deepseek-coder",
-                _ => "claude-3-5-sonnet-20240620"
+                "claude" => "qwen/qwen3-coder",
+                "qwen3-coder" => "qwen/qwen3-coder",
+                "deepseek" => "qwen/qwen3-coder", // Use Qwen for all models
+                _ => "qwen/qwen3-coder"
             };
         }
 
@@ -977,10 +931,10 @@ namespace AIProjectOrchestrator.Application.Services
         {
             return modelName.ToLower() switch
             {
-                "claude" => "Claude",
+                "claude" => "OpenRouter", // Route Claude requests to OpenRouter
                 "qwen3-coder" => "LMStudio",
                 "deepseek" => "OpenRouter",
-                _ => "Claude"
+                _ => "OpenRouter"
             };
         }
 

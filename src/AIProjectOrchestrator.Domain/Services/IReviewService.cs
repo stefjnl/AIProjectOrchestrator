@@ -20,5 +20,8 @@ namespace AIProjectOrchestrator.Domain.Services
         // Add to IReviewService (Domain layer)
         Task<ReviewDashboardData> GetDashboardDataAsync(CancellationToken cancellationToken = default);
         Task<WorkflowStatusItem?> GetWorkflowStatusAsync(Guid projectId, CancellationToken cancellationToken = default);
+        
+        // Method to handle workflow progression after review approval
+        Task NotifyReviewApprovedAsync(Guid reviewId, ReviewSubmission review, CancellationToken cancellationToken = default);
     }
 }

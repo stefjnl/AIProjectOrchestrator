@@ -31,7 +31,7 @@ namespace AIProjectOrchestrator.UnitTests.RequirementsAnalysis
             _service = new RequirementsAnalysisService(
                 _mockInstructionService.Object,
                 _mockAIClientFactory.Object,
-                _mockReviewService.Object,
+                new Lazy<IReviewService>(() => _mockReviewService.Object),
                 _mockLogger.Object);
         }
 

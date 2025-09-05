@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create New Project</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Create New Project</h1>
+        <form id="projectForm">
+            <div>
+                <label for="projectName">Project Name:</label>
+                <input type="text" id="projectName" required>
+            </div>
+            <div>
+                <label for="projectDescription">Project Description:</label>
+                <textarea id="projectDescription" required></textarea>
+            </div>
+            <button type="submit" id="createProjectBtn">Create Project</button>
+            <div id="errorMessage" class="error-message" style="display: none;"></div>
+        </form>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script>
+        document.getElementById('projectForm').addEventListener('submit', createProject);
+
+        async function createProject(event) {
+            event.preventDefault();
+
+            const projectNameInput = document.getElementById('projectName');
+            const projectDescriptionInput = document.getElementById('projectDescription');
+            const createProjectBtn = document.getElementById('createProjectBtn');
+            const errorMessageDiv = document.getElementById('errorMessage');
+
+            // Clear previous error messages
+            errorMessageDiv.style.display = 'none';
+            errorMessageDiv.textContent = '';
+
+            // Basic validation
+            if (!projectNameInput.value.trim() || !projectDescriptionInput.value.trim()) {
+                errorMessageDiv.textContent = 'Project Name and Description are required.';
+                errorMessageDiv.style.display = 'block';
+                return;
+            }
+
+            const projectData = {
+                name: projectNameInput.value.trim(),
+                description: projectDescriptionInput.value.trim()
+            };
+
+            createProjectBtn.disabled = true; // Disable button during submission
+            createProjectBtn.textContent = 'Creating...';
+
+            try {
+                const project = await window.APIClient.createProject(projectData);
+                window.location.href = `workflow.html?projectId=${project.id}`;
+            } catch (error) {
+                errorMessageDiv.textContent = 'Error creating project: ' + error.message;
+                errorMessageDiv.style.display = 'block';
+            } finally {
+                createProjectBtn.disabled = false; // Re-enable button
+                createProjectBtn.textContent = 'Create Project';
+            }
+        }
+    </script>
+</body>
+</html>

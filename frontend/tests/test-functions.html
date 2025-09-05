@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Function Availability Test</title>
+</head>
+<body>
+    <h1>Function Availability Test</h1>
+    <button onclick="testFunctions()">Test Function Availability</button>
+    <div id="output"></div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        function testFunctions() {
+            const output = document.getElementById('output');
+            output.innerHTML = 'Testing function availability...<br>';
+            
+            const functionsToTest = [
+                'getProjects',
+                'getProject',
+                'analyzeRequirements',
+                'createProjectPlan',
+                'canCreateProjectPlan',
+                'generateStories',
+                'canGenerateStories',
+                'generateCode',
+                'canGenerateCode'
+            ];
+            
+            functionsToTest.forEach(funcName => {
+                if (typeof window[funcName] === 'function') {
+                    output.innerHTML += `${funcName}: Available<br>`;
+                } else {
+                    output.innerHTML += `${funcName}: NOT AVAILABLE<br>`;
+                }
+            });
+        }
+        
+        // Test on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded, testing function availability...');
+            const output = document.getElementById('output');
+            if (output) {
+                output.innerHTML = 'Testing function availability on page load...<br>';
+                
+                const functionsToTest = [
+                    'getProjects',
+                    'getProject',
+                    'analyzeRequirements',
+                    'createProjectPlan',
+                    'canCreateProjectPlan',
+                    'generateStories',
+                    'canGenerateStories',
+                    'generateCode',
+                    'canGenerateCode'
+                ];
+                
+                functionsToTest.forEach(funcName => {
+                    if (typeof window[funcName] === 'function') {
+                        output.innerHTML += `${funcName}: Available<br>`;
+                    } else {
+                        output.innerHTML += `${funcName}: NOT AVAILABLE<br>`;
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

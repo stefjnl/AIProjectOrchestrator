@@ -45,16 +45,18 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                 var json = JsonSerializer.Serialize(claudeRequest);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 
-                var requestMessage = new HttpRequestMessage(HttpMethod.Post, "v1/messages")
-                {
-                    Content = content
-                };
-                
-                requestMessage.Headers.Add("x-api-key", _settings.ApiKey);
-                requestMessage.Headers.Add("anthropic-version", "2023-06-01");
-
                 var response = await SendRequestWithRetryAsync(
-                    requestMessage, 
+                    () => {
+                        var requestMessage = new HttpRequestMessage(HttpMethod.Post, "v1/messages")
+                        {
+                            Content = content
+                        };
+                        
+                        requestMessage.Headers.Add("x-api-key", _settings.ApiKey);
+                        requestMessage.Headers.Add("anthropic-version", "2023-06-01");
+                        
+                        return requestMessage;
+                    }, 
                     _settings.MaxRetries, 
                     cancellationToken);
 

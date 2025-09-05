@@ -47,8 +47,6 @@ yarn-error.log*
 # Docker
 .dockerignore
 .env
-docker-compose*
-docker-compose-override*
 
 # IDE
 *.idea/

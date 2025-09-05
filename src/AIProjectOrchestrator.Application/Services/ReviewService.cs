@@ -10,6 +10,7 @@ using AIProjectOrchestrator.Domain.Models.Review;
 using AIProjectOrchestrator.Domain.Models.Review.Dashboard;
 using AIProjectOrchestrator.Domain.Services;
 using AIProjectOrchestrator.Domain.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AIProjectOrchestrator.Application.Services
 {
@@ -18,14 +19,18 @@ namespace AIProjectOrchestrator.Application.Services
         private readonly ConcurrentDictionary<Guid, ReviewSubmission> _reviews;
         private readonly ILogger<ReviewService> _logger;
         private readonly IOptions<ReviewSettings> _settings;
+        private readonly IServiceProvider _serviceProvider;
+        
 
         public ReviewService(
             ILogger<ReviewService> logger,
-            IOptions<ReviewSettings> settings)
+            IOptions<ReviewSettings> settings,
+            IServiceProvider serviceProvider)
         {
             _reviews = new ConcurrentDictionary<Guid, ReviewSubmission>();
             _logger = logger;
             _settings = settings;
+            _serviceProvider = serviceProvider;
         }
 
         public async Task<ReviewResponse> SubmitForReviewAsync(SubmitReviewRequest request, CancellationToken cancellationToken = default)
@@ -164,6 +169,9 @@ namespace AIProjectOrchestrator.Application.Services
             };
 
             _logger.LogInformation("Review {ReviewId} approved successfully", reviewId);
+
+            // Notify that the review has been approved to trigger workflow progression
+            await NotifyReviewApprovedAsync(reviewId, review, cancellationToken);
 
             return new ReviewResponse
             {
@@ -323,6 +331,42 @@ namespace AIProjectOrchestrator.Application.Services
             // This is a placeholder implementation
             // In a real implementation, we would query the actual workflow status
             return null;
+        }
+        
+        public async Task NotifyReviewApprovedAsync(Guid reviewId, ReviewSubmission review, CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("Review {ReviewId} approved, triggering workflow progression", reviewId);
+
+            using (var scope = _serviceProvider.CreateScope())
+            {
+                if (review.ServiceName == "RequirementsAnalysis")
+                {
+                    if (review.Metadata.TryGetValue("AnalysisId", out var analysisIdObj) &&
+                        Guid.TryParse(analysisIdObj.ToString(), out var analysisId))
+                    {
+                        var requirementsService = scope.ServiceProvider.GetRequiredService<IRequirementsAnalysisService>();
+                        await requirementsService.UpdateAnalysisStatusAsync(analysisId, Domain.Models.RequirementsAnalysisStatus.Approved, cancellationToken);
+                    }
+                }
+                else if (review.ServiceName == "ProjectPlanning")
+                {
+                    if (review.Metadata.TryGetValue("PlanningId", out var planningIdObj) &&
+                        Guid.TryParse(planningIdObj.ToString(), out var planningId))
+                    {
+                        var planningService = scope.ServiceProvider.GetRequiredService<IProjectPlanningService>();
+                        await planningService.UpdatePlanningStatusAsync(planningId, Domain.Models.ProjectPlanningStatus.Approved, cancellationToken);
+                    }
+                }
+                else if (review.ServiceName == "StoryGeneration")
+                {
+                    if (review.Metadata.TryGetValue("GenerationId", out var generationIdObj) &&
+                        Guid.TryParse(generationIdObj.ToString(), out var generationId))
+                    {
+                        var storyService = scope.ServiceProvider.GetRequiredService<IStoryGenerationService>();
+                        await storyService.UpdateGenerationStatusAsync(generationId, Domain.Models.Stories.StoryGenerationStatus.Approved, cancellationToken);
+                    }
+                }
+            }
         }
     }
 }

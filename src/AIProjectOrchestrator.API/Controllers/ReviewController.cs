@@ -16,11 +16,22 @@ namespace AIProjectOrchestrator.API.Controllers
     public class ReviewController : ControllerBase
     {
         private readonly IReviewService _reviewService;
+        private readonly IRequirementsAnalysisService _requirementsAnalysisService;
+        private readonly IProjectPlanningService _projectPlanningService;
+        private readonly IStoryGenerationService _storyGenerationService;
         private readonly ILogger<ReviewController> _logger;
 
-        public ReviewController(IReviewService reviewService, ILogger<ReviewController> logger)
+        public ReviewController(
+            IReviewService reviewService, 
+            IRequirementsAnalysisService requirementsAnalysisService,
+            IProjectPlanningService projectPlanningService,
+            IStoryGenerationService storyGenerationService,
+            ILogger<ReviewController> logger)
         {
             _reviewService = reviewService;
+            _requirementsAnalysisService = requirementsAnalysisService;
+            _projectPlanningService = projectPlanningService;
+            _storyGenerationService = storyGenerationService;
             _logger = logger;
         }
 
@@ -86,6 +97,17 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
+                var review = await _reviewService.GetReviewAsync(id, cancellationToken);
+                if (review == null)
+                {
+                    return NotFound(new ProblemDetails
+                    {
+                        Title = "Review not found",
+                        Detail = $"Review with ID {id} was not found",
+                        Status = StatusCodes.Status404NotFound
+                    });
+                }
+
                 // If decision is null or empty, create a default one
                 if (decision == null || string.IsNullOrEmpty(decision.Reason))
                 {
@@ -97,6 +119,47 @@ namespace AIProjectOrchestrator.API.Controllers
                 }
 
                 var response = await _reviewService.ApproveReviewAsync(id, decision, cancellationToken);
+
+                // After approval, update the status of the corresponding service
+                // Use the correct IDs from metadata instead of the CorrelationId
+                switch (review.ServiceName)
+                {
+                    case "RequirementsAnalysis":
+                        if (review.Metadata.TryGetValue("AnalysisId", out var analysisIdObj) &&
+                            Guid.TryParse(analysisIdObj.ToString(), out var analysisId))
+                        {
+                            await _requirementsAnalysisService.UpdateAnalysisStatusAsync(analysisId, Domain.Models.RequirementsAnalysisStatus.Approved, cancellationToken);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Could not find AnalysisId in metadata for review {ReviewId}", id);
+                        }
+                        break;
+                    case "ProjectPlanning":
+                        if (review.Metadata.TryGetValue("PlanningId", out var planningIdObj) &&
+                            Guid.TryParse(planningIdObj.ToString(), out var planningId))
+                        {
+                            await _projectPlanningService.UpdatePlanningStatusAsync(planningId, Domain.Models.ProjectPlanningStatus.Approved, cancellationToken);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Could not find PlanningId in metadata for review {ReviewId}", id);
+                        }
+                        break;
+                    case "StoryGeneration":
+                        if (review.Metadata.TryGetValue("GenerationId", out var generationIdObj) &&
+                            Guid.TryParse(generationIdObj.ToString(), out var generationId))
+                        {
+                            await _storyGenerationService.UpdateGenerationStatusAsync(generationId, Domain.Models.Stories.StoryGenerationStatus.Approved, cancellationToken);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Could not find GenerationId in metadata for review {ReviewId}", id);
+                        }
+                        break;
+                    // Add cases for other services like CodeGeneration if needed
+                }
+
                 return Ok(response);
             }
             catch (InvalidOperationException ex)

@@ -57,5 +57,19 @@ namespace AIProjectOrchestrator.API.Controllers
                 return StatusCode(500, new { error = "Internal server error", message = ex.Message });
             }
         }
+
+        [HttpPost("{analysisId:guid}/approve")]
+        public async Task<IActionResult> ApproveAnalysis(Guid analysisId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await _requirementsAnalysisService.UpdateAnalysisStatusAsync(analysisId, RequirementsAnalysisStatus.Approved, cancellationToken);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
+            }
+        }
     }
 }

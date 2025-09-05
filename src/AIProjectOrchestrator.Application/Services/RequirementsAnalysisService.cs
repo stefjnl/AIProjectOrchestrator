@@ -15,7 +15,7 @@ namespace AIProjectOrchestrator.Application.Services
     {
         private readonly IInstructionService _instructionService;
         private readonly IAIClientFactory _aiClientFactory;
-        private readonly IReviewService _reviewService;
+        private readonly Lazy<IReviewService> _reviewService;
         private readonly ILogger<RequirementsAnalysisService> _logger;
         private readonly ConcurrentDictionary<Guid, RequirementsAnalysisStatus> _analysisStatuses;
         private readonly ConcurrentDictionary<Guid, RequirementsAnalysisResponse> _analysisResults;
@@ -23,7 +23,7 @@ namespace AIProjectOrchestrator.Application.Services
         public RequirementsAnalysisService(
             IInstructionService instructionService,
             IAIClientFactory aiClientFactory,
-            IReviewService reviewService,
+            Lazy<IReviewService> reviewService,
             ILogger<RequirementsAnalysisService> logger)
         {
             _instructionService = instructionService;
@@ -77,18 +77,18 @@ namespace AIProjectOrchestrator.Application.Services
                 {
                     SystemMessage = instructionContent.Content,
                     Prompt = CreatePromptFromRequest(request),
-                    ModelName = "claude-3-5-sonnet-20240620", // Default model for requirements analysis
+                    ModelName = "qwen/qwen3-coder", // Default model for requirements analysis via OpenRouter
                     Temperature = 0.7,
                     MaxTokens = 2000
                 };
 
-                // Get Claude AI client
-                var aiClient = _aiClientFactory.GetClient("Claude");
+                // Get OpenRouter AI client
+                var aiClient = _aiClientFactory.GetClient("OpenRouter");
                 if (aiClient == null)
                 {
-                    _logger.LogError("Requirements analysis {AnalysisId} failed: Claude AI client not available", analysisId);
+                    _logger.LogError("Requirements analysis {AnalysisId} failed: OpenRouter AI client not available", analysisId);
                     _analysisStatuses[analysisId] = RequirementsAnalysisStatus.Failed;
-                    throw new InvalidOperationException("Claude AI client is not available");
+                    throw new InvalidOperationException("OpenRouter AI client is not available");
                 }
 
                 _logger.LogDebug("Calling AI client for requirements analysis {AnalysisId}", analysisId);
@@ -112,17 +112,18 @@ namespace AIProjectOrchestrator.Application.Services
                     ServiceName = "RequirementsAnalysis",
                     Content = aiResponse.Content,
                     CorrelationId = correlationId,
-                    PipelineStage = "RequirementsAnalysis",
+                    PipelineStage = "Analysis",
                     OriginalRequest = aiRequest,
                     AIResponse = aiResponse,
                     Metadata = new System.Collections.Generic.Dictionary<string, object>
                     {
                         { "AnalysisId", analysisId },
-                        { "ProjectDescription", request.ProjectDescription }
+                        { "ProjectDescription", request.ProjectDescription },
+                        { "ProjectId", request.ProjectId ?? "unknown" } // Include project ID for workflow correlation
                     }
                 };
 
-                var reviewResponse = await _reviewService.SubmitForReviewAsync(reviewRequest, cancellationToken);
+                var reviewResponse = await _reviewService.Value.SubmitForReviewAsync(reviewRequest, cancellationToken);
 
                 // Set status to pending review
                 _analysisStatuses[analysisId] = RequirementsAnalysisStatus.PendingReview;
@@ -137,7 +138,8 @@ namespace AIProjectOrchestrator.Application.Services
                     AnalysisResult = aiResponse.Content,
                     ReviewId = reviewResponse.ReviewId,
                     Status = RequirementsAnalysisStatus.PendingReview,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    ProjectId = request.ProjectId
                 };
 
                 // Store the analysis result for later retrieval
@@ -153,49 +155,52 @@ namespace AIProjectOrchestrator.Application.Services
             }
         }
 
-        public async Task<RequirementsAnalysisStatus> GetAnalysisStatusAsync(
+        public Task<RequirementsAnalysisStatus> GetAnalysisStatusAsync(
             Guid analysisId,
             CancellationToken cancellationToken = default)
         {
             if (_analysisStatuses.TryGetValue(analysisId, out var status))
             {
-                return status;
+                return Task.FromResult(status);
             }
             
             // If we don't have the status in memory, it might have been cleaned up
             // In a production system, we would check a persistent store
-            return RequirementsAnalysisStatus.Failed;
+            return Task.FromResult(RequirementsAnalysisStatus.Failed);
         }
 
-        public async Task<RequirementsAnalysisResponse?> GetAnalysisResultsAsync(
+        public Task<RequirementsAnalysisResponse?> GetAnalysisResultsAsync(
+            Guid analysisId,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("RequirementsAnalysisService: Getting analysis results for {AnalysisId}", analysisId);
+            if (_analysisResults.TryGetValue(analysisId, out var result))
+            {
+                _logger.LogInformation("RequirementsAnalysisService: Found analysis {AnalysisId} with status {Status}", analysisId, result.Status);
+                return Task.FromResult<RequirementsAnalysisResponse?>(result);
+            }
+            
+            _logger.LogWarning("RequirementsAnalysisService: Analysis {AnalysisId} not found in memory", analysisId);
+            // If we don't have the result in memory, it might have been cleaned up
+            // In a production system, we would check a persistent store
+            return Task.FromResult<RequirementsAnalysisResponse?>(null);
+        }
+
+        public Task<string?> GetAnalysisResultContentAsync(
             Guid analysisId,
             CancellationToken cancellationToken = default)
         {
             if (_analysisResults.TryGetValue(analysisId, out var result))
             {
-                return result;
+                return Task.FromResult<string?>(result.AnalysisResult);
             }
             
             // If we don't have the result in memory, it might have been cleaned up
             // In a production system, we would check a persistent store
-            return null;
+            return Task.FromResult<string?>(null);
         }
 
-        public async Task<string?> GetAnalysisResultContentAsync(
-            Guid analysisId,
-            CancellationToken cancellationToken = default)
-        {
-            if (_analysisResults.TryGetValue(analysisId, out var result))
-            {
-                return result.AnalysisResult;
-            }
-            
-            // If we don't have the result in memory, it might have been cleaned up
-            // In a production system, we would check a persistent store
-            return null;
-        }
-
-        public async Task<bool> CanAnalyzeRequirementsAsync(
+        public Task<bool> CanAnalyzeRequirementsAsync(
             Guid projectId,
             CancellationToken cancellationToken = default)
         {
@@ -206,12 +211,12 @@ namespace AIProjectOrchestrator.Application.Services
                 // - If the project exists
                 // - If requirements analysis hasn't already been completed
                 // - If there are any business rules preventing analysis
-                return true;
+                return Task.FromResult(true);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error checking if requirements can be analyzed for project {ProjectId}", projectId);
-                return false;
+                return Task.FromResult(false);
             }
         }
 
@@ -225,6 +230,28 @@ namespace AIProjectOrchestrator.Application.Services
             // If we don't have the result in memory, it might have been cleaned up
             // In a production system, we would check a persistent store
             return null;
+        }
+        
+        public async Task UpdateAnalysisStatusAsync(
+            Guid analysisId,
+            RequirementsAnalysisStatus status,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("RequirementsAnalysisService: Updating analysis {AnalysisId} to status {Status}", analysisId, status);
+
+            // Update the in-memory status
+            _analysisStatuses[analysisId] = status;
+            
+            // If we have the result in memory, also update its status
+            if (_analysisResults.TryGetValue(analysisId, out var result))
+            {
+                result.Status = status;
+                _logger.LogInformation("RequirementsAnalysisService: Confirmed analysis {AnalysisId} status updated to {Status}", analysisId, status);
+            }
+            else
+            {
+                _logger.LogWarning("RequirementsAnalysisService: Analysis {AnalysisId} not found in memory to update status", analysisId);
+            }
         }
 
         private string CreatePromptFromRequest(RequirementsAnalysisRequest request)

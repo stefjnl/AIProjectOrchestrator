@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Final Function Availability Test</title>
+</head>
+<body>
+    <h1>Final Function Availability Test</h1>
+    <button onclick="runTest()">Run Comprehensive Test</button>
+    <div id="output"></div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/workflow.js"></script>
+    <script>
+        function runTest() {
+            const output = document.getElementById('output');
+            output.innerHTML = '<h2>Testing Function Availability...</h2>';
+            
+            // Test API functions
+            output.innerHTML += '<h3>API Functions:</h3>';
+            const apiFunctions = [
+                'getProjects',
+                'getProject',
+                'analyzeRequirements',
+                'createProjectPlan',
+                'canCreateProjectPlan',
+                'generateStories',
+                'canGenerateStories',
+                'generateCode',
+                'canGenerateCode',
+                'getPendingReviews',
+                'approveReview',
+                'rejectReview'
+            ];
+            
+            let allApiFunctionsAvailable = true;
+            apiFunctions.forEach(funcName => {
+                if (typeof window[funcName] === 'function') {
+                    output.innerHTML += `<p style="color: green;">✓ ${funcName}: Available</p>`;
+                } else {
+                    output.innerHTML += `<p style="color: red;">✗ ${funcName}: NOT AVAILABLE</p>`;
+                    allApiFunctionsAvailable = false;
+                }
+            });
+            
+            // Test workflow manager
+            output.innerHTML += '<h3>Workflow Manager:</h3>';
+            try {
+                const workflowManager = new WorkflowManager();
+                if (workflowManager) {
+                    output.innerHTML += '<p style="color: green;">✓ WorkflowManager: Available</p>';
+                    
+                    // Test workflow manager methods
+                    const methods = [
+                        'setProjectId',
+                        'setRequirementsAnalysis',
+                        'getRequirementsAnalysisId',
+                        'setProjectPlanning',
+                        'getProjectPlanningId',
+                        'canStartPlanning',
+                        'setStoryGeneration',
+                        'getStoryGenerationId',
+                        'canGenerateStories',
+                        'setCodeGeneration',
+                        'getCodeGenerationId',
+                        'canGenerateCode'
+                    ];
+                    
+                    let allMethodsAvailable = true;
+                    methods.forEach(methodName => {
+                        if (typeof workflowManager[methodName] === 'function') {
+                            output.innerHTML += `<p style="color: green;">✓ ${methodName}: Available</p>`;
+                        } else {
+                            output.innerHTML += `<p style="color: red;">✗ ${methodName}: NOT AVAILABLE</p>`;
+                            allMethodsAvailable = false;
+                        }
+                    });
+                    
+                    if (allMethodsAvailable) {
+                        output.innerHTML += '<p style="color: green;">✓ All WorkflowManager methods: Available</p>';
+                    } else {
+                        output.innerHTML += '<p style="color: red;">✗ Some WorkflowManager methods: Missing</p>';
+                    }
+                } else {
+                    output.innerHTML += '<p style="color: red;">✗ WorkflowManager: NOT AVAILABLE</p>';
+                }
+            } catch (error) {
+                output.innerHTML += `<p style="color: red;">✗ WorkflowManager: ERROR - ${error.message}</p>`;
+            }
+            
+            // Final result
+            output.innerHTML += '<h3>Final Result:</h3>';
+            if (allApiFunctionsAvailable) {
+                output.innerHTML += '<p style="color: green; font-size: 1.2em;">✓ ALL API FUNCTIONS ARE AVAILABLE</p>';
+            } else {
+                output.innerHTML += '<p style="color: red; font-size: 1.2em;">✗ SOME API FUNCTIONS ARE MISSING</p>';
+            }
+        }
+    </script>
+</body>
+</html>
