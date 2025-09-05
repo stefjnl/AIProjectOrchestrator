@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using AIProjectOrchestrator.Domain.Services;
+using AIProjectOrchestrator.Domain.Models;
 using AIProjectOrchestrator.Domain.Models.Stories;
 using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Domain.Models.Review;
@@ -24,7 +25,7 @@ namespace AIProjectOrchestrator.Application.Services
         private readonly Lazy<IReviewService> _reviewService;
         private readonly ILogger<StoryGenerationService> _logger;
         private readonly ConcurrentDictionary<Guid, StoryGenerationStatus> _generationStatuses;
-        private readonly ConcurrentDictionary<Guid, List<UserStory>> _generationResults;
+        private readonly ConcurrentDictionary<Guid, StoryGenerationResponse> _generationResponses; // Store full responses instead of just stories
 
         public StoryGenerationService(
             IRequirementsAnalysisService requirementsAnalysisService,
@@ -41,7 +42,7 @@ namespace AIProjectOrchestrator.Application.Services
             _reviewService = reviewService;
             _logger = logger;
             _generationStatuses = new ConcurrentDictionary<Guid, StoryGenerationStatus>();
-            _generationResults = new ConcurrentDictionary<Guid, List<UserStory>>();
+            _generationResponses = new ConcurrentDictionary<Guid, StoryGenerationResponse>(); // Initialize the new dictionary
         }
 
         public async Task<StoryGenerationResponse> GenerateStoriesAsync(
@@ -167,16 +168,8 @@ namespace AIProjectOrchestrator.Application.Services
 
                 var reviewResponse = await _reviewService.Value.SubmitForReviewAsync(reviewRequest, cancellationToken);
 
-                // Set status to pending review
-                _generationStatuses[generationId] = StoryGenerationStatus.PendingReview;
-
-                // Store results for later retrieval
-                _generationResults[generationId] = stories;
-
-                _logger.LogInformation("Story generation {GenerationId} completed successfully. Review ID: {ReviewId}",
-                    generationId, reviewResponse.ReviewId);
-
-                return new StoryGenerationResponse
+                // Create the response object
+                var response = new StoryGenerationResponse
                 {
                     GenerationId = generationId,
                     PlanningId = request.PlanningId,
@@ -185,6 +178,17 @@ namespace AIProjectOrchestrator.Application.Services
                     Status = StoryGenerationStatus.PendingReview,
                     CreatedAt = DateTime.UtcNow
                 };
+
+                // Set status to pending review
+                _generationStatuses[generationId] = StoryGenerationStatus.PendingReview;
+
+                // Store the full response for later retrieval
+                _generationResponses[generationId] = response;
+
+                _logger.LogInformation("Story generation {GenerationId} completed successfully. Review ID: {ReviewId}",
+                    generationId, reviewResponse.ReviewId);
+
+                return response;
             }
             catch (Exception ex)
             {
@@ -198,9 +202,16 @@ namespace AIProjectOrchestrator.Application.Services
             Guid generationId,
             CancellationToken cancellationToken = default)
         {
+            // First check the status dictionary
             if (_generationStatuses.TryGetValue(generationId, out var status))
             {
                 return status;
+            }
+            
+            // If not found in status dictionary, check if we have the response in memory
+            if (_generationResponses.TryGetValue(generationId, out var response))
+            {
+                return response.Status;
             }
 
             // If we don't have the status in memory, it might have been cleaned up
@@ -212,9 +223,9 @@ namespace AIProjectOrchestrator.Application.Services
             Guid generationId,
             CancellationToken cancellationToken = default)
         {
-            if (_generationResults.TryGetValue(generationId, out var result))
+            if (_generationResponses.TryGetValue(generationId, out var response))
             {
-                return result;
+                return response.Stories;
             }
 
             // If we don't have the result in memory, it might have been cleaned up
@@ -229,8 +240,8 @@ namespace AIProjectOrchestrator.Application.Services
             try
             {
                 // Check that project planning exists and is approved
-                var canCreatePlan = await _projectPlanningService.CanCreatePlanAsync(planningId, cancellationToken);
-                return canCreatePlan;
+                var planningStatus = await _projectPlanningService.GetPlanningStatusAsync(planningId, cancellationToken);
+                return planningStatus == ProjectPlanningStatus.Approved;
             }
             catch (Exception ex)
             {
@@ -241,16 +252,27 @@ namespace AIProjectOrchestrator.Application.Services
 
         public async Task<List<UserStory>?> GetApprovedStoriesAsync(Guid storyGenerationId, CancellationToken cancellationToken = default)
         {
-            // For now, we'll just return the stories if they exist
-            // In a production system, we would check if they are approved
+            // Check if the story generation is approved
+            var status = await GetGenerationStatusAsync(storyGenerationId, cancellationToken);
+            if (status != StoryGenerationStatus.Approved)
+            {
+                return null;
+            }
+            
+            // Return the stories if they are approved
             return await GetGenerationResultsAsync(storyGenerationId, cancellationToken);
         }
 
         public async Task<Guid?> GetPlanningIdAsync(Guid storyGenerationId, CancellationToken cancellationToken = default)
         {
-            // In a production system, we would retrieve this from persistent storage
-            // For now, we'll return null as we don't have a way to retrieve it
-            // This would need to be implemented with proper data storage
+            // Check if we have the story generation response in memory
+            if (_generationResponses.TryGetValue(storyGenerationId, out var response))
+            {
+                return response.PlanningId;
+            }
+            
+            // If we don't have the result in memory, it might have been cleaned up
+            // In a production system, we would check a persistent store
             return null;
         }
 
@@ -433,6 +455,12 @@ namespace AIProjectOrchestrator.Application.Services
         {
             // Update the in-memory status
             _generationStatuses[generationId] = status;
+            
+            // If we have the response in memory, also update its status
+            if (_generationResponses.TryGetValue(generationId, out var response))
+            {
+                response.Status = status;
+            }
             
             _logger.LogInformation("Updated story generation {GenerationId} status to {Status}", generationId, status);
         }

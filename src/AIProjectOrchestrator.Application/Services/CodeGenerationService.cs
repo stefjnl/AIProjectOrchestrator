@@ -216,9 +216,9 @@ namespace AIProjectOrchestrator.Application.Services
         {
             try
             {
-                // Check that stories exist and are approved
-                var stories = await _storyGenerationService.GetApprovedStoriesAsync(storyGenerationId, cancellationToken);
-                return stories != null && stories.Any();
+                // Check that stories exist and are approved by checking the status
+                var status = await _storyGenerationService.GetGenerationStatusAsync(storyGenerationId, cancellationToken);
+                return status == AIProjectOrchestrator.Domain.Models.Stories.StoryGenerationStatus.Approved;
             }
             catch (Exception ex)
             {
