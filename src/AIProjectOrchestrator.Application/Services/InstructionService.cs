@@ -28,12 +28,23 @@ namespace AIProjectOrchestrator.Application.Services
             _logger = logger;
             _cache = new ConcurrentDictionary<string, CachedInstruction>();
             
-            // Use AppContext.BaseDirectory to find the instructions directory
-            // This should work in both development and CI environments
             var baseDirectory = AppContext.BaseDirectory;
+            var currentDirectory = Directory.GetCurrentDirectory();
+
+            // First, try the path relative to AppContext.BaseDirectory
             _fullInstructionsPath = Path.Combine(baseDirectory, _settings.InstructionsPath);
-            
-            _logger.LogInformation("InstructionService initialized with path: {Path}", _fullInstructionsPath);
+            _logger.LogInformation("Attempting to find instructions at AppContext.BaseDirectory path: {Path}", _fullInstructionsPath);
+
+            // If not found, try relative to Current Directory
+            if (!Directory.Exists(_fullInstructionsPath))
+            {
+                var currentDirPath = Path.Combine(currentDirectory, _settings.InstructionsPath);
+                _logger.LogInformation("AppContext.BaseDirectory path not found. Attempting Current Directory path: {Path}", currentDirPath);
+                if (Directory.Exists(currentDirPath))
+                {
+                    _fullInstructionsPath = currentDirPath;
+                }
+            }
             
             // Log the contents of the directory for debugging
             if (Directory.Exists(_fullInstructionsPath))
@@ -43,13 +54,13 @@ namespace AIProjectOrchestrator.Application.Services
             }
             else
             {
-                _logger.LogWarning("Instructions directory not found at: {Path}", _fullInstructionsPath);
+                _logger.LogWarning("Instructions directory not found at final path: {Path}", _fullInstructionsPath);
                 
-                // Try to find the directory in parent directories for fallback
-                var currentDir = baseDirectory;
+                // Try to find the directory in parent directories for fallback (original logic)
+                var tempPath = baseDirectory;
                 for (int i = 0; i < 5; i++)
                 {
-                    var parentDir = Directory.GetParent(currentDir)?.FullName;
+                    var parentDir = Directory.GetParent(tempPath)?.FullName;
                     if (string.IsNullOrEmpty(parentDir))
                         break;
                         
@@ -57,10 +68,10 @@ namespace AIProjectOrchestrator.Application.Services
                     if (Directory.Exists(possiblePath))
                     {
                         _fullInstructionsPath = possiblePath;
-                        _logger.LogInformation("Found instructions directory at fallback path: {Path}", _fullInstructionsPath);
+                        _logger.LogInformation("Found instructions directory at fallback parent path: {Path}", _fullInstructionsPath);
                         break;
                     }
-                    currentDir = parentDir;
+                    tempPath = parentDir;
                 }
             }
         }
