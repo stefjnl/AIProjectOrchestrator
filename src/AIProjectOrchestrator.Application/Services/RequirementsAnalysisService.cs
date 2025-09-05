@@ -154,49 +154,49 @@ namespace AIProjectOrchestrator.Application.Services
             }
         }
 
-        public async Task<RequirementsAnalysisStatus> GetAnalysisStatusAsync(
+        public Task<RequirementsAnalysisStatus> GetAnalysisStatusAsync(
             Guid analysisId,
             CancellationToken cancellationToken = default)
         {
             if (_analysisStatuses.TryGetValue(analysisId, out var status))
             {
-                return status;
+                return Task.FromResult(status);
             }
             
             // If we don't have the status in memory, it might have been cleaned up
             // In a production system, we would check a persistent store
-            return RequirementsAnalysisStatus.Failed;
+            return Task.FromResult(RequirementsAnalysisStatus.Failed);
         }
 
-        public async Task<RequirementsAnalysisResponse?> GetAnalysisResultsAsync(
+        public Task<RequirementsAnalysisResponse?> GetAnalysisResultsAsync(
             Guid analysisId,
             CancellationToken cancellationToken = default)
         {
             if (_analysisResults.TryGetValue(analysisId, out var result))
             {
-                return result;
+                return Task.FromResult<RequirementsAnalysisResponse?>(result);
             }
             
             // If we don't have the result in memory, it might have been cleaned up
             // In a production system, we would check a persistent store
-            return null;
+            return Task.FromResult<RequirementsAnalysisResponse?>(null);
         }
 
-        public async Task<string?> GetAnalysisResultContentAsync(
+        public Task<string?> GetAnalysisResultContentAsync(
             Guid analysisId,
             CancellationToken cancellationToken = default)
         {
             if (_analysisResults.TryGetValue(analysisId, out var result))
             {
-                return result.AnalysisResult;
+                return Task.FromResult<string?>(result.AnalysisResult);
             }
             
             // If we don't have the result in memory, it might have been cleaned up
             // In a production system, we would check a persistent store
-            return null;
+            return Task.FromResult<string?>(null);
         }
 
-        public async Task<bool> CanAnalyzeRequirementsAsync(
+        public Task<bool> CanAnalyzeRequirementsAsync(
             Guid projectId,
             CancellationToken cancellationToken = default)
         {
@@ -207,12 +207,12 @@ namespace AIProjectOrchestrator.Application.Services
                 // - If the project exists
                 // - If requirements analysis hasn't already been completed
                 // - If there are any business rules preventing analysis
-                return true;
+                return Task.FromResult(true);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error checking if requirements can be analyzed for project {ProjectId}", projectId);
-                return false;
+                return Task.FromResult(false);
             }
         }
 

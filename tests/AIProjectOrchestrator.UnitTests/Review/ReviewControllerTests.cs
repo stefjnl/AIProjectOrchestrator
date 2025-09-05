@@ -56,6 +56,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
             // Assert
             var createdAtActionResult = Assert.IsType<CreatedAtActionResult>(result.Result);
             Assert.Equal("GetReview", createdAtActionResult.ActionName);
+            Assert.NotNull(createdAtActionResult.RouteValues);
             Assert.Equal(response.ReviewId, createdAtActionResult.RouteValues["id"]);
             var returnValue = Assert.IsType<ReviewResponse>(createdAtActionResult.Value);
             Assert.Equal(response.ReviewId, returnValue.ReviewId);

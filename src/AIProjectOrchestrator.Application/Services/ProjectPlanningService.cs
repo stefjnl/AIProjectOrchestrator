@@ -188,18 +188,18 @@ namespace AIProjectOrchestrator.Application.Services
             }
         }
 
-        public async Task<ProjectPlanningStatus> GetPlanningStatusAsync(
+        public Task<ProjectPlanningStatus> GetPlanningStatusAsync(
             Guid planningId,
             CancellationToken cancellationToken = default)
         {
             if (_planningStatuses.TryGetValue(planningId, out var status))
             {
-                return status;
+                return Task.FromResult(status);
             }
             
             // If we don't have the status in memory, it might have been cleaned up
             // In a production system, we would check a persistent store
-            return ProjectPlanningStatus.Failed;
+            return Task.FromResult(ProjectPlanningStatus.Failed);
         }
 
         public async Task<bool> CanCreatePlanAsync(
@@ -230,19 +230,20 @@ namespace AIProjectOrchestrator.Application.Services
             }
         }
 
-        public async Task<string?> GetPlanningResultContentAsync(
+        public Task<string?> GetPlanningResultContentAsync(
             Guid planningId,
             CancellationToken cancellationToken = default)
         {
             if (_planningResults.TryGetValue(planningId, out var result))
             {
                 // Combine all planning content into a single string
-                return $"Project Roadmap:\n{result.ProjectRoadmap}\n\nArchitectural Decisions:\n{result.ArchitecturalDecisions}\n\nMilestones:\n{result.Milestones}";
+                var content = $"Project Roadmap:\n{result.ProjectRoadmap}\n\nArchitectural Decisions:\n{result.ArchitecturalDecisions}\n\nMilestones:\n{result.Milestones}";
+                return Task.FromResult<string?>(content);
             }
 
             // If we don't have the result in memory, it might have been cleaned up
             // In a production system, we would check a persistent store
-            return null;
+            return Task.FromResult<string?>(null);
         }
 
         public async Task<Guid?> GetRequirementsAnalysisIdAsync(
