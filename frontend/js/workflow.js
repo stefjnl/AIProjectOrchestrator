@@ -71,34 +71,34 @@ class WorkflowManager {
     }
 
     updateWorkflowUI() {
-        const updateStageUI = (stageName, idKey, approvedKey, pendingKey, buttonId, statusId, nextStageApprovedKey = null) => {
+        const updateStageUI = (stageName, idKey, approvedKey, pendingKey, buttonId, statusId, prevStageApprovedKey = null) => {
             const statusElement = document.getElementById(statusId);
             const buttonElement = document.getElementById(buttonId);
 
+            // Reset button state
+            buttonElement.disabled = true;
+            buttonElement.classList.remove('btn-primary', 'btn-success', 'btn-warning', 'btn-danger');
+
             if (this.state[approvedKey]) {
                 statusElement.textContent = 'Approved';
-                statusElement.style.color = 'green';
+                statusElement.className = 'stage-status approved';
                 buttonElement.disabled = true;
             } else if (this.state[pendingKey]) {
                 statusElement.textContent = 'Pending Review';
-                statusElement.style.color = 'orange';
+                statusElement.className = 'stage-status pending-review';
                 buttonElement.disabled = true;
             } else if (this.state[idKey]) {
                 statusElement.textContent = 'Generated, Awaiting Approval';
-                statusElement.style.color = 'orange';
+                statusElement.className = 'stage-status generated';
                 buttonElement.disabled = true;
             } else {
                 statusElement.textContent = 'Not Started';
-                statusElement.style.color = '#6c757d';
-                buttonElement.disabled = true; // Default to disabled
-            }
+                statusElement.className = 'stage-status not-started';
 
-            // Enable button if prerequisites are met and not already approved/pending
-            if (!this.state[approvedKey] && !this.state[pendingKey] && !this.state[idKey]) {
-                if (stageName === 'requirements') {
+                // Enable button if prerequisites are met and not already approved/pending/generated
+                if (prevStageApprovedKey === null || this.state[prevStageApprovedKey]) {
                     buttonElement.disabled = false;
-                } else if (nextStageApprovedKey !== null && this.state[nextStageApprovedKey]) {
-                    buttonElement.disabled = false;
+                    buttonElement.classList.add('btn-primary');
                 }
             }
         };
