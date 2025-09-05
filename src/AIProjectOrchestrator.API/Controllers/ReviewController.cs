@@ -16,11 +16,22 @@ namespace AIProjectOrchestrator.API.Controllers
     public class ReviewController : ControllerBase
     {
         private readonly IReviewService _reviewService;
+        private readonly IRequirementsAnalysisService _requirementsAnalysisService;
+        private readonly IProjectPlanningService _projectPlanningService;
+        private readonly IStoryGenerationService _storyGenerationService;
         private readonly ILogger<ReviewController> _logger;
 
-        public ReviewController(IReviewService reviewService, ILogger<ReviewController> logger)
+        public ReviewController(
+            IReviewService reviewService, 
+            IRequirementsAnalysisService requirementsAnalysisService,
+            IProjectPlanningService projectPlanningService,
+            IStoryGenerationService storyGenerationService,
+            ILogger<ReviewController> logger)
         {
             _reviewService = reviewService;
+            _requirementsAnalysisService = requirementsAnalysisService;
+            _projectPlanningService = projectPlanningService;
+            _storyGenerationService = storyGenerationService;
             _logger = logger;
         }
 
@@ -86,6 +97,17 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
+                var review = await _reviewService.GetReviewAsync(id, cancellationToken);
+                if (review == null)
+                {
+                    return NotFound(new ProblemDetails
+                    {
+                        Title = "Review not found",
+                        Detail = $"Review with ID {id} was not found",
+                        Status = StatusCodes.Status404NotFound
+                    });
+                }
+
                 // If decision is null or empty, create a default one
                 if (decision == null || string.IsNullOrEmpty(decision.Reason))
                 {
@@ -97,6 +119,29 @@ namespace AIProjectOrchestrator.API.Controllers
                 }
 
                 var response = await _reviewService.ApproveReviewAsync(id, decision, cancellationToken);
+
+                // After approval, update the status of the corresponding service
+                if (Guid.TryParse(review.CorrelationId, out Guid correlationGuid))
+                {
+                    switch (review.ServiceName)
+                    {
+                        case "RequirementsAnalysis":
+                            await _requirementsAnalysisService.UpdateAnalysisStatusAsync(correlationGuid, Domain.Models.RequirementsAnalysisStatus.Approved, cancellationToken);
+                            break;
+                        case "ProjectPlanning":
+                            await _projectPlanningService.UpdatePlanningStatusAsync(correlationGuid, Domain.Models.ProjectPlanningStatus.Approved, cancellationToken);
+                            break;
+                        case "StoryGeneration":
+                            await _storyGenerationService.UpdateGenerationStatusAsync(correlationGuid, Domain.Models.Stories.StoryGenerationStatus.Approved, cancellationToken);
+                            break;
+                        // Add cases for other services like CodeGeneration if needed
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("Could not parse CorrelationId {CorrelationId} to Guid for review {ReviewId}", review.CorrelationId, id);
+                }
+
                 return Ok(response);
             }
             catch (InvalidOperationException ex)

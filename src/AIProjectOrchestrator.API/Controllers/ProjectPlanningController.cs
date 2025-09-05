@@ -73,5 +73,19 @@ namespace AIProjectOrchestrator.API.Controllers
                 return StatusCode(500, new { error = "Internal server error", message = ex.Message });
             }
         }
+
+        [HttpPost("{planningId:guid}/approve")]
+        public async Task<IActionResult> ApprovePlan(Guid planningId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await _projectPlanningService.UpdatePlanningStatusAsync(planningId, ProjectPlanningStatus.Approved, cancellationToken);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
+            }
+        }
     }
 }

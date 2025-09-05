@@ -93,5 +93,19 @@ namespace AIProjectOrchestrator.API.Controllers
                 return StatusCode(500, new { error = "Internal server error", message = ex.Message });
             }
         }
+
+        [HttpPost("{generationId:guid}/approve")]
+        public async Task<IActionResult> ApproveStories(Guid generationId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await _storyGenerationService.UpdateGenerationStatusAsync(generationId, StoryGenerationStatus.Approved, cancellationToken);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
+            }
+        }
     }
 }

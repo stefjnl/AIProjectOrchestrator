@@ -17,14 +17,25 @@ namespace AIProjectOrchestrator.UnitTests.Review
     public class ReviewControllerTests
     {
         private readonly Mock<IReviewService> _mockReviewService;
+        private readonly Mock<IRequirementsAnalysisService> _mockRequirementsAnalysisService;
+        private readonly Mock<IProjectPlanningService> _mockProjectPlanningService;
+        private readonly Mock<IStoryGenerationService> _mockStoryGenerationService;
         private readonly Mock<ILogger<ReviewController>> _mockLogger;
         private readonly ReviewController _controller;
 
         public ReviewControllerTests()
         {
             _mockReviewService = new Mock<IReviewService>();
+            _mockRequirementsAnalysisService = new Mock<IRequirementsAnalysisService>();
+            _mockProjectPlanningService = new Mock<IProjectPlanningService>();
+            _mockStoryGenerationService = new Mock<IStoryGenerationService>();
             _mockLogger = new Mock<ILogger<ReviewController>>();
-            _controller = new ReviewController(_mockReviewService.Object, _mockLogger.Object);
+            _controller = new ReviewController(
+                _mockReviewService.Object, 
+                _mockRequirementsAnalysisService.Object,
+                _mockProjectPlanningService.Object,
+                _mockStoryGenerationService.Object,
+                _mockLogger.Object);
         }
 
         [Fact]
@@ -197,6 +208,14 @@ namespace AIProjectOrchestrator.UnitTests.Review
             var returnValue = Assert.IsType<ReviewResponse>(okResult.Value);
             Assert.Equal(reviewId, returnValue.ReviewId);
             Assert.Equal(ReviewStatus.Approved, returnValue.Status);
+
+            // Verify that the correct service's UpdateStatusAsync method was called
+            _mockRequirementsAnalysisService.Verify(
+                s => s.UpdateAnalysisStatusAsync(
+                    It.IsAny<Guid>(), 
+                    AIProjectOrchestrator.Domain.Models.RequirementsAnalysisStatus.Approved, 
+                    It.IsAny<CancellationToken>()), 
+                Times.Once);
         }
 
         [Fact]
