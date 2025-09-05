@@ -38,7 +38,7 @@ The AI Project Orchestrator automates and systematizes the entire development pi
 ## Core Requirements
 
 ### Functional Requirements
-- Multi-provider AI model integration (Claude API, LM Studio, OpenRouter)
+- Single-provider AI model integration (OpenRouter, configured)
 - Configurable sub-agent instruction system (RequirementsAnalyst.md, etc.)
 - Quality feedback loops at each pipeline stage
 - Context document management (~10k character support)
@@ -63,17 +63,15 @@ The AI Project Orchestrator automates and systematizes the entire development pi
 ## Technology Stack
 - **.NET 9 Web API**: Core orchestration platform
 - **Clean Architecture**: Domain, Application, Infrastructure, API layers
-- **Entity Framework Core**: Data persistence with PostgreSQL
+- **Entity Framework Core**: Data persistence with PostgreSQL (not implemented yet)
 - **Docker**: Containerized deployment and development
 - **GitHub Actions**: CI/CD automation
-- **Multiple AI Providers**: Claude, LM Studio, OpenRouter integration
 
 ## Future Vision
 - **Intelligent Agent Collaboration**: Sub-agents that learn from each other's outputs
 - **Performance Analytics**: Model selection optimization based on success metrics
 - **Template Marketplace**: Reusable project templates and instruction sets
 - **Integration Ecosystem**: Connections to project management tools, IDEs, and deployment platforms
-- **Learning System**: Continuous improvement from developer feedback and usage patterns
 
 ## Development Approach
 Start with a monolithic application focusing on the core pipeline (Requirements → Stories → Code), then gradually extract specialized microservices as the system matures. Each component will be designed with clear interfaces to support this evolution.
