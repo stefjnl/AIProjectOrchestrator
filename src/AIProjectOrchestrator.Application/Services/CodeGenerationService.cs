@@ -78,11 +78,31 @@ namespace AIProjectOrchestrator.Application.Services
                 // Analyze stories and select optimal AI model
                 response.Status = CodeGenerationStatus.SelectingModel;
                 var selectedModel = await SelectOptimalModelAsync(context.Stories, context.TechnicalContext, cancellationToken);
+                _logger.LogInformation("Code generation {GenerationId}: Selected model: {SelectedModel}", generationId, selectedModel);
                 response.SelectedModel = selectedModel;
 
                 // Load model-specific instructions
                 _logger.LogDebug("Loading instructions for code generation {GenerationId}", generationId);
-                var instructionContent = await _instructionService.GetInstructionAsync($"CodeGenerator_{selectedModel}", cancellationToken);
+                // Map the model name to the correct instruction file name
+                string instructionFileName = selectedModel.ToLower() switch
+                {
+                    "qwen3-coder" => "CodeGenerator_Qwen3Coder",
+                    _ => $"CodeGenerator_{selectedModel}"
+                };
+                
+                // Log the instruction file name for debugging
+                _logger.LogInformation("Code generation {GenerationId}: Using instruction file name: {InstructionFileName}, selected model: {SelectedModel}", 
+                    generationId, instructionFileName, selectedModel);
+                
+                // Double-check the mapping
+                if (instructionFileName == "CodeGenerator_qwen3-coder")
+                {
+                    _logger.LogWarning("Code generation {GenerationId}: WARNING - instructionFileName is still using lowercase version!", generationId);
+                    instructionFileName = "CodeGenerator_Qwen3Coder";
+                    _logger.LogInformation("Code generation {GenerationId}: Corrected instruction file name to: {InstructionFileName}", generationId, instructionFileName);
+                }
+                
+                var instructionContent = await _instructionService.GetInstructionAsync(instructionFileName, cancellationToken);
 
                 if (!instructionContent.IsValid)
                 {
