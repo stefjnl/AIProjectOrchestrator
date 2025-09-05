@@ -26,7 +26,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         public abstract Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default);
 
         protected async Task<HttpResponseMessage> SendRequestWithRetryAsync(
-            HttpRequestMessage requestMessage, 
+            Func<HttpRequestMessage> requestMessageFactory, 
             int maxRetries, 
             CancellationToken cancellationToken = default)
         {
@@ -37,6 +37,8 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             {
                 try
                 {
+                    // Create a new request message for each attempt
+                    var requestMessage = requestMessageFactory();
                     response = await _httpClient.SendAsync(requestMessage, cancellationToken);
                     
                     // If successful or not a retryable status code, return the response

@@ -91,6 +91,8 @@
 
             try {
                 await startFunction();
+                // Don't reset UI on success since we're redirecting to review queue
+                // The UI will be reset when the user returns to this page
             } catch (error) {
                 alert(`Error: ${error.message}`);
                 // Reset UI on failure
@@ -101,6 +103,11 @@
         // Stage 1: Requirements Analysis
         function startRequirementsAnalysis() {
             handleStageStart('startRequirementsBtn', 'requirementsStatus', async () => {
+                // Set generating state
+                workflowManager.setRequirementsGenerating(true);
+                workflowManager.saveState();
+                workflowManager.updateWorkflowUI();
+
                 const project = await window.APIClient.getProject(workflowManager.projectId);
                 const request = {
                     ProjectDescription: project.description,
@@ -112,6 +119,7 @@
                 const response = await window.APIClient.analyzeRequirements(request);
                 workflowManager.setRequirementsAnalysisId(response.analysisId);
                 workflowManager.setRequirementsPending(true);
+                workflowManager.setRequirementsGenerating(false); // Clear generating state
                 workflowManager.saveState();
                 workflowManager.updateWorkflowUI();
 
@@ -123,8 +131,16 @@
         // Stage 2: Project Planning
         function startProjectPlanning() {
             handleStageStart('startPlanningBtn', 'planningStatus', async () => {
+                // Set generating state
+                workflowManager.setPlanningGenerating(true);
+                workflowManager.saveState();
+                workflowManager.updateWorkflowUI();
+
                 const canCreate = await window.APIClient.canCreateProjectPlan(workflowManager.state.requirementsAnalysisId);
                 if (!canCreate) {
+                    workflowManager.setPlanningGenerating(false); // Clear generating state
+                    workflowManager.saveState();
+                    workflowManager.updateWorkflowUI();
                     throw new Error('Cannot start project planning. Requirements must be approved first.');
                 }
 
@@ -136,6 +152,7 @@
                 const response = await window.APIClient.createProjectPlan(request);
                 workflowManager.setProjectPlanningId(response.planningId);
                 workflowManager.setPlanningPending(true);
+                workflowManager.setPlanningGenerating(false); // Clear generating state
                 workflowManager.saveState();
                 workflowManager.updateWorkflowUI();
 
@@ -147,8 +164,16 @@
         // Stage 3: Story Generation
         function startStoryGeneration() {
             handleStageStart('startStoriesBtn', 'storiesStatus', async () => {
+                // Set generating state
+                workflowManager.setStoriesGenerating(true);
+                workflowManager.saveState();
+                workflowManager.updateWorkflowUI();
+
                 const canGenerate = await window.APIClient.canGenerateStories(workflowManager.state.projectPlanningId);
                 if (!canGenerate) {
+                    workflowManager.setStoriesGenerating(false); // Clear generating state
+                    workflowManager.saveState();
+                    workflowManager.updateWorkflowUI();
                     throw new Error('Cannot generate stories. Project planning must be approved first.');
                 }
 
@@ -159,6 +184,7 @@
                 const response = await window.APIClient.generateStories(request);
                 workflowManager.setStoryGenerationId(response.generationId);
                 workflowManager.setStoriesPending(true);
+                workflowManager.setStoriesGenerating(false); // Clear generating state
                 workflowManager.saveState();
                 workflowManager.updateWorkflowUI();
 

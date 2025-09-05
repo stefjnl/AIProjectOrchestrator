@@ -47,13 +47,14 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                 var json = JsonSerializer.Serialize(openAIRequest);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
                 
-                var requestMessage = new HttpRequestMessage(HttpMethod.Post, "v1/chat/completions")
-                {
-                    Content = content
-                };
-
                 var response = await SendRequestWithRetryAsync(
-                    requestMessage, 
+                    () => {
+                        var requestMessage = new HttpRequestMessage(HttpMethod.Post, "v1/chat/completions")
+                        {
+                            Content = content
+                        };
+                        return requestMessage;
+                    }, 
                     _settings.MaxRetries, 
                     cancellationToken);
 

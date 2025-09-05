@@ -284,7 +284,7 @@ namespace AIProjectOrchestrator.Application.Services
 
             // Parse structured markdown response
             // Look for story sections
-            var storyPattern = @"###\s*Story\s*\d+.*?(?=(###\s*Story|$))\";
+            var storyPattern = @"###\s*Story\s*\d+.*?(?=(###\s*Story|$))";
             var storyMatches = Regex.Matches(aiResponse, storyPattern, RegexOptions.Singleline | RegexOptions.IgnoreCase);
 
             foreach (Match match in storyMatches)

@@ -68,22 +68,20 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                     : "chat/completions";
                 _logger.LogInformation("OpenRouter Full Request URL: {FullUrl}", fullUrl);
                 
-                var requestMessage = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
-                {
-                    Content = content
-                };
-                
-                // Log the API key info (but not the actual key)
-                _logger.LogInformation("Using API Key - Length: {ApiKeyLength}, IsNullOrEmpty: {IsNullOrEmpty}", 
-                    _settings.ApiKey?.Length ?? 0, string.IsNullOrEmpty(_settings.ApiKey));
-                
-                // Add required headers for OpenRouter API
-                requestMessage.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _settings.ApiKey);
-                requestMessage.Headers.Add("HTTP-Referer", "AIProjectOrchestrator");
-                requestMessage.Headers.Add("X-Title", "AIProjectOrchestrator");
-
                 var response = await SendRequestWithRetryAsync(
-                    requestMessage, 
+                    () => {
+                        var requestMessage = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
+                        {
+                            Content = content
+                        };
+                        
+                        // Add required headers for OpenRouter API
+                        requestMessage.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+                        requestMessage.Headers.Add("HTTP-Referer", "AIProjectOrchestrator");
+                        requestMessage.Headers.Add("X-Title", "AIProjectOrchestrator");
+                        
+                        return requestMessage;
+                    }, 
                     _settings.MaxRetries, 
                     cancellationToken);
 

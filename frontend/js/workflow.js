@@ -12,7 +12,12 @@ class WorkflowManager {
             storiesApproved: false,
             requirementsPending: false,
             planningPending: false,
-            storiesPending: false
+            storiesPending: false,
+            // Track when stages are being generated
+            requirementsGenerating: false,
+            planningGenerating: false,
+            storiesGenerating: false,
+            codeGenerating: false
         };
 
         // Periodically check for approved reviews to update the workflow state
@@ -73,10 +78,37 @@ class WorkflowManager {
         this.state.storiesPending = pending;
     }
 
+    // Setter methods for generating states
+    setRequirementsGenerating(generating) {
+        this.state.requirementsGenerating = generating;
+    }
+
+    setPlanningGenerating(generating) {
+        this.state.planningGenerating = generating;
+    }
+
+    setStoriesGenerating(generating) {
+        this.state.storiesGenerating = generating;
+    }
+
+    setCodeGenerating(generating) {
+        this.state.codeGenerating = generating;
+    }
+
     updateWorkflowUI() {
         const updateStageUI = (stageName, idKey, approvedKey, pendingKey, buttonId, statusId, prevStageApprovedKey = null) => {
             const statusElement = document.getElementById(statusId);
             const buttonElement = document.getElementById(buttonId);
+
+            // Check if this stage is currently being generated
+            const generatingKey = `${stageName}Generating`;
+            if (this.state[generatingKey]) {
+                // Preserve the generating state
+                statusElement.textContent = 'Generating...';
+                statusElement.className = 'stage-status generating';
+                buttonElement.disabled = true;
+                return;
+            }
 
             // Reset button state
             buttonElement.disabled = true;

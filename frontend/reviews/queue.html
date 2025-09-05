@@ -58,7 +58,22 @@
             try {
                 await window.APIClient.approveReview(reviewId);
                 alert('Review approved successfully!');
-                await loadPendingReviews(); // Reload reviews after approval
+                
+                // Try to get the review details to determine which project it belongs to
+                try {
+                    const review = await window.APIClient.getReview(reviewId);
+                    // Extract project ID from metadata if available
+                    if (review.metadata && review.metadata.ProjectId) {
+                        // Redirect back to the project page
+                        window.location.href = `/projects/workflow.html?projectId=${review.metadata.ProjectId}`;
+                        return;
+                    }
+                } catch (e) {
+                    console.error('Error getting review details:', e);
+                }
+                
+                // If we can't determine the project, just reload the reviews
+                await loadPendingReviews();
             } catch (error) {
                 alert('Error approving review: ' + error.message);
             } finally {
