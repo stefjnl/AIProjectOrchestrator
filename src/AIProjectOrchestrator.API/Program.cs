@@ -60,6 +60,7 @@ builder.Services.AddSingleton<IRequirementsAnalysisService, RequirementsAnalysis
 builder.Services.AddSingleton<IProjectPlanningService, ProjectPlanningService>();
 builder.Services.AddSingleton<IStoryGenerationService, StoryGenerationService>();
 builder.Services.AddSingleton<ICodeGenerationService, CodeGenerationService>();
+builder.Services.AddSingleton<IPromptGenerationService, PromptGenerationService>();
 builder.Services.AddSingleton<IReviewService, ReviewService>();
 
 // Add instruction service configuration

@@ -2,7 +2,7 @@
 
 You're implementing **Phase 4: Prompt Generation** - a service that transforms individual approved user stories into comprehensive coding prompts for AI assistants. This creates an enterprise-grade prompt engineering platform within your AI Project Orchestrator.
 
-**Architecture**: Following your existing pattern (Requirements → Planning → Stories → **Prompts**), this service receives individual user stories and generates detailed, technical prompts that coding assistants can use to implement the story.
+**Architecture**: Following your existing pattern (Requirements → Planning → Stories → **AI Prompting**), this service receives individual user stories and generates detailed, technical prompts that coding assistants can use to implement the story.
 
 **4-Phase Implementation Strategy**:
 1. **Foundation & Data Models** ← Starting here
