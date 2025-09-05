@@ -110,47 +110,28 @@ class WorkflowManager {
     }
 
     async checkApprovedReviews() {
-        // This function will be called on page load to update the state based on backend reviews
-        // For now, we assume the backend will eventually update the status.
-        // In a real app, you might poll the backend or use websockets.
-        // For this implementation, we'll rely on the user manually checking the review queue
-        // and the state being updated when they return to this page.
-
-        // If a stage was pending, check if it's now approved by the backend
-        // This is a simplified check. A more robust solution would involve polling the backend
-        // or having a notification system.
-        if (this.state.requirementsPending) {
-            try {
-                const review = await window.APIClient.getReview(this.state.requirementsAnalysisId);
-                if (review && review.status === 'Approved') {
-                    this.setRequirementsApproved(true);
+        const checkStatus = async (id, pendingFlag, approveFunc) => {
+            if (this.state[pendingFlag]) {
+                try {
+                    // We no longer need to check the review content, just its existence.
+                    await window.APIClient.getReview(this.state[id]);
+                } catch (e) {
+                    if (e.message && e.message.includes('404')) {
+                        // If the review is not found, it means it was approved and deleted.
+                        console.log(`Review for ${id} not found (404), assuming approved.`);
+                        this[approveFunc](true);
+                    } else {
+                        console.error(`Error checking review status for ${id}:`, e);
+                    }
                 }
-            } catch (e) {
-                console.error("Error checking requirements review status:", e);
             }
-        }
+        };
 
-        if (this.state.planningPending) {
-            try {
-                const review = await window.APIClient.getReview(this.state.projectPlanningId);
-                if (review && review.status === 'Approved') {
-                    this.setPlanningApproved(true);
-                }
-            } catch (e) {
-                console.error("Error checking planning review status:", e);
-            }
-        }
+        await checkStatus('requirementsAnalysisId', 'requirementsPending', 'setRequirementsApproved');
+        await checkStatus('projectPlanningId', 'planningPending', 'setPlanningApproved');
+        await checkStatus('storyGenerationId', 'storiesPending', 'setStoriesApproved');
 
-        if (this.state.storiesPending) {
-            try {
-                const review = await window.APIClient.getReview(this.state.storyGenerationId);
-                if (review && review.status === 'Approved') {
-                    this.setStoriesApproved(true);
-                }
-            } catch (e) {
-                console.error("Error checking stories review status:", e);
-            }
-        }
         this.saveState();
+        this.updateWorkflowUI();
     }
 }

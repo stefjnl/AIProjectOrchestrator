@@ -80,9 +80,27 @@
             document.getElementById('projectDescription').textContent = project.description;
         }
 
-        // Stage 1: Requirements Analysis
-        async function startRequirementsAnalysis() {
+        // Helper function to manage UI state during async operations
+        async function handleStageStart(buttonId, statusId, startFunction) {
+            const button = document.getElementById(buttonId);
+            const status = document.getElementById(statusId);
+
+            button.disabled = true;
+            status.textContent = 'Generating...';
+            status.className = 'stage-status generating';
+
             try {
+                await startFunction();
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+                // Reset UI on failure
+                workflowManager.updateWorkflowUI();
+            }
+        }
+
+        // Stage 1: Requirements Analysis
+        function startRequirementsAnalysis() {
+            handleStageStart('startRequirementsBtn', 'requirementsStatus', async () => {
                 const project = await window.APIClient.getProject(workflowManager.projectId);
                 const request = {
                     ProjectDescription: project.description,
@@ -98,19 +116,16 @@
                 workflowManager.updateWorkflowUI();
 
                 alert('Requirements analysis submitted for review. Please check the review queue.');
-                window.location.href = '../reviews/queue.html';
-            } catch (error) {
-                alert('Error starting requirements analysis: ' + error.message);
-            }
+                window.location.href = '/reviews/queue.html';
+            });
         }
 
         // Stage 2: Project Planning
-        async function startProjectPlanning() {
-            try {
+        function startProjectPlanning() {
+            handleStageStart('startPlanningBtn', 'planningStatus', async () => {
                 const canCreate = await window.APIClient.canCreateProjectPlan(workflowManager.state.requirementsAnalysisId);
                 if (!canCreate) {
-                    alert('Cannot start project planning. Requirements must be approved first.');
-                    return;
+                    throw new Error('Cannot start project planning. Requirements must be approved first.');
                 }
 
                 const request = {
@@ -125,19 +140,16 @@
                 workflowManager.updateWorkflowUI();
 
                 alert('Project planning submitted for review. Please check the review queue.');
-                window.location.href = '../reviews/queue.html';
-            } catch (error) {
-                alert('Error starting project planning: ' + error.message);
-            }
+                window.location.href = '/reviews/queue.html';
+            });
         }
 
         // Stage 3: Story Generation
-        async function startStoryGeneration() {
-            try {
+        function startStoryGeneration() {
+            handleStageStart('startStoriesBtn', 'storiesStatus', async () => {
                 const canGenerate = await window.APIClient.canGenerateStories(workflowManager.state.projectPlanningId);
                 if (!canGenerate) {
-                    alert('Cannot generate stories. Project planning must be approved first.');
-                    return;
+                    throw new Error('Cannot generate stories. Project planning must be approved first.');
                 }
 
                 const request = {
@@ -151,19 +163,16 @@
                 workflowManager.updateWorkflowUI();
 
                 alert('User stories submitted for review. Please check the review queue.');
-                window.location.href = '../reviews/queue.html';
-            } catch (error) {
-                alert('Error generating stories: ' + error.message);
-            }
+                window.location.href = '/reviews/queue.html';
+            });
         }
 
         // Stage 4: Code Generation
-        async function startCodeGeneration() {
-            try {
+        function startCodeGeneration() {
+            handleStageStart('startCodeBtn', 'codeStatus', async () => {
                 const canGenerate = await window.APIClient.canGenerateCode(workflowManager.state.storyGenerationId);
                 if (!canGenerate) {
-                    alert('Cannot generate code. User stories must be approved first.');
-                    return;
+                    throw new Error('Cannot generate code. User stories must be approved first.');
                 }
 
                 const request = {
@@ -172,14 +181,13 @@
 
                 const response = await window.APIClient.generateCode(request);
                 workflowManager.setCodeGenerationId(response.generationId);
+                // This is the final stage, so it doesn't go to pending review in the same way
                 workflowManager.saveState();
                 workflowManager.updateWorkflowUI();
 
-                alert('Code generation submitted for review. Please check the review queue.');
-                window.location.href = '../reviews/queue.html';
-            } catch (error) {
-                alert('Error generating code: ' + error.message);
-            }
+                alert('Code generation has been completed!');
+                // Optional: redirect or update UI to show completion
+            });
         }
     </script>
 </body>
