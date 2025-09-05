@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Workflow - AI Orchestrator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #0056b3;
+            margin-bottom: 10px;
+        }
+        .header p {
+            font-style: italic;
+            color: #666;
+        }
+        .workflow-stages {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }
+        .workflow-stage {
+            background-color: #e9ecef;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            flex: 1 1 calc(50% - 20px);
+            box-sizing: border-box;
+            min-width: 300px;
+            text-align: center;
+        }
+        .workflow-stage h3 {
+            color: #007bff;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        .stage-status {
+            font-weight: bold;
+            color: #6c757d;
+            margin-bottom: 15px;
+        }
+        .workflow-stage button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: not-allowed;
+            opacity: 0.6;
+            font-size: 16px;
+        }
+        .workflow-stage button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .back-link {
+            display: block;
+            margin-bottom: 20px;
+            text-align: center;
+            text-decoration: none;
+            color: #007bff;
+            font-weight: bold;
+        }
+
+        @media (max-width: 768px) {
+            .workflow-stage {
+                flex: 1 1 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/index.html" class="back-link">&larr; Back to Home</a>
+        <div class="header">
+            <h1 id="projectTitle">Loading Project...</h1>
+            <p id="projectDescription"></p>
+        </div>
+
+        <div class="workflow-stages">
+            <!-- Stage 1: Requirements Analysis -->
+            <div class="workflow-stage">
+                <h3>1. Requirements Analysis</h3>
+                <div class="stage-status" id="requirementsStatus">Not Started</div>
+                <button id="startRequirementsBtn" disabled>Start Analysis</button>
+            </div>
+
+            <!-- Stage 2: Project Planning -->
+            <div class="workflow-stage">
+                <h3>2. Project Planning</h3>
+                <div class="stage-status" id="planningStatus">Not Started</div>
+                <button id="startPlanningBtn" disabled>Start Planning</button>
+            </div>
+
+            <!-- Stage 3: User Stories -->
+            <div class="workflow-stage">
+                <h3>3. User Stories</h3>
+                <div class="stage-status" id="storiesStatus">Not Started</div>
+                <button id="startStoriesBtn" disabled>Generate Stories</button>
+            </div>
+
+            <!-- Stage 4: Code Generation -->
+            <div class="workflow-stage">
+                <h3>4. Code Generation</h3>
+                <div class="stage-status" id="codeStatus">Not Started</div>
+                <button id="startCodeBtn" disabled>Generate Code</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script>
+        window.addEventListener('DOMContentLoaded', async function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectId = urlParams.get('projectId');
+
+            if (!projectId) {
+                alert('No project ID provided. Redirecting to home.');
+                window.location.href = '/';
+                return;
+            }
+
+            try {
+                const project = await window.APIClient.getProject(projectId);
+                displayProjectInfo(project);
+            } catch (error) {
+                alert('Error loading project: ' + error.message + '. Redirecting to home.');
+                window.location.href = '/';
+            }
+        });
+
+        function displayProjectInfo(project) {
+            document.title = `${project.name} - Workflow`;
+            document.getElementById('projectTitle').textContent = project.name;
+            document.getElementById('projectDescription').textContent = project.description;
+        }
+    </script>
+</body>
+</html>
