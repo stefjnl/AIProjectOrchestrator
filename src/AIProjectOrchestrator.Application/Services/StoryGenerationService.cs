@@ -475,5 +475,55 @@ namespace AIProjectOrchestrator.Application.Services
             
             _logger.LogInformation("Updated story generation {GenerationId} status to {Status}", generationId, status);
         }
+        
+        public async Task<UserStory> GetIndividualStoryAsync(
+            Guid storyGenerationId, 
+            int storyIndex, 
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            
+            if (_generationResponses.TryGetValue(storyGenerationId, out var response))
+            {
+                if (storyIndex >= 0 && storyIndex < response.Stories.Count)
+                {
+                    return response.Stories[storyIndex];
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(storyIndex), $"Story index {storyIndex} is out of range. Total stories: {response.Stories.Count}");
+                }
+            }
+            
+            throw new InvalidOperationException($"Story generation with ID {storyGenerationId} not found");
+        }
+        
+        public async Task<List<UserStory>> GetAllStoriesAsync(
+            Guid storyGenerationId, 
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            
+            if (_generationResponses.TryGetValue(storyGenerationId, out var response))
+            {
+                return response.Stories;
+            }
+            
+            throw new InvalidOperationException($"Story generation with ID {storyGenerationId} not found");
+        }
+        
+        public async Task<int> GetStoryCountAsync(
+            Guid storyGenerationId, 
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            
+            if (_generationResponses.TryGetValue(storyGenerationId, out var response))
+            {
+                return response.Stories.Count;
+            }
+            
+            throw new InvalidOperationException($"Story generation with ID {storyGenerationId} not found");
+        }
     }
 }

@@ -16,6 +16,12 @@ namespace AIProjectOrchestrator.Domain.Services
             CancellationToken cancellationToken = default);
 
         Task<bool> CanGeneratePromptAsync(
+            Guid storyGenerationId,
+            int storyIndex,
+            CancellationToken cancellationToken = default);
+            
+        // Overload for backward compatibility
+        Task<bool> CanGeneratePromptAsync(
             Guid storyId,
             CancellationToken cancellationToken = default);
     }

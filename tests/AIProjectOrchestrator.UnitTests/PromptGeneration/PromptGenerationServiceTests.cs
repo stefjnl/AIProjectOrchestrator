@@ -1,9 +1,11 @@
 using AIProjectOrchestrator.Application.Services;
 using AIProjectOrchestrator.Domain.Models.PromptGeneration;
+using AIProjectOrchestrator.Domain.Models.Stories;
 using AIProjectOrchestrator.Domain.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -12,29 +14,62 @@ namespace AIProjectOrchestrator.UnitTests.PromptGeneration
 {
     public class PromptGenerationServiceTests
     {
+        private readonly Mock<IStoryGenerationService> _mockStoryGenerationService;
+        private readonly Mock<IInstructionService> _mockInstructionService;
         private readonly Mock<ILogger<PromptGenerationService>> _mockLogger;
         private readonly PromptGenerationService _service;
 
         public PromptGenerationServiceTests()
         {
+            _mockStoryGenerationService = new Mock<IStoryGenerationService>();
+            _mockInstructionService = new Mock<IInstructionService>();
             _mockLogger = new Mock<ILogger<PromptGenerationService>>();
-            _service = new PromptGenerationService(_mockLogger.Object);
+            _service = new PromptGenerationService(
+                _mockStoryGenerationService.Object,
+                _mockInstructionService.Object,
+                _mockLogger.Object);
         }
 
         [Fact]
         public async Task GeneratePromptAsync_WithValidRequest_ReturnsResponse()
         {
             // Arrange
+            var storyGenerationId = Guid.NewGuid();
+            var story = new UserStory
+            {
+                Id = Guid.NewGuid(),
+                Title = "Test Story",
+                Description = "Test Description",
+                AcceptanceCriteria = new List<string> { "Criteria 1", "Criteria 2" },
+                Priority = "High",
+                StoryPoints = 5,
+                Tags = new List<string> { "tag1", "tag2" }
+            };
+
             var request = new PromptGenerationRequest
             {
-                StoryId = Guid.NewGuid(),
-                TechnicalPreferences = new System.Collections.Generic.Dictionary<string, string>
+                StoryGenerationId = storyGenerationId,
+                StoryIndex = 0,
+                TechnicalPreferences = new Dictionary<string, string>
                 {
                     { "language", "C#" },
                     { "framework", ".NET 9" }
                 },
                 PromptStyle = "Detailed"
             };
+
+            // Setup mock
+            _mockStoryGenerationService.Setup(x => x.GetIndividualStoryAsync(
+                    It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(story);
+
+            _mockStoryGenerationService.Setup(x => x.GetGenerationStatusAsync(
+                    It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Domain.Models.Stories.StoryGenerationStatus.Approved);
+
+            _mockStoryGenerationService.Setup(x => x.GetStoryCountAsync(
+                    It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(1);
 
             // Act
             var result = await _service.GeneratePromptAsync(request, CancellationToken.None);
@@ -43,6 +78,7 @@ namespace AIProjectOrchestrator.UnitTests.PromptGeneration
             Assert.NotNull(result);
             Assert.NotEqual(Guid.Empty, result.PromptId);
             Assert.NotEmpty(result.GeneratedPrompt);
+            Assert.Contains(story.Title, result.GeneratedPrompt);
             Assert.NotEqual(Guid.Empty, result.ReviewId);
             Assert.Equal(PromptGenerationStatus.PendingReview, result.Status);
             Assert.NotEqual(DateTime.MinValue, result.CreatedAt);
@@ -52,10 +88,36 @@ namespace AIProjectOrchestrator.UnitTests.PromptGeneration
         public async Task GetPromptStatusAsync_WithValidId_ReturnsStatus()
         {
             // Arrange
+            var storyGenerationId = Guid.NewGuid();
+            var story = new UserStory
+            {
+                Id = Guid.NewGuid(),
+                Title = "Test Story",
+                Description = "Test Description",
+                AcceptanceCriteria = new List<string> { "Criteria 1", "Criteria 2" },
+                Priority = "High",
+                StoryPoints = 5,
+                Tags = new List<string> { "tag1", "tag2" }
+            };
+
             var request = new PromptGenerationRequest
             {
-                StoryId = Guid.NewGuid()
+                StoryGenerationId = storyGenerationId,
+                StoryIndex = 0
             };
+
+            // Setup mock
+            _mockStoryGenerationService.Setup(x => x.GetIndividualStoryAsync(
+                    It.IsAny<Guid>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(story);
+
+            _mockStoryGenerationService.Setup(x => x.GetGenerationStatusAsync(
+                    It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Domain.Models.Stories.StoryGenerationStatus.Approved);
+
+            _mockStoryGenerationService.Setup(x => x.GetStoryCountAsync(
+                    It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(1);
 
             // First, generate a prompt to set the status
             var generationResult = await _service.GeneratePromptAsync(request, CancellationToken.None);
@@ -68,25 +130,110 @@ namespace AIProjectOrchestrator.UnitTests.PromptGeneration
         }
 
         [Fact]
-        public async Task CanGeneratePromptAsync_WithValidStoryId_ReturnsTrue()
+        public async Task CanGeneratePromptAsync_WithApprovedStories_ReturnsTrue()
         {
             // Arrange
-            var storyId = Guid.NewGuid();
+            var storyGenerationId = Guid.NewGuid();
+            var storyIndex = 0;
+
+            // Setup mock
+            _mockStoryGenerationService.Setup(x => x.GetGenerationStatusAsync(
+                    It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Domain.Models.Stories.StoryGenerationStatus.Approved);
+
+            _mockStoryGenerationService.Setup(x => x.GetStoryCountAsync(
+                    It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(5); // 5 stories available
 
             // Act
-            var result = await _service.CanGeneratePromptAsync(storyId, CancellationToken.None);
+            var result = await _service.CanGeneratePromptAsync(storyGenerationId, storyIndex, CancellationToken.None);
 
             // Assert
             Assert.True(result);
         }
 
         [Fact]
+        public async Task CanGeneratePromptAsync_WithUnapprovedStories_ReturnsFalse()
+        {
+            // Arrange
+            var storyGenerationId = Guid.NewGuid();
+            var storyIndex = 0;
+
+            // Setup mock
+            _mockStoryGenerationService.Setup(x => x.GetGenerationStatusAsync(
+                    It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Domain.Models.Stories.StoryGenerationStatus.PendingReview);
+
+            _mockStoryGenerationService.Setup(x => x.GetStoryCountAsync(
+                    It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(5); // 5 stories available
+
+            // Act
+            var result = await _service.CanGeneratePromptAsync(storyGenerationId, storyIndex, CancellationToken.None);
+
+            // Assert
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task CanGeneratePromptAsync_WithInvalidStoryIndex_ReturnsFalse()
+        {
+            // Arrange
+            var storyGenerationId = Guid.NewGuid();
+            var storyIndex = 10; // Index out of range
+
+            // Setup mock
+            _mockStoryGenerationService.Setup(x => x.GetGenerationStatusAsync(
+                    It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Domain.Models.Stories.StoryGenerationStatus.Approved);
+
+            _mockStoryGenerationService.Setup(x => x.GetStoryCountAsync(
+                    It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(5); // Only 5 stories available, index 10 is invalid
+
+            // Act
+            var result = await _service.CanGeneratePromptAsync(storyGenerationId, storyIndex, CancellationToken.None);
+
+            // Assert
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task GeneratePromptAsync_WithInvalidPrerequisites_ThrowsException()
+        {
+            // Arrange
+            var storyGenerationId = Guid.NewGuid();
+            var request = new PromptGenerationRequest
+            {
+                StoryGenerationId = storyGenerationId,
+                StoryIndex = 0,
+                TechnicalPreferences = new Dictionary<string, string>
+                {
+                    { "language", "C#" },
+                    { "framework", ".NET 9" }
+                },
+                PromptStyle = "Detailed"
+            };
+
+            // Setup mock to return unapproved status
+            _mockStoryGenerationService.Setup(x => x.GetGenerationStatusAsync(
+                    It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Domain.Models.Stories.StoryGenerationStatus.PendingReview);
+
+            // Act & Assert
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                _service.GeneratePromptAsync(request, CancellationToken.None));
+        }
+
+        [Fact]
         public async Task GeneratePromptAsync_WithCancellation_ThrowsOperationCanceledException()
         {
             // Arrange
+            var storyGenerationId = Guid.NewGuid();
             var request = new PromptGenerationRequest
             {
-                StoryId = Guid.NewGuid()
+                StoryGenerationId = storyGenerationId,
+                StoryIndex = 0
             };
 
             var cancellationTokenSource = new CancellationTokenSource();

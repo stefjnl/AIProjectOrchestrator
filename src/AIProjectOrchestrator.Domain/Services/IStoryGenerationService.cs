@@ -33,5 +33,19 @@ namespace AIProjectOrchestrator.Domain.Services
             Guid generationId,
             StoryGenerationStatus status,
             CancellationToken cancellationToken = default);
+            
+        // New methods for Phase 2
+        Task<UserStory> GetIndividualStoryAsync(
+            Guid storyGenerationId, 
+            int storyIndex, 
+            CancellationToken cancellationToken = default);
+            
+        Task<List<UserStory>> GetAllStoriesAsync(
+            Guid storyGenerationId, 
+            CancellationToken cancellationToken = default);
+            
+        Task<int> GetStoryCountAsync(
+            Guid storyGenerationId, 
+            CancellationToken cancellationToken = default);
     }
 }
