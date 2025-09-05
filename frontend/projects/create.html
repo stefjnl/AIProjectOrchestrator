@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create New Project</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #0056b3;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        form div {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"],
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        button {
+            background-color: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 18px;
+            width: 100%;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .error-message {
+            color: red;
+            margin-top: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Create New Project</h1>
+        <form id="projectForm">
+            <div>
+                <label for="projectName">Project Name:</label>
+                <input type="text" id="projectName" required>
+            </div>
+            <div>
+                <label for="projectDescription">Project Description:</label>
+                <textarea id="projectDescription" required></textarea>
+            </div>
+            <button type="submit" id="createProjectBtn">Create Project</button>
+            <div id="errorMessage" class="error-message" style="display: none;"></div>
+        </form>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script>
+        document.getElementById('projectForm').addEventListener('submit', createProject);
+
+        async function createProject(event) {
+            event.preventDefault();
+
+            const projectNameInput = document.getElementById('projectName');
+            const projectDescriptionInput = document.getElementById('projectDescription');
+            const createProjectBtn = document.getElementById('createProjectBtn');
+            const errorMessageDiv = document.getElementById('errorMessage');
+
+            // Clear previous error messages
+            errorMessageDiv.style.display = 'none';
+            errorMessageDiv.textContent = '';
+
+            // Basic validation
+            if (!projectNameInput.value.trim() || !projectDescriptionInput.value.trim()) {
+                errorMessageDiv.textContent = 'Project Name and Description are required.';
+                errorMessageDiv.style.display = 'block';
+                return;
+            }
+
+            const projectData = {
+                name: projectNameInput.value.trim(),
+                description: projectDescriptionInput.value.trim()
+            };
+
+            createProjectBtn.disabled = true; // Disable button during submission
+            createProjectBtn.textContent = 'Creating...';
+
+            try {
+                const project = await window.APIClient.createProject(projectData);
+                window.location.href = `workflow.html?projectId=${project.id}`;
+            } catch (error) {
+                errorMessageDiv.textContent = 'Error creating project: ' + error.message;
+                errorMessageDiv.style.display = 'block';
+            } finally {
+                createProjectBtn.disabled = false; // Re-enable button
+                createProjectBtn.textContent = 'Create Project';
+            }
+        }
+    </script>
+</body>
+</html>
