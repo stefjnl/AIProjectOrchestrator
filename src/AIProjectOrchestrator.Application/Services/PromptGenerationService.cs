@@ -32,8 +32,14 @@ namespace AIProjectOrchestrator.Application.Services
 
             try
             {
+                // Check for cancellation
+                cancellationToken.ThrowIfCancellationRequested();
+
                 // Set status to processing
                 _promptStatuses[promptId] = PromptGenerationStatus.Processing;
+
+                // Check for cancellation again
+                cancellationToken.ThrowIfCancellationRequested();
 
                 // For now, return a placeholder response
                 // In future phases, we'll implement the actual prompt generation logic
@@ -45,6 +51,9 @@ namespace AIProjectOrchestrator.Application.Services
                     Status = PromptGenerationStatus.PendingReview,
                     CreatedAt = DateTime.UtcNow
                 };
+
+                // Check for cancellation before completing
+                cancellationToken.ThrowIfCancellationRequested();
 
                 // Set status to pending review
                 _promptStatuses[promptId] = PromptGenerationStatus.PendingReview;
@@ -69,6 +78,9 @@ namespace AIProjectOrchestrator.Application.Services
             Guid promptId,
             CancellationToken cancellationToken = default)
         {
+            // Check for cancellation
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (_promptStatuses.TryGetValue(promptId, out var status))
             {
                 return Task.FromResult(status);
@@ -83,6 +95,9 @@ namespace AIProjectOrchestrator.Application.Services
             Guid storyId,
             CancellationToken cancellationToken = default)
         {
+            // Check for cancellation
+            cancellationToken.ThrowIfCancellationRequested();
+
             try
             {
                 // For now, always allow prompt generation
