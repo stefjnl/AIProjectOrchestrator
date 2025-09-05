@@ -212,3 +212,146 @@ textarea {
         width: calc(100% - 20px);
     }
 }
+
+/* New Dashboard Styles */
+.main-nav-buttons {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.main-nav-buttons button {
+    margin: 0 10px;
+}
+
+.dashboard-overview {
+    margin-top: 30px;
+}
+
+.overview-section {
+    background-color: #f8f9fa;
+    padding: 25px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    border: 1px solid #e0e6ed;
+}
+
+.overview-section h2 {
+    color: #007bff;
+    border-bottom: 2px solid #e0e6ed;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
+    text-align: center;
+}
+
+.status-item {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.status-value {
+    display: block;
+    font-size: 2.5em;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.status-label {
+    color: #6c757d;
+    font-size: 1em;
+}
+
+#recent-projects-list .recent-project-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background-color: #fff;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    border: 1px solid #e9ecef;
+    transition: box-shadow 0.3s ease;
+}
+
+#recent-projects-list .recent-project-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.recent-project-item .project-info h3 {
+    margin: 0 0 5px 0;
+    color: #333;
+}
+
+.recent-project-item .project-info p {
+    margin: 0;
+    color: #555;
+    font-size: 0.9em;
+}
+
+.action-link {
+    white-space: nowrap;
+    padding: 8px 12px;
+    background-color: #007bff;
+    color: #fff;
+    border-radius: 5px;
+    font-size: 0.9em;
+    text-decoration: none;
+}
+
+.action-link:hover {
+    background-color: #0056b3;
+    color: #fff;
+    text-decoration: none;
+}
+
+/* Project List Page Styles */
+.header-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+#project-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+#project-table th, #project-table td {
+    border: 1px solid #dee2e6;
+    padding: 12px 15px;
+    text-align: left;
+    vertical-align: middle;
+}
+
+#project-table thead {
+    background-color: #f8f9fa;
+}
+
+#project-table th {
+    font-weight: bold;
+    color: #495057;
+}
+
+#project-table tbody tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+#project-table tbody tr:hover {
+    background-color: #e9ecef;
+}
+
+.no-projects {
+    text-align: center;
+    font-style: italic;
+    color: #6c757d;
+    padding: 20px;
+}

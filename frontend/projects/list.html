@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Projects - AI Project Orchestrator</title>
+    <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header-nav">
+            <a href="/frontend/index.html" class="back-link">&larr; Back to Home</a>
+            <a href="/frontend/projects/create.html" class="create-btn-top"><button>Create New Project</button></a>
+        </div>
+        <h1>All Projects</h1>
+        <div id="project-list-container">
+            <table id="project-table">
+                <thead>
+                    <tr>
+                        <th>Project Name</th>
+                        <th>Description</th>
+                        <th>Created Date</th>
+                        <th>Current Stage</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="project-list">
+                    <!-- Projects will be loaded here by JavaScript -->
+                </tbody>
+            </table>
+            <div id="loading-message">Loading projects...</div>
+            <div id="error-message" style="display: none; color: red;"></div>
+        </div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script src="../js/workflow.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const projects = await window.APIClient.getProjects();
+                populateProjectList(projects);
+            } catch (error) {
+                const errorMessage = document.getElementById('error-message');
+                errorMessage.textContent = `Error loading projects: ${error.message}`;
+                errorMessage.style.display = 'block';
+            } finally {
+                document.getElementById('loading-message').style.display = 'none';
+            }
+        });
+
+        function populateProjectList(projects) {
+            const projectList = document.getElementById('project-list');
+            if (projects.length === 0) {
+                projectList.innerHTML = '<tr><td colspan="6" class="no-projects">No projects found.</td></tr>';
+                return;
+            }
+
+            projects.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            projects.forEach(project => {
+                const stageInfo = getProjectStage(project);
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${escapeHTML(project.name)}</td>
+                    <td>${escapeHTML(project.description)}</td>
+                    <td>${new Date(project.createdAt).toLocaleDateString()}</td>
+                    <td>${stageInfo.stage}</td>
+                    <td><span class="stage-status ${stageInfo.statusClass}">${stageInfo.status}</span></td>
+                    <td><a href="/frontend/projects/workflow.html?projectId=${project.id}" class="action-link">Continue Workflow</a></td>
+                `;
+                projectList.appendChild(row);
+            });
+        }
+
+        function getProjectStage(project) {
+            // This logic is now more complex due to the need to infer status without direct includes.
+            // The presence of an ID is the primary indicator that a stage has been initiated.
+            const codeGenId = project.codeGenerationId;
+            const storyGenId = project.storyGenerationId;
+            const planningId = project.projectPlanningId;
+            const reqAnalysisId = project.requirementsAnalysisId;
+
+            // This is a simplified view. The actual status (Pending, Approved) is not available
+            // from the /api/projects endpoint. The UI will show the furthest initiated stage.
+            if (codeGenId) {
+                return { stage: '4. Code Generation', status: 'In Progress', statusClass: 'pending-review' };
+            }
+            if (storyGenId) {
+                return { stage: '3. User Stories', status: 'In Progress', statusClass: 'pending-review' };
+            }
+            if (planningId) {
+                return { stage: '2. Project Planning', status: 'In Progress', statusClass: 'pending-review' };
+            }
+            if (reqAnalysisId) {
+                return { stage: '1. Requirements Analysis', status: 'In Progress', statusClass: 'pending-review' };
+            }
+            return { stage: '1. Requirements Analysis', status: 'Not Started', statusClass: 'not-started' };
+        }
+
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(str));
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
