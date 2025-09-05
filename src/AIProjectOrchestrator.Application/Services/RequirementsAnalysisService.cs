@@ -15,7 +15,7 @@ namespace AIProjectOrchestrator.Application.Services
     {
         private readonly IInstructionService _instructionService;
         private readonly IAIClientFactory _aiClientFactory;
-        private readonly IReviewService _reviewService;
+        private readonly Lazy<IReviewService> _reviewService;
         private readonly ILogger<RequirementsAnalysisService> _logger;
         private readonly ConcurrentDictionary<Guid, RequirementsAnalysisStatus> _analysisStatuses;
         private readonly ConcurrentDictionary<Guid, RequirementsAnalysisResponse> _analysisResults;
@@ -23,7 +23,7 @@ namespace AIProjectOrchestrator.Application.Services
         public RequirementsAnalysisService(
             IInstructionService instructionService,
             IAIClientFactory aiClientFactory,
-            IReviewService reviewService,
+            Lazy<IReviewService> reviewService,
             ILogger<RequirementsAnalysisService> logger)
         {
             _instructionService = instructionService;
@@ -123,7 +123,7 @@ namespace AIProjectOrchestrator.Application.Services
                     }
                 };
 
-                var reviewResponse = await _reviewService.SubmitForReviewAsync(reviewRequest, cancellationToken);
+                var reviewResponse = await _reviewService.Value.SubmitForReviewAsync(reviewRequest, cancellationToken);
 
                 // Set status to pending review
                 _analysisStatuses[analysisId] = RequirementsAnalysisStatus.PendingReview;
@@ -172,11 +172,14 @@ namespace AIProjectOrchestrator.Application.Services
             Guid analysisId,
             CancellationToken cancellationToken = default)
         {
+            _logger.LogInformation("RequirementsAnalysisService: Getting analysis results for {AnalysisId}", analysisId);
             if (_analysisResults.TryGetValue(analysisId, out var result))
             {
+                _logger.LogInformation("RequirementsAnalysisService: Found analysis {AnalysisId} with status {Status}", analysisId, result.Status);
                 return Task.FromResult<RequirementsAnalysisResponse?>(result);
             }
             
+            _logger.LogWarning("RequirementsAnalysisService: Analysis {AnalysisId} not found in memory", analysisId);
             // If we don't have the result in memory, it might have been cleaned up
             // In a production system, we would check a persistent store
             return Task.FromResult<RequirementsAnalysisResponse?>(null);
@@ -233,6 +236,8 @@ namespace AIProjectOrchestrator.Application.Services
             RequirementsAnalysisStatus status,
             CancellationToken cancellationToken = default)
         {
+            _logger.LogInformation("RequirementsAnalysisService: Updating analysis {AnalysisId} to status {Status}", analysisId, status);
+
             // Update the in-memory status
             _analysisStatuses[analysisId] = status;
             
@@ -240,9 +245,12 @@ namespace AIProjectOrchestrator.Application.Services
             if (_analysisResults.TryGetValue(analysisId, out var result))
             {
                 result.Status = status;
+                _logger.LogInformation("RequirementsAnalysisService: Confirmed analysis {AnalysisId} status updated to {Status}", analysisId, status);
             }
-            
-            _logger.LogInformation("Updated requirements analysis {AnalysisId} status to {Status}", analysisId, status);
+            else
+            {
+                _logger.LogWarning("RequirementsAnalysisService: Analysis {AnalysisId} not found in memory to update status", analysisId);
+            }
         }
 
         private string CreatePromptFromRequest(RequirementsAnalysisRequest request)

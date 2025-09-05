@@ -56,16 +56,11 @@ builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 
 // Add requirements analysis service
-builder.Services.AddScoped<IRequirementsAnalysisService, RequirementsAnalysisService>();
-
-// Add project planning service
-builder.Services.AddScoped<IProjectPlanningService, ProjectPlanningService>();
-
-// Add story generation service
-builder.Services.AddScoped<IStoryGenerationService, StoryGenerationService>();
-
-// Add code generation service
-builder.Services.AddScoped<ICodeGenerationService, CodeGenerationService>();
+builder.Services.AddSingleton<IRequirementsAnalysisService, RequirementsAnalysisService>();
+builder.Services.AddSingleton<IProjectPlanningService, ProjectPlanningService>();
+builder.Services.AddSingleton<IStoryGenerationService, StoryGenerationService>();
+builder.Services.AddSingleton<ICodeGenerationService, CodeGenerationService>();
+builder.Services.AddSingleton<IReviewService, ReviewService>();
 
 // Add instruction service configuration
 builder.Services.Configure<InstructionSettings>(
@@ -123,14 +118,8 @@ builder.Services.AddSingleton<IAIClient, LMStudioClient>();
 builder.Services.AddSingleton<IAIClientFactory, AIClientFactory>();
 
 // Register Review service as singleton (for in-memory storage consistency)
-builder.Services.AddSingleton<IReviewService>(serviceProvider =>
-{
-    var logger = serviceProvider.GetRequiredService<ILogger<ReviewService>>();
-    var settings = serviceProvider.GetRequiredService<IOptions<ReviewSettings>>();
-    // We can't resolve scoped services here, so we'll resolve them when needed
-    // Store the service provider to resolve services on-demand
-    return new ReviewService(logger, settings, serviceProvider, null, null, null);
-});
+builder.Services.AddSingleton<IReviewService, ReviewService>();
+builder.Services.AddSingleton<Lazy<IReviewService>>(serviceProvider => new Lazy<IReviewService>(() => serviceProvider.GetRequiredService<IReviewService>()));
 
 // Register background cleanup service
 builder.Services.AddHostedService<ReviewCleanupService>();

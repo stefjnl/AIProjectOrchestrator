@@ -62,7 +62,7 @@
 
             workflowManager = new WorkflowManager(projectId);
             workflowManager.loadState();
-            await workflowManager.checkApprovedReviews();
+            await workflowManager.checkApprovedStatus();
 
             try {
                 const project = await window.APIClient.getProject(projectId);

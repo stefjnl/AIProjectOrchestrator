@@ -189,7 +189,18 @@ namespace AIProjectOrchestrator.UnitTests.Review
         {
             // Arrange
             var reviewId = Guid.NewGuid();
-            var response = new ReviewResponse
+            var correlationId = reviewId; // Assuming correlationId is the same as reviewId for simplicity in test
+            var reviewSubmission = new ReviewSubmission
+            {
+                Id = reviewId,
+                ServiceName = "RequirementsAnalysis", // This needs to match a case in the controller's switch
+                Content = "Test content",
+                CorrelationId = correlationId.ToString(),
+                PipelineStage = "Analysis",
+                Status = ReviewStatus.Pending
+            };
+
+            var reviewResponse = new ReviewResponse
             {
                 ReviewId = reviewId,
                 Status = ReviewStatus.Approved,
@@ -197,8 +208,10 @@ namespace AIProjectOrchestrator.UnitTests.Review
                 Message = "Review approved successfully"
             };
 
+            _mockReviewService.Setup(s => s.GetReviewAsync(reviewId, CancellationToken.None))
+                .ReturnsAsync(reviewSubmission);
             _mockReviewService.Setup(s => s.ApproveReviewAsync(reviewId, It.IsAny<ReviewDecisionRequest>(), CancellationToken.None))
-                .ReturnsAsync(response);
+                .ReturnsAsync(reviewResponse);
 
             // Act
             var result = await _controller.ApproveReview(reviewId, CancellationToken.None);
@@ -212,7 +225,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
             // Verify that the correct service's UpdateStatusAsync method was called
             _mockRequirementsAnalysisService.Verify(
                 s => s.UpdateAnalysisStatusAsync(
-                    It.IsAny<Guid>(), 
+                    correlationId, 
                     AIProjectOrchestrator.Domain.Models.RequirementsAnalysisStatus.Approved, 
                     It.IsAny<CancellationToken>()), 
                 Times.Once);
@@ -343,6 +356,130 @@ namespace AIProjectOrchestrator.UnitTests.Review
             var okResult = Assert.IsType<OkObjectResult>(result.Result);
             var returnValue = Assert.IsType<List<ReviewSubmission>>(okResult.Value);
             Assert.Equal(2, returnValue.Count);
+        }
+
+        [Fact]
+        public async Task ApproveReview_NotifiesCorrectServiceForRequirementsAnalysis()
+        {
+            // Arrange
+            var reviewId = Guid.NewGuid();
+            var correlationId = Guid.NewGuid();
+            var reviewSubmission = new ReviewSubmission
+            {
+                Id = reviewId,
+                ServiceName = "RequirementsAnalysis",
+                Content = "Test content",
+                CorrelationId = correlationId.ToString(),
+                PipelineStage = "Analysis",
+                Status = ReviewStatus.Pending
+            };
+
+            var reviewResponse = new ReviewResponse
+            {
+                ReviewId = reviewId,
+                Status = ReviewStatus.Approved,
+                SubmittedAt = DateTime.UtcNow,
+                Message = "Review approved successfully"
+            };
+
+            _mockReviewService.Setup(s => s.GetReviewAsync(reviewId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(reviewSubmission);
+            _mockReviewService.Setup(s => s.ApproveReviewAsync(reviewId, It.IsAny<ReviewDecisionRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(reviewResponse);
+
+            // Act
+            var result = await _controller.ApproveReview(reviewId, CancellationToken.None);
+
+            // Assert
+            _mockRequirementsAnalysisService.Verify(
+                s => s.UpdateAnalysisStatusAsync(
+                    correlationId,
+                    AIProjectOrchestrator.Domain.Models.RequirementsAnalysisStatus.Approved,
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+
+            _mockProjectPlanningService.Verify(
+                s => s.UpdatePlanningStatusAsync(
+                    It.IsAny<Guid>(),
+                    It.IsAny<AIProjectOrchestrator.Domain.Models.ProjectPlanningStatus>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+
+            _mockStoryGenerationService.Verify(
+                s => s.UpdateGenerationStatusAsync(
+                    It.IsAny<Guid>(),
+                    It.IsAny<AIProjectOrchestrator.Domain.Models.Stories.StoryGenerationStatus>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+
+            _mockProjectPlanningService.Verify(
+                s => s.UpdatePlanningStatusAsync(
+                    It.IsAny<Guid>(),
+                    It.IsAny<AIProjectOrchestrator.Domain.Models.ProjectPlanningStatus>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+
+            _mockStoryGenerationService.Verify(
+                s => s.UpdateGenerationStatusAsync(
+                    It.IsAny<Guid>(),
+                    It.IsAny<AIProjectOrchestrator.Domain.Models.Stories.StoryGenerationStatus>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        [Fact]
+        public async Task ApproveReview_NotifiesCorrectServiceForStoryGeneration()
+        {
+            // Arrange
+            var reviewId = Guid.NewGuid();
+            var correlationId = Guid.NewGuid();
+            var reviewSubmission = new ReviewSubmission
+            {
+                Id = reviewId,
+                ServiceName = "StoryGeneration",
+                Content = "Test content",
+                CorrelationId = correlationId.ToString(),
+                PipelineStage = "StoryGeneration",
+                Status = ReviewStatus.Pending
+            };
+
+            var reviewResponse = new ReviewResponse
+            {
+                ReviewId = reviewId,
+                Status = ReviewStatus.Approved,
+                SubmittedAt = DateTime.UtcNow,
+                Message = "Review approved successfully"
+            };
+
+            _mockReviewService.Setup(s => s.GetReviewAsync(reviewId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(reviewSubmission);
+            _mockReviewService.Setup(s => s.ApproveReviewAsync(reviewId, It.IsAny<ReviewDecisionRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(reviewResponse);
+
+            // Act
+            var result = await _controller.ApproveReview(reviewId, CancellationToken.None);
+
+            // Assert
+            _mockRequirementsAnalysisService.Verify(
+                s => s.UpdateAnalysisStatusAsync(
+                    It.IsAny<Guid>(),
+                    It.IsAny<AIProjectOrchestrator.Domain.Models.RequirementsAnalysisStatus>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+
+            _mockProjectPlanningService.Verify(
+                s => s.UpdatePlanningStatusAsync(
+                    It.IsAny<Guid>(),
+                    It.IsAny<AIProjectOrchestrator.Domain.Models.ProjectPlanningStatus>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+
+            _mockStoryGenerationService.Verify(
+                s => s.UpdateGenerationStatusAsync(
+                    correlationId,
+                    AIProjectOrchestrator.Domain.Models.Stories.StoryGenerationStatus.Approved,
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
         }
     }
 }

@@ -14,6 +14,9 @@ class WorkflowManager {
             planningPending: false,
             storiesPending: false
         };
+
+        // Periodically check for approved reviews to update the workflow state
+        setInterval(() => this.checkApprovedStatus(), 5000); // 5 seconds
     }
 
     saveState() {
@@ -109,27 +112,39 @@ class WorkflowManager {
         updateStageUI('code', 'codeGenerationId', null, null, 'startCodeBtn', 'codeStatus', 'storiesApproved');
     }
 
-    async checkApprovedReviews() {
-        const checkStatus = async (id, pendingFlag, approveFunc) => {
-            if (this.state[pendingFlag]) {
-                try {
-                    // We no longer need to check the review content, just its existence.
-                    await window.APIClient.getReview(this.state[id]);
-                } catch (e) {
-                    if (e.message && e.message.includes('404')) {
-                        // If the review is not found, it means it was approved and deleted.
-                        console.log(`Review for ${id} not found (404), assuming approved.`);
-                        this[approveFunc](true);
-                    } else {
-                        console.error(`Error checking review status for ${id}:`, e);
-                    }
+    async checkApprovedStatus() {
+        if (this.state.requirementsAnalysisId && !this.state.requirementsApproved) {
+            try {
+                const canCreate = await window.APIClient.canCreateProjectPlan(this.state.requirementsAnalysisId);
+                if (canCreate) {
+                    this.setRequirementsApproved(true);
                 }
+            } catch (e) {
+                console.error(`Error checking if project plan can be created:`, e);
             }
-        };
+        }
 
-        await checkStatus('requirementsAnalysisId', 'requirementsPending', 'setRequirementsApproved');
-        await checkStatus('projectPlanningId', 'planningPending', 'setPlanningApproved');
-        await checkStatus('storyGenerationId', 'storiesPending', 'setStoriesApproved');
+        if (this.state.projectPlanningId && !this.state.planningApproved) {
+            try {
+                const canCreate = await window.APIClient.canGenerateStories(this.state.projectPlanningId);
+                if (canCreate) {
+                    this.setPlanningApproved(true);
+                }
+            } catch (e) {
+                console.error(`Error checking if stories can be generated:`, e);
+            }
+        }
+
+        if (this.state.storyGenerationId && !this.state.storiesApproved) {
+            try {
+                const canCreate = await window.APIClient.canGenerateCode(this.state.storyGenerationId);
+                if (canCreate) {
+                    this.setStoriesApproved(true);
+                }
+            } catch (e) {
+                console.error(`Error checking if code can be generated:`, e);
+            }
+        }
 
         this.saveState();
         this.updateWorkflowUI();

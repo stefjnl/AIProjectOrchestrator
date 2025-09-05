@@ -17,7 +17,7 @@ namespace AIProjectOrchestrator.Application.Services
         private readonly IRequirementsAnalysisService _requirementsAnalysisService;
         private readonly IInstructionService _instructionService;
         private readonly IAIClientFactory _aiClientFactory;
-        private readonly IReviewService _reviewService;
+        private readonly Lazy<IReviewService> _reviewService;
         private readonly ILogger<ProjectPlanningService> _logger;
         private readonly ConcurrentDictionary<Guid, ProjectPlanningStatus> _planningStatuses;
         private readonly ConcurrentDictionary<Guid, ProjectPlanningResponse> _planningResults;
@@ -26,7 +26,7 @@ namespace AIProjectOrchestrator.Application.Services
             IRequirementsAnalysisService requirementsAnalysisService,
             IInstructionService instructionService,
             IAIClientFactory aiClientFactory,
-            IReviewService reviewService,
+            Lazy<IReviewService> reviewService,
             ILogger<ProjectPlanningService> logger)
         {
             _requirementsAnalysisService = requirementsAnalysisService;
@@ -155,7 +155,7 @@ namespace AIProjectOrchestrator.Application.Services
                     }
                 };
 
-                var reviewResponse = await _reviewService.SubmitForReviewAsync(reviewRequest, cancellationToken);
+                var reviewResponse = await _reviewService.Value.SubmitForReviewAsync(reviewRequest, cancellationToken);
 
                 // Set status to pending review
                 _planningStatuses[planningId] = ProjectPlanningStatus.PendingReview;
@@ -182,7 +182,7 @@ namespace AIProjectOrchestrator.Application.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Project planning {PlanningId} failed with exception", planningId);
+                _logger.LogWarning(ex, "Project planning {PlanningId} failed with exception", planningId);
                 _planningStatuses[planningId] = ProjectPlanningStatus.Failed;
                 throw;
             }
@@ -206,6 +206,7 @@ namespace AIProjectOrchestrator.Application.Services
             Guid requirementsAnalysisId,
             CancellationToken cancellationToken = default)
         {
+            _logger.LogInformation("ProjectPlanningService: Checking if plan can be created for requirements analysis {RequirementsAnalysisId}", requirementsAnalysisId);
             try
             {
                 // Check that requirements analysis exists
@@ -214,18 +215,23 @@ namespace AIProjectOrchestrator.Application.Services
                 
                 if (analysisResult == null)
                 {
+                    _logger.LogWarning("ProjectPlanningService: Analysis result is null for {RequirementsAnalysisId}", requirementsAnalysisId);
                     return false;
                 }
 
+                _logger.LogInformation("ProjectPlanningService: Analysis result for {RequirementsAnalysisId} has status {Status}", requirementsAnalysisId, analysisResult.Status);
+
                 // Check that requirements analysis is approved
-                // For now, we'll assume that if it exists and has a ReviewId, it's approved
-                // In a more sophisticated system, we would check the review status
-                return analysisResult.ReviewId != Guid.Empty && 
-                       analysisResult.Status == RequirementsAnalysisStatus.Approved; // Fixed: Check for Approved status
+                var canCreate = analysisResult.ReviewId != Guid.Empty && 
+                       analysisResult.Status == RequirementsAnalysisStatus.Approved;
+
+                _logger.LogInformation("ProjectPlanningService: CanCreatePlan for {RequirementsAnalysisId} is {CanCreate}", requirementsAnalysisId, canCreate);
+
+                return canCreate;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error checking if plan can be created for requirements analysis {RequirementsAnalysisId}", requirementsAnalysisId);
+                _logger.LogWarning(ex, "Error checking if plan can be created for requirements analysis {RequirementsAnalysisId}", requirementsAnalysisId);
                 return false;
             }
         }
@@ -265,14 +271,7 @@ namespace AIProjectOrchestrator.Application.Services
             if (_planningResults.TryGetValue(planningId, out var result))
             {
                 // Combine all planning content into a technical context string
-                return $@"Project Roadmap:
-{result.ProjectRoadmap}
-
-Architectural Decisions:
-{result.ArchitecturalDecisions}
-
-Milestones:
-{result.Milestones}";
+                return $"Project Roadmap:\n{result.ProjectRoadmap}\n\nArchitectural Decisions:\n{result.ArchitecturalDecisions}\n\nMilestones:\n{result.Milestones}";
             }
 
             // If we don't have the result in memory, it might have been cleaned up

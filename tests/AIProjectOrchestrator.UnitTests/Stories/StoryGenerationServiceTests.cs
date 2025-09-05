@@ -39,7 +39,7 @@ namespace AIProjectOrchestrator.UnitTests.Stories
                 _mockProjectPlanningService.Object,
                 _mockInstructionService.Object,
                 _mockAIClientFactory.Object,
-                _mockReviewService.Object,
+                new Lazy<IReviewService>(() => _mockReviewService.Object),
                 _mockLogger.Object);
         }
 

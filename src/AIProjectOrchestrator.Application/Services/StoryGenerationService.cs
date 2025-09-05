@@ -21,7 +21,7 @@ namespace AIProjectOrchestrator.Application.Services
         private readonly IProjectPlanningService _projectPlanningService;
         private readonly IInstructionService _instructionService;
         private readonly IAIClientFactory _aiClientFactory;
-        private readonly IReviewService _reviewService;
+        private readonly Lazy<IReviewService> _reviewService;
         private readonly ILogger<StoryGenerationService> _logger;
         private readonly ConcurrentDictionary<Guid, StoryGenerationStatus> _generationStatuses;
         private readonly ConcurrentDictionary<Guid, List<UserStory>> _generationResults;
@@ -31,7 +31,7 @@ namespace AIProjectOrchestrator.Application.Services
             IProjectPlanningService projectPlanningService,
             IInstructionService instructionService,
             IAIClientFactory aiClientFactory,
-            IReviewService reviewService,
+            Lazy<IReviewService> reviewService,
             ILogger<StoryGenerationService> logger)
         {
             _requirementsAnalysisService = requirementsAnalysisService;
@@ -157,7 +157,7 @@ namespace AIProjectOrchestrator.Application.Services
                     PipelineStage = "Stories",
                     OriginalRequest = aiRequest,
                     AIResponse = aiResponse,
-                    Metadata = new Dictionary<string, object>
+                    Metadata = new System.Collections.Generic.Dictionary<string, object>
                     {
                         { "GenerationId", generationId },
                         { "PlanningId", request.PlanningId },
@@ -165,7 +165,7 @@ namespace AIProjectOrchestrator.Application.Services
                     }
                 };
 
-                var reviewResponse = await _reviewService.SubmitForReviewAsync(reviewRequest, cancellationToken);
+                var reviewResponse = await _reviewService.Value.SubmitForReviewAsync(reviewRequest, cancellationToken);
 
                 // Set status to pending review
                 _generationStatuses[generationId] = StoryGenerationStatus.PendingReview;
@@ -262,7 +262,7 @@ namespace AIProjectOrchestrator.Application.Services
 
             // Parse structured markdown response
             // Look for story sections
-            var storyPattern = @"###\s*Story\s*\d+.*?(?=(###\s*Story|$))";
+            var storyPattern = @"###\s*Story\s*\d+.*?(?=(###\s*Story|$))\";
             var storyMatches = Regex.Matches(aiResponse, storyPattern, RegexOptions.Singleline | RegexOptions.IgnoreCase);
 
             foreach (Match match in storyMatches)
