@@ -69,8 +69,15 @@
                 displayProjectInfo(project);
                 workflowManager.updateWorkflowUI(); // Update UI after project info is loaded
             } catch (error) {
-                alert('Error loading project: ' + error.message + '. Redirecting to home.');
-                window.location.href = '/';
+                // Instead of immediately redirecting, show error and give user options
+                const userChoice = confirm(`Error loading project: ${error.message}. Would you like to try again? Cancel to go to home.`);
+                if (userChoice) {
+                    // Reload the page to try again
+                    window.location.reload();
+                } else {
+                    // Redirect to home
+                    window.location.href = '/';
+                }
             }
         });
 
@@ -97,34 +104,49 @@
                 alert(`Error: ${error.message}`);
                 // Reset UI on failure
                 workflowManager.updateWorkflowUI();
+                
+                // Provide user with option to retry
+                const userChoice = confirm('Would you like to try again? Cancel to continue without retrying.');
+                if (userChoice) {
+                    // Retry the operation
+                    await handleStageStart(buttonId, statusId, startFunction);
+                }
             }
         }
 
         // Stage 1: Requirements Analysis
         function startRequirementsAnalysis() {
             handleStageStart('startRequirementsBtn', 'requirementsStatus', async () => {
-                // Set generating state
-                workflowManager.setRequirementsGenerating(true);
-                workflowManager.saveState();
-                workflowManager.updateWorkflowUI();
+                try {
+                    // Set generating state
+                    workflowManager.setRequirementsGenerating(true);
+                    workflowManager.saveState();
+                    workflowManager.updateWorkflowUI();
 
-                const project = await window.APIClient.getProject(workflowManager.projectId);
-                const request = {
-                    ProjectDescription: project.description,
-                    AdditionalContext: "",
-                    Constraints: "",
-                    ProjectId: workflowManager.projectId
-                };
+                    const project = await window.APIClient.getProject(workflowManager.projectId);
+                    const request = {
+                        ProjectDescription: project.description,
+                        AdditionalContext: "",
+                        Constraints: "",
+                        ProjectId: workflowManager.projectId
+                    };
 
-                const response = await window.APIClient.analyzeRequirements(request);
-                workflowManager.setRequirementsAnalysisId(response.analysisId);
-                workflowManager.setRequirementsPending(true);
-                workflowManager.setRequirementsGenerating(false); // Clear generating state
-                workflowManager.saveState();
-                workflowManager.updateWorkflowUI();
+                    const response = await window.APIClient.analyzeRequirements(request);
+                    workflowManager.setRequirementsAnalysisId(response.analysisId);
+                    workflowManager.setRequirementsPending(true);
+                    workflowManager.setRequirementsGenerating(false); // Clear generating state
+                    workflowManager.saveState();
+                    workflowManager.updateWorkflowUI();
 
-                alert('Requirements analysis submitted for review. Please check the review queue.');
-                window.location.href = '/reviews/queue.html';
+                    alert('Requirements analysis submitted for review. Please check the review queue.');
+                    window.location.href = '/reviews/queue.html';
+                } catch (error) {
+                    // Clear generating state on error
+                    workflowManager.setRequirementsGenerating(false);
+                    workflowManager.saveState();
+                    workflowManager.updateWorkflowUI();
+                    throw error; // Re-throw to be handled by handleStageStart
+                }
             });
         }
 

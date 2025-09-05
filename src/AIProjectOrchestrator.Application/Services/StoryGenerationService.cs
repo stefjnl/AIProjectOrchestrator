@@ -150,6 +150,17 @@ namespace AIProjectOrchestrator.Application.Services
                 // Submit for review
                 _logger.LogDebug("Submitting AI response for review in story generation {GenerationId}", generationId);
                 var correlationId = Guid.NewGuid().ToString();
+                // Get project ID from project planning if available
+                string projectId = "unknown";
+                var planningResult = await _projectPlanningService.GetPlanningResultContentAsync(
+                    request.PlanningId, cancellationToken);
+                if (planningResult != null)
+                {
+                    // Try to get project ID from planning metadata
+                    // For now, we'll keep it as "unknown" since we don't have a direct way to get it
+                    // In a production system, we would store the project ID in the planning result
+                }
+
                 var reviewRequest = new SubmitReviewRequest
                 {
                     ServiceName = "StoryGeneration",
@@ -162,7 +173,7 @@ namespace AIProjectOrchestrator.Application.Services
                     {
                         { "GenerationId", generationId },
                         { "PlanningId", request.PlanningId },
-                        { "ProjectId", "unknown" } // Will be updated when we have project tracking
+                        { "ProjectId", projectId }
                     }
                 };
 

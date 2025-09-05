@@ -65,6 +65,19 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                     // If cancellation was requested, rethrow
                     throw;
                 }
+                catch (HttpRequestException ex) when (ex.InnerException is System.Net.Sockets.SocketException)
+                {
+                    // Handle DNS resolution errors (Name or service not known)
+                    lastException = ex;
+                    _logger.LogWarning(ex, "Attempt {Attempt} failed with network error for provider {ProviderName}. Retrying...", 
+                        attempt + 1, ProviderName);
+                    
+                    // If this is the last attempt, break and let the exception be thrown
+                    if (attempt == maxRetries) break;
+                    
+                    // Wait before retrying with exponential backoff
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)), cancellationToken);
+                }
                 catch (Exception ex)
                 {
                     lastException = ex;

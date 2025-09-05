@@ -100,9 +100,22 @@ textarea {
 /* Specific Styles for Workflow Page */
 .workflow-stages {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(4, 1fr); /* Always show 4 columns for the 4 stages */
     gap: 25px;
     margin-top: 30px;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 1200px) {
+    .workflow-stages {
+        grid-template-columns: repeat(2, 1fr); /* 2 columns on medium screens */
+    }
+}
+
+@media (max-width: 768px) {
+    .workflow-stages {
+        grid-template-columns: 1fr; /* 1 column on small screens */
+    }
 }
 
 .workflow-stage {

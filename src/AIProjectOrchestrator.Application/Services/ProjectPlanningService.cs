@@ -139,6 +139,13 @@ namespace AIProjectOrchestrator.Application.Services
                 // Submit for review
                 _logger.LogDebug("Submitting AI response for review in project planning {PlanningId}", planningId);
                 var correlationId = Guid.NewGuid().ToString();
+                // Get project ID from requirements analysis if available
+                string projectId = "unknown";
+                if (requirementsAnalysis != null)
+                {
+                    projectId = requirementsAnalysis.ProjectId ?? "unknown";
+                }
+
                 var reviewRequest = new SubmitReviewRequest
                 {
                     ServiceName = "ProjectPlanning",
@@ -151,7 +158,7 @@ namespace AIProjectOrchestrator.Application.Services
                     {
                         { "PlanningId", planningId },
                         { "RequirementsAnalysisId", request.RequirementsAnalysisId },
-                        { "ProjectId", "unknown" } // Will be updated when we have project tracking
+                        { "ProjectId", projectId }
                     }
                 };
 

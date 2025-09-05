@@ -138,7 +138,8 @@ namespace AIProjectOrchestrator.Application.Services
                     AnalysisResult = aiResponse.Content,
                     ReviewId = reviewResponse.ReviewId,
                     Status = RequirementsAnalysisStatus.PendingReview,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    ProjectId = request.ProjectId
                 };
 
                 // Store the analysis result for later retrieval
