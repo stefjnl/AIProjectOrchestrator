@@ -29,12 +29,13 @@ builder.Services.AddOpenApi();
 // Add CORS policy for frontend
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
+    options.AddPolicy("AllowFrontend",
+        policy =>
+        {
+            policy.WithOrigins("http://localhost:8087")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
 });
 
 // Add health checks
@@ -46,7 +47,7 @@ builder.Services.AddHealthChecks()
 
 // Add Entity Framework
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseInMemoryDatabase("AIProjectOrchestratorInMemoryDb"));
 
 // Add repositories
 builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
@@ -142,17 +143,13 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     
     // Apply migrations on startup in development
-    using (var scope = app.Services.CreateScope())
-    {
-        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        context.Database.EnsureCreated();
-    }
+    
 }
 
 app.UseHttpsRedirection();
 
 // Enable CORS
-app.UseCors();
+app.UseCors("AllowFrontend");
 
 // Enable static file serving
 app.UseStaticFiles();

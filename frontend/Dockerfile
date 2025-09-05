@@ -1,4 +1,4 @@
-FROM nginx:alpine
+FROM nginx:latest
 
 # Copy HTML/CSS/JS files to nginx document root
 COPY . /usr/share/nginx/html/

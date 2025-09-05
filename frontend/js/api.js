@@ -15,32 +15,47 @@ window.APIClient = {
             options.body = JSON.stringify(data);
         }
 
+        console.log(`API Request: ${method} ${url}`);
+        console.log('Request Data:', data);
+        console.log('Request Options:', options);
+
         try {
             const response = await fetch(url, options);
 
+            console.log(`API Response Status: ${response.status}`);
+            console.log('API Response Headers:', [...response.headers.entries()]);
+
+            let responseBody = '';
+            try {
+                responseBody = await response.text();
+                console.log('API Response Body:', responseBody);
+            } catch (e) {
+                console.warn('Could not read response body:', e);
+            }
+
             if (!response.ok) {
                 let errorMessage = `Request failed with status ${response.status}`;
-                try {
-                    const errorData = await response.json();
-                    if (errorData.message) {
-                        errorMessage = errorData.message;
-                    } else if (typeof errorData === 'string') {
-                        errorMessage = errorData;
+                if (responseBody) {
+                    try {
+                        const errorData = JSON.parse(responseBody);
+                        if (errorData.message) {
+                            errorMessage = errorData.message;
+                        } else if (typeof errorData === 'string') {
+                            errorMessage = errorData;
+                        }
+                    } catch (e) {
+                        errorMessage = responseBody; // Use raw body if not JSON
                     }
-                } catch (e) {
-                    // If response is not JSON, use status text
-                    errorMessage = response.statusText;
                 }
                 throw new Error(`HTTP ${response.status}: ${errorMessage}`);
             }
 
-            // Handle cases where response might be empty (e.g., 204 No Content)
-            const text = await response.text();
-            return text ? JSON.parse(text) : {};
+            return responseBody ? JSON.parse(responseBody) : {};
 
         } catch (error) {
+            console.error('API Network/Fetch Error:', error);
             if (error instanceof TypeError && error.message === 'Failed to fetch') {
-                throw new Error('Network error: Could not connect to the API. Please ensure the backend is running.');
+                throw new Error('Network error: Could not connect to the API. Please ensure the backend is running and accessible.');
             }
             throw error;
         }
