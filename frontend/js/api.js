@@ -64,5 +64,42 @@ window.APIClient = {
 
     async createProject(projectData) {
         return this.post('/projects', projectData);
+    },
+
+    // Workflow stage APIs
+    async analyzeRequirements(request) {
+        return this.post('/requirements/analyze', request);
+    },
+    async canCreateProjectPlan(analysisId) {
+        return this.get(`/projectplanning/can-create/${analysisId}`);
+    },
+    async createProjectPlan(request) {
+        return this.post('/projectplanning/create', request);
+    },
+    async canGenerateStories(planningId) {
+        return this.get(`/stories/can-generate/${planningId}`);
+    },
+    async generateStories(request) {
+        return this.post('/stories/generate', request);
+    },
+    async canGenerateCode(storyGenId) {
+        return this.get(`/code/can-generate/${storyGenId}`);
+    },
+    async generateCode(request) {
+        return this.post('/code/generate', request);
+    },
+
+    // Review system
+    async getReview(reviewId) {
+        return this.get(`/review/${reviewId}`);
+    },
+    async getPendingReviews() {
+        return this.get('/review/pending');
+    },
+    async approveReview(reviewId) {
+        return this.post(`/review/${reviewId}/approve`, {});
+    },
+    async rejectReview(reviewId, feedback) {
+        return this.post(`/review/${reviewId}/reject`, { feedback });
     }
 };

@@ -4,89 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project Workflow - AI Orchestrator</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-            color: #333;
-        }
-        .container {
-            max-width: 900px;
-            margin: 20px auto;
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .header h1 {
-            color: #0056b3;
-            margin-bottom: 10px;
-        }
-        .header p {
-            font-style: italic;
-            color: #666;
-        }
-        .workflow-stages {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            justify-content: center;
-        }
-        .workflow-stage {
-            background-color: #e9ecef;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 20px;
-            flex: 1 1 calc(50% - 20px);
-            box-sizing: border-box;
-            min-width: 300px;
-            text-align: center;
-        }
-        .workflow-stage h3 {
-            color: #007bff;
-            margin-top: 0;
-            margin-bottom: 15px;
-        }
-        .stage-status {
-            font-weight: bold;
-            color: #6c757d;
-            margin-bottom: 15px;
-        }
-        .workflow-stage button {
-            background-color: #007bff;
-            color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 5px;
-            cursor: not-allowed;
-            opacity: 0.6;
-            font-size: 16px;
-        }
-        .workflow-stage button:disabled {
-            background-color: #6c757d;
-            cursor: not-allowed;
-        }
-        .back-link {
-            display: block;
-            margin-bottom: 20px;
-            text-align: center;
-            text-decoration: none;
-            color: #007bff;
-            font-weight: bold;
-        }
-
-        @media (max-width: 768px) {
-            .workflow-stage {
-                flex: 1 1 100%;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="../css/styles.css">
 </head>
 <body>
     <div class="container">
@@ -128,7 +46,10 @@
     </div>
 
     <script src="../js/api.js"></script>
+    <script src="../js/workflow.js"></script>
     <script>
+        let workflowManager;
+
         window.addEventListener('DOMContentLoaded', async function() {
             const urlParams = new URLSearchParams(window.location.search);
             const projectId = urlParams.get('projectId');
@@ -139,9 +60,14 @@
                 return;
             }
 
+            workflowManager = new WorkflowManager(projectId);
+            workflowManager.loadState();
+            await workflowManager.checkApprovedReviews();
+
             try {
                 const project = await window.APIClient.getProject(projectId);
                 displayProjectInfo(project);
+                workflowManager.updateWorkflowUI(); // Update UI after project info is loaded
             } catch (error) {
                 alert('Error loading project: ' + error.message + '. Redirecting to home.');
                 window.location.href = '/';
@@ -152,6 +78,108 @@
             document.title = `${project.name} - Workflow`;
             document.getElementById('projectTitle').textContent = project.name;
             document.getElementById('projectDescription').textContent = project.description;
+        }
+
+        // Stage 1: Requirements Analysis
+        async function startRequirementsAnalysis() {
+            try {
+                const project = await window.APIClient.getProject(workflowManager.projectId);
+                const request = {
+                    projectId: workflowManager.projectId,
+                    projectDescription: project.description,
+                    context: "",
+                    constraints: []
+                };
+
+                const response = await window.APIClient.analyzeRequirements(request);
+                workflowManager.setRequirementsAnalysisId(response.analysisId);
+                workflowManager.setRequirementsPending(true);
+                workflowManager.saveState();
+                workflowManager.updateWorkflowUI();
+
+                alert('Requirements analysis submitted for review. Please check the review queue.');
+                window.location.href = '../reviews/queue.html';
+            } catch (error) {
+                alert('Error starting requirements analysis: ' + error.message);
+            }
+        }
+
+        // Stage 2: Project Planning
+        async function startProjectPlanning() {
+            try {
+                const canCreate = await window.APIClient.canCreateProjectPlan(workflowManager.state.requirementsAnalysisId);
+                if (!canCreate) {
+                    alert('Cannot start project planning. Requirements must be approved first.');
+                    return;
+                }
+
+                const request = {
+                    requirementsAnalysisId: workflowManager.state.requirementsAnalysisId,
+                    preferences: {}
+                };
+
+                const response = await window.APIClient.createProjectPlan(request);
+                workflowManager.setProjectPlanningId(response.planningId);
+                workflowManager.setPlanningPending(true);
+                workflowManager.saveState();
+                workflowManager.updateWorkflowUI();
+
+                alert('Project planning submitted for review. Please check the review queue.');
+                window.location.href = '../reviews/queue.html';
+            } catch (error) {
+                alert('Error starting project planning: ' + error.message);
+            }
+        }
+
+        // Stage 3: Story Generation
+        async function startStoryGeneration() {
+            try {
+                const canGenerate = await window.APIClient.canGenerateStories(workflowManager.state.projectPlanningId);
+                if (!canGenerate) {
+                    alert('Cannot generate stories. Project planning must be approved first.');
+                    return;
+                }
+
+                const request = {
+                    planningId: workflowManager.state.projectPlanningId
+                };
+
+                const response = await window.APIClient.generateStories(request);
+                workflowManager.setStoryGenerationId(response.generationId);
+                workflowManager.setStoriesPending(true);
+                workflowManager.saveState();
+                workflowManager.updateWorkflowUI();
+
+                alert('User stories submitted for review. Please check the review queue.');
+                window.location.href = '../reviews/queue.html';
+            } catch (error) {
+                alert('Error generating stories: ' + error.message);
+            }
+        }
+
+        // Stage 4: Code Generation
+        async function startCodeGeneration() {
+            try {
+                const canGenerate = await window.APIClient.canGenerateCode(workflowManager.state.storyGenerationId);
+                if (!canGenerate) {
+                    alert('Cannot generate code. User stories must be approved first.');
+                    return;
+                }
+
+                const request = {
+                    storyGenerationId: workflowManager.state.storyGenerationId
+                };
+
+                const response = await window.APIClient.generateCode(request);
+                workflowManager.setCodeGenerationId(response.generationId);
+                workflowManager.saveState();
+                workflowManager.updateWorkflowUI();
+
+                alert('Code generation submitted for review. Please check the review queue.');
+                window.location.href = '../reviews/queue.html';
+            } catch (error) {
+                alert('Error generating code: ' + error.message);
+            }
         }
     </script>
 </body>
