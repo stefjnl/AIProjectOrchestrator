@@ -39,5 +39,19 @@ namespace AIProjectOrchestrator.API.Controllers
             var createdProject = await _projectService.CreateProjectAsync(project);
             return CreatedAtAction(nameof(GetProject), new { id = createdProject.Id }, createdProject);
         }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteProject(int id)
+        {
+            try
+            {
+                await _projectService.DeleteProjectAsync(id);
+                return NoContent();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
+            }
+        }
     }
 }

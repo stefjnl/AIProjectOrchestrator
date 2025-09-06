@@ -134,6 +134,10 @@ window.APIClient = {
         return await this.get(`/PromptGeneration/${promptId}`);
     },
 
+    async deleteProject(id) {
+        return this._request('DELETE', `/projects/${id}`);
+    },
+
     // Helper method to retrieve approved stories
     async getApprovedStories(storyGenerationId) {
         // Note: This endpoint may need to be created or use existing story endpoints

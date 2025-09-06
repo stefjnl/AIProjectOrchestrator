@@ -283,11 +283,12 @@ class WorkflowManager {
     }
 
     // Phase 4: Story-level prompt management
-    setStoryPromptId(storyIndex, promptId) {
+    setStoryPromptId(storyIndex, promptId, reviewId = null) {
         if (!this.state.storyPrompts[storyIndex]) {
             this.state.storyPrompts[storyIndex] = {};
         }
         this.state.storyPrompts[storyIndex].promptId = promptId;
+        this.state.storyPrompts[storyIndex].reviewId = reviewId;
         this.state.storyPrompts[storyIndex].pending = true;
         this.state.storyPrompts[storyIndex].approved = false;
         this.saveState();

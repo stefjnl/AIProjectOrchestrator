@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using AIProjectOrchestrator.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AIProjectOrchestrator.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250906162420_AddUniqueConstraintToReviews")]
+    partial class AddUniqueConstraintToReviews
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -310,7 +313,7 @@ namespace AIProjectOrchestrator.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<int>("StoryGenerationId")
+                    b.Property<int?>("StoryGenerationId")
                         .HasColumnType("integer");
 
                     b.Property<int?>("StoryPoints")
@@ -328,7 +331,7 @@ namespace AIProjectOrchestrator.Infrastructure.Migrations
 
                     b.HasIndex("StoryGenerationId");
 
-                    b.ToTable("UserStories");
+                    b.ToTable("UserStory");
                 });
 
             modelBuilder.Entity("AIProjectOrchestrator.Domain.Entities.ProjectPlanning", b =>
@@ -408,13 +411,9 @@ namespace AIProjectOrchestrator.Infrastructure.Migrations
 
             modelBuilder.Entity("AIProjectOrchestrator.Domain.Models.Stories.UserStory", b =>
                 {
-                    b.HasOne("AIProjectOrchestrator.Domain.Entities.StoryGeneration", "StoryGeneration")
+                    b.HasOne("AIProjectOrchestrator.Domain.Entities.StoryGeneration", null)
                         .WithMany("Stories")
-                        .HasForeignKey("StoryGenerationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("StoryGeneration");
+                        .HasForeignKey("StoryGenerationId");
                 });
 
             modelBuilder.Entity("AIProjectOrchestrator.Domain.Entities.Project", b =>

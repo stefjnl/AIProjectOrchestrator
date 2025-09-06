@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using AIProjectOrchestrator.Domain.Entities;
+using AIProjectOrchestrator.Domain.Models.Stories;
 
 namespace AIProjectOrchestrator.Infrastructure.Data
 {
@@ -15,6 +16,7 @@ namespace AIProjectOrchestrator.Infrastructure.Data
         public DbSet<StoryGeneration> StoryGenerations => Set<StoryGeneration>();
         public DbSet<PromptGeneration> PromptGenerations => Set<PromptGeneration>();
         public DbSet<Review> Reviews => Set<Review>();
+        public DbSet<UserStory> UserStories => Set<UserStory>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -71,6 +73,12 @@ namespace AIProjectOrchestrator.Infrastructure.Data
                 .HasOne(sg => sg.Review)
                 .WithOne(r => r.StoryGeneration)
                 .HasForeignKey<Review>(r => r.StoryGenerationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<StoryGeneration>()
+                .HasMany(sg => sg.Stories)
+                .WithOne(us => us.StoryGeneration)
+                .HasForeignKey(us => us.StoryGenerationId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Configure PromptGeneration entity

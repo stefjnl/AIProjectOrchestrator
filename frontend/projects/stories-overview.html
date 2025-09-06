@@ -325,7 +325,7 @@
                 workflowManager.recordApiSuccess();
                 
                 // Set prompt tracking
-                workflowManager.setStoryPromptId(storyIndex, response.promptId);
+                workflowManager.setStoryPromptId(storyIndex, response.promptId, response.reviewId);
                 statusEl.textContent = 'Pending Review';
                 genBtn.textContent = 'Pending Review';
                 genBtn.disabled = true;
