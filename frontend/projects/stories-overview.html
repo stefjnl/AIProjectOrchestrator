@@ -163,6 +163,23 @@
                 document.getElementById('demoBanner') ? null : createDemoBanner();
             }
 
+            // Handle empty approved stories case (backend success but no data)
+            if (!isDemoMode && stories.length === 0) {
+                const projectId = workflowManager.projectId;
+                document.getElementById('storiesContainer').innerHTML = `
+                    <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 8px; margin: 20px;">
+                        <h3>No Approved Stories Found</h3>
+                        <p>The API returned no approved stories for this generation. This may indicate a backend issue or that stories need to be regenerated.</p>
+                        <div style="margin-top: 20px;">
+                            <button onclick="loadAndRenderStories()" class="primary-btn" style="margin-right: 10px;">Retry Loading Stories</button>
+                            <button onclick="window.location.href='workflow.html?projectId=${projectId}'" class="secondary-btn">Back to Workflow</button>
+                        </div>
+                    </div>
+                `;
+                updateSummaryStats(0);
+                return;
+            }
+
             // Update state (don't persist mocks)
             if (!isDemoMode) {
                 workflowManager.state.approvedStories = stories;

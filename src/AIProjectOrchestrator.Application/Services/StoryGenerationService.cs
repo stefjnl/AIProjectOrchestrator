@@ -14,6 +14,7 @@ using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Domain.Models.Review;
 using AIProjectOrchestrator.Infrastructure.AI;
 using AIProjectOrchestrator.Domain.Entities;
+using System.Text.Json;
 
 namespace AIProjectOrchestrator.Application.Services
 {
@@ -160,6 +161,7 @@ namespace AIProjectOrchestrator.Application.Services
                     Content = aiResponse.Content,
                     ReviewId = string.Empty, // Will be updated after review submission
                     CreatedDate = DateTime.UtcNow,
+                    StoriesJson = JsonSerializer.Serialize(stories),
                     Stories = stories
                 };
 
@@ -247,6 +249,18 @@ namespace AIProjectOrchestrator.Application.Services
             var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(generationId.ToString(), cancellationToken);
             if (storyGeneration != null)
             {
+                if (!string.IsNullOrEmpty(storyGeneration.StoriesJson))
+                {
+                    try
+                    {
+                        return JsonSerializer.Deserialize<List<UserStory>>(storyGeneration.StoriesJson) ?? new List<UserStory>();
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogError(ex, "Failed to deserialize stories JSON for generation {GenerationId}", generationId);
+                        return new List<UserStory>();
+                    }
+                }
                 return storyGeneration.Stories.ToList();
             }
 
@@ -492,13 +506,31 @@ namespace AIProjectOrchestrator.Application.Services
             var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(storyGenerationId.ToString(), cancellationToken);
             if (storyGeneration != null)
             {
-                if (storyIndex >= 0 && storyIndex < storyGeneration.Stories.Count)
+                List<UserStory> stories;
+                if (!string.IsNullOrEmpty(storyGeneration.StoriesJson))
                 {
-                    return storyGeneration.Stories.ElementAt(storyIndex);
+                    try
+                    {
+                        stories = JsonSerializer.Deserialize<List<UserStory>>(storyGeneration.StoriesJson) ?? new List<UserStory>();
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogError(ex, "Failed to deserialize stories JSON for generation {GenerationId}", storyGenerationId);
+                        stories = new List<UserStory>();
+                    }
                 }
                 else
                 {
-                    throw new ArgumentOutOfRangeException(nameof(storyIndex), $"Story index {storyIndex} is out of range. Total stories: {storyGeneration.Stories.Count}");
+                    stories = storyGeneration.Stories.ToList();
+                }
+                
+                if (storyIndex >= 0 && storyIndex < stories.Count)
+                {
+                    return stories[storyIndex];
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(storyIndex), $"Story index {storyIndex} is out of range. Total stories: {stories.Count}");
                 }
             }
             
@@ -514,6 +546,18 @@ namespace AIProjectOrchestrator.Application.Services
             var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(storyGenerationId.ToString(), cancellationToken);
             if (storyGeneration != null)
             {
+                if (!string.IsNullOrEmpty(storyGeneration.StoriesJson))
+                {
+                    try
+                    {
+                        return JsonSerializer.Deserialize<List<UserStory>>(storyGeneration.StoriesJson) ?? new List<UserStory>();
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogError(ex, "Failed to deserialize stories JSON for generation {GenerationId}", storyGenerationId);
+                        return new List<UserStory>();
+                    }
+                }
                 return storyGeneration.Stories.ToList();
             }
             
@@ -529,6 +573,19 @@ namespace AIProjectOrchestrator.Application.Services
             var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(storyGenerationId.ToString(), cancellationToken);
             if (storyGeneration != null)
             {
+                if (!string.IsNullOrEmpty(storyGeneration.StoriesJson))
+                {
+                    try
+                    {
+                        var stories = JsonSerializer.Deserialize<List<UserStory>>(storyGeneration.StoriesJson) ?? new List<UserStory>();
+                        return stories.Count;
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogError(ex, "Failed to deserialize stories JSON for generation {GenerationId}", storyGenerationId);
+                        return 0;
+                    }
+                }
                 return storyGeneration.Stories.Count;
             }
             

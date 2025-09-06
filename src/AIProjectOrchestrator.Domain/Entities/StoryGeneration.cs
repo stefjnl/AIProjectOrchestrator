@@ -12,6 +12,7 @@ namespace AIProjectOrchestrator.Domain.Entities
         public string Content { get; set; } = string.Empty;
         public string ReviewId { get; set; } = string.Empty;
         public DateTime CreatedDate { get; set; }
+        public string StoriesJson { get; set; } = string.Empty; // JSON serialized stories for persistence
         
         // Navigation properties
         public ProjectPlanning ProjectPlanning { get; set; } = null!;
