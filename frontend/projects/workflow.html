@@ -206,7 +206,7 @@
                     workflowManager.updateWorkflowUI();
 
                     alert('Requirements analysis submitted for review. Please check the review queue.');
-                    window.location.href = '/reviews/queue.html';
+                    window.location.href = `/reviews/queue.html?projectId=${encodeURIComponent(workflowManager.projectId)}`;
                 } catch (error) {
                     // Clear generating state on error
                     workflowManager.setRequirementsGenerating(false);
@@ -246,7 +246,7 @@
                 workflowManager.updateWorkflowUI();
 
                 alert('Project planning submitted for review. Please check the review queue.');
-                window.location.href = '/reviews/queue.html';
+                window.location.href = `/reviews/queue.html?projectId=${encodeURIComponent(workflowManager.projectId)}`;
             });
         }
 
@@ -278,7 +278,7 @@
                 workflowManager.updateWorkflowUI();
 
                 workflowManager.showTemporaryMessage('User stories submitted for review. Check the review queue, then return here to continue.', 'info');
-                window.location.href = '/reviews/queue.html';
+                window.location.href = `/reviews/queue.html?projectId=${encodeURIComponent(workflowManager.projectId)}`;
             });
         }
 

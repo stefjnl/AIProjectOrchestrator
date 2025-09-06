@@ -1,7 +1,15 @@
 class WorkflowManager {
     constructor(projectId) {
-        this.projectId = projectId;
-        this.storageKey = `workflow_${projectId}`;
+        // Validate projectId
+        if (!projectId || projectId === 'unknown' || projectId === 'null' || projectId.trim() === '') {
+            console.error('Invalid projectId provided to WorkflowManager:', projectId);
+            // Use a default valid ID for demo/testing
+            this.projectId = 'demo';
+        } else {
+            this.projectId = projectId;
+        }
+        
+        this.storageKey = `workflow_${this.projectId}`;
         this.state = {
             version: 1, // State version for validation
             apiFailures: 0, // Circuit breaker counter
