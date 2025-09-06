@@ -139,7 +139,7 @@ window.APIClient = {
     },
 
     async getStories(storyGenerationId) {
-        return await this.get(`/stories/${storyGenerationId}/all`);
+        return await this.get(`/stories/${storyGenerationId}/approved`);
     },
 
     async deleteProject(id) {

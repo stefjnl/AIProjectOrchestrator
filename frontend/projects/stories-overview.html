@@ -90,24 +90,21 @@
         });
 
         async function loadAndRenderStories() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectId = urlParams.get('projectId');
+            
             if (!workflowManager.state.storiesApproved || !workflowManager.state.storyGenerationId) {
-                document.getElementById('storiesContainer').innerHTML = '<p>Complete Stage 3 (User Stories) first to manage prompts.</p>';
+                showError('No stories available. Please complete the story generation stage first.', projectId);
                 return;
             }
 
             try {
-                // Remove MOCK_STORIES fallback - use API only
-                if (!workflowManager.state.storyGenerationId) {
-                    showError('No stories available. Please complete the story generation stage first.');
-                    return;
-                }
-                
                 // Fetch stories from API
                 const stories = await window.APIClient.getStories(workflowManager.state.storyGenerationId);
                 workflowManager.recordApiSuccess();
                 
                 if (!stories || stories.length === 0) {
-                    showError('No stories found for this project.');
+                    showError('No stories found for this project.', projectId);
                     return;
                 }
                 
@@ -120,10 +117,16 @@
             } catch (error) {
                 console.error('Error loading stories:', error);
                 workflowManager.recordApiFailure();
+                
                 if (workflowManager.isApiDisabled()) {
                     showMaintenanceBanner();
                 }
-                showError('Failed to load stories from the server.');
+                
+                if (error.message.includes('404')) {
+                    showError('Stories data not found. The stories may not be approved yet.', projectId);
+                } else {
+                    showError('Failed to load stories from the server.', projectId);
+                }
             }
         }
 
@@ -138,13 +141,13 @@
                 return `
                     <div class="story-card" data-story-index="${index}">
                         <div class="story-header">
-                            <h3>Story ${index + 1}: ${story.title}</h3>
+                            <h3>Story ${index + 1}: ${story.Title}</h3>
                             <span class="status-badge ${statusClass}">${status}</span>
                         </div>
                         <div class="story-content">
-                            <p><strong>As a</strong> ${story.asA}</p>
-                            <p><strong>I want</strong> ${story.iWant}</p>
-                            <p><strong>So that</strong> ${story.soThat}</p>
+                            <p><strong>As a</strong> ${story.AsA}</p>
+                            <p><strong>I want</strong> ${story.IWant}</p>
+                            <p><strong>So that</strong> ${story.SoThat}</p>
                         </div>
                         <div class="story-actions">
                             <button onclick="generatePrompt(${index})" 
@@ -379,15 +382,35 @@
             return div.innerHTML;
         }
 
-        // Maintenance banner for circuit breaker
-        function showError(message) {
-            document.getElementById('storiesContainer').innerHTML = `
-                <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 8px; margin: 20px;">
+        function showError(message, projectId) {
+            const container = document.getElementById('storiesContainer');
+            container.innerHTML = `
+                <div class="error-container" style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 8px; margin: 20px;">
                     <h3>Error Loading Stories</h3>
                     <p>${message}</p>
-                    <button onclick="loadAndRenderStories()" class="primary-btn">Retry</button>
+                    <button onclick="loadAndRenderStories()" class="primary-btn" style="margin-right: 10px;">Retry</button>
+                    <button onclick="goBackToWorkflow(${projectId})" class="btn btn-primary">Back to Workflow</button>
                 </div>
             `;
+        }
+
+        function showBackToWorkflow(projectId) {
+            const storiesGrid = document.getElementById('storiesContainer');
+            storiesGrid.innerHTML = `
+                <div class="error-container">
+                    <button onclick="goBackToWorkflow(${projectId})" class="btn btn-primary">
+                        Back to Workflow
+                    </button>
+                </div>
+            `;
+        }
+
+        function goBackToWorkflow(projectId) {
+            if (projectId) {
+                window.location.href = `workflow.html?projectId=${projectId}`;
+            } else {
+                window.location.href = 'workflow.html';
+            }
         }
 
         // Maintenance banner for circuit breaker
