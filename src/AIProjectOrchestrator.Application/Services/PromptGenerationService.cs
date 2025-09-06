@@ -350,5 +350,10 @@ namespace AIProjectOrchestrator.Application.Services
             
             throw new InvalidOperationException($"Story generation with ID {storyGenerationId} not found");
         }
+
+        public async Task<IEnumerable<PromptGeneration>> GetPromptsByProjectAsync(int projectId, CancellationToken cancellationToken = default)
+        {
+            return await _promptGenerationRepository.GetByProjectIdAsync(projectId, cancellationToken);
+        }
     }
 }

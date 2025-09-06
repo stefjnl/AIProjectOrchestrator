@@ -61,11 +61,16 @@
                 
                 // Try to get the review details to determine which project it belongs to
                 let projectId = null;
+                let pipelineStage = null;
                 try {
                     const review = await window.APIClient.getReview(reviewId);
                     // Extract project ID from metadata if available
                     if (review.metadata && review.metadata.ProjectId) {
                         projectId = review.metadata.ProjectId;
+                    }
+                    // Also capture pipeline stage for conditional redirect
+                    if (review.pipelineStage) {
+                        pipelineStage = review.pipelineStage;
                     }
                 } catch (e) {
                     console.error('Error getting review details:', e);
@@ -79,8 +84,13 @@
                 }
 
                 if (projectId && projectId !== 'unknown' && projectId !== 'null') {
-                    // Redirect back to the project page
-                    window.location.href = `/projects/workflow.html?projectId=${encodeURIComponent(projectId)}`;
+                    // Pipeline-stage-aware redirect
+                    if (pipelineStage === 'User Stories') {
+                        window.location.href = `/projects/stories-overview.html?projectId=${encodeURIComponent(projectId)}`;
+                    } else {
+                        // For other stages, redirect to workflow
+                        window.location.href = `/projects/workflow.html?projectId=${encodeURIComponent(projectId)}`;
+                    }
                 } else {
                     console.warn('No valid project ID found for redirect, reloading reviews');
                     await loadPendingReviews();

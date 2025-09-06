@@ -260,6 +260,27 @@ namespace AIProjectOrchestrator.Application.Services
             }
         }
 
+        public async Task<RequirementsAnalysis?> GetAnalysisByProjectAsync(int projectId, CancellationToken cancellationToken = default)
+        {
+            _logger.LogDebug("RequirementsAnalysisService: Getting analysis for project {ProjectId}", projectId);
+            
+            try
+            {
+                // Query the repository for analysis by project ID
+                var analysisEntity = await _requirementsAnalysisRepository.GetByProjectIdAsync(projectId, cancellationToken);
+                
+                _logger.LogDebug("RequirementsAnalysisService: Found analysis for project {ProjectId}: {Found}", 
+                    projectId, analysisEntity != null ? "Yes" : "No");
+                
+                return analysisEntity;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "RequirementsAnalysisService: Error getting analysis for project {ProjectId}", projectId);
+                return null;
+            }
+        }
+
         private string CreatePromptFromRequest(RequirementsAnalysisRequest request)
         {
             var prompt = $"Project Description: {request.ProjectDescription}";

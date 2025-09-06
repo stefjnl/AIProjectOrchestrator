@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using AIProjectOrchestrator.Domain.Models;
+using AIProjectOrchestrator.Domain.Entities;
 
 namespace AIProjectOrchestrator.Domain.Services
 {
@@ -33,6 +34,11 @@ namespace AIProjectOrchestrator.Domain.Services
         Task UpdateAnalysisStatusAsync(
             Guid analysisId,
             RequirementsAnalysisStatus status,
+            CancellationToken cancellationToken = default);
+
+        // Get analysis by project for workflow state
+        Task<RequirementsAnalysis?> GetAnalysisByProjectAsync(
+            int projectId,
             CancellationToken cancellationToken = default);
     }
 }

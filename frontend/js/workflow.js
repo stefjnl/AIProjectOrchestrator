@@ -8,8 +8,9 @@ class WorkflowManager {
         } else {
             this.projectId = projectId;
         }
-        
-        this.storageKey = `workflow_${this.projectId}`;
+
+        this.isWorkflowPage = window.location.pathname.includes('workflow.html');
+
         this.state = {
             version: 1, // State version for validation
             apiFailures: 0, // Circuit breaker counter
@@ -36,12 +37,10 @@ class WorkflowManager {
             approvedStories: [] // Cache of approved story data
         };
         this.isUpdating = false; // Lock for async state updates
+        this.pollingInterval = null;
 
-        // Periodically check for approved reviews to update the workflow state
-        setInterval(() => this.checkApprovedStatus(), 5000); // 5 seconds
-
-        // Phase 3: Enhanced state synchronization
-        this.startStatusPolling();
+        // Load initial state from API
+        this.loadStateFromAPI();
     }
 
     // Phase 3: Enhanced state synchronization
@@ -52,7 +51,7 @@ class WorkflowManager {
         
         if (fromStories === 'true') {
             // User returned from stories page - refresh all status
-            await this.checkStoryPromptApprovals();
+            await this.refreshState();
             this.updateWorkflowUI();
             
             // Clean URL without reloading
@@ -65,8 +64,7 @@ class WorkflowManager {
     }
     
     showReturnMessage() {
-        const approvedPrompts = Object.values(this.state.storyPrompts || {})
-            .filter(prompt => prompt.approved).length;
+        const approvedPrompts = this.state.storyPrompts?.filter(sp => sp.isApproved).length || 0;
         const totalStories = this.state.approvedStories?.length || 0;
         
         if (approvedPrompts > 0) {
@@ -97,60 +95,86 @@ class WorkflowManager {
     // Enhanced progress tracking
     getPromptCompletionProgress() {
         const totalStories = this.state.approvedStories?.length || 0;
-        const storyPrompts = this.state.storyPrompts || {};
+        const storyPrompts = this.state.storyPrompts || [];
         
-        let generated = 0, pending = 0, approved = 0, rejected = 0;
+        const completed = storyPrompts.filter(sp => sp.isApproved).length;
+        const total = storyPrompts.length;
+        const percentage = total > 0 ? (completed / total) * 100 : 0;
         
-        Object.values(storyPrompts).forEach(prompt => {
-            if (prompt.promptId) generated++;
-            if (prompt.pending) pending++;
-            if (prompt.approved) approved++;
-            if (!prompt.approved && !prompt.pending && prompt.promptId) rejected++;
-        });
-        
-        return {
-            total: totalStories,
-            generated,
-            pending,
-            approved,
-            rejected,
-            notStarted: totalStories - generated,
-            percentComplete: totalStories > 0 ? Math.round((approved / totalStories) * 100) : 0
-        };
+        return { completed, total, percentage };
     }
     
-    // Real-time status polling for active sessions
-    startStatusPolling() {
-        if (this.statusPollingInterval) {
-            clearInterval(this.statusPollingInterval);
-        }
-        
-        // Poll every 30 seconds when on stories management or workflow page
-        this.statusPollingInterval = setInterval(async () => {
-            const progress = this.getPromptCompletionProgress();
-            if (progress.pending > 0) {
-                await this.checkStoryPromptApprovals();
-                this.updateWorkflowUI();
+    // API-driven state loading
+    async loadStateFromAPI() {
+        try {
+            const response = await window.APIClient.getWorkflowStatus(this.projectId);
+            this.state = {
+                version: 1,
+                apiFailures: 0,
+                enableDynamicStage4: true,
+                enableStoriesMVP: true,
                 
-                // Notify if any prompts were just approved
-                this.checkForNewApprovals();
-            }
-        }, 30000);
+                // Requirements Analysis
+                requirementsAnalysisId: response.requirementsAnalysis?.analysisId || null,
+                requirementsApproved: response.requirementsAnalysis?.isApproved || false,
+                requirementsPending: response.requirementsAnalysis?.isPending || false,
+                
+                // Project Planning
+                projectPlanningId: response.projectPlanning?.planningId || null,
+                planningApproved: response.projectPlanning?.isApproved || false,
+                planningPending: response.projectPlanning?.isPending || false,
+                
+                // Story Generation
+                storyGenerationId: response.storyGeneration?.generationId || null,
+                storiesApproved: response.storyGeneration?.isApproved || false,
+                storiesPending: response.storyGeneration?.isPending || false,
+                storyCount: response.storyGeneration?.storyCount || 0,
+                
+                // Prompt Generation
+                storyPrompts: response.promptGeneration?.storyPrompts || [],
+                promptCompletionPercentage: response.promptGeneration?.completionPercentage || 0,
+                
+                // Cache for UI
+                approvedStories: [] // Will be loaded separately if needed
+            };
+            
+            this.recordApiSuccess();
+            return this.state;
+        } catch (error) {
+            console.error('Failed to load workflow state from API:', error);
+            this.recordApiFailure();
+            throw error;
+        }
     }
     
-    stopStatusPolling() {
-        if (this.statusPollingInterval) {
-            clearInterval(this.statusPollingInterval);
-            this.statusPollingInterval = null;
+    async refreshState() {
+        await this.loadStateFromAPI();
+        this.updateWorkflowUI();
+    }
+    
+    // Poll every 10 seconds for state updates
+    startPolling() {
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+        }
+        this.pollingInterval = setInterval(() => {
+            this.refreshState().catch(console.error);
+        }, 10000);
+    }
+    
+    stopPolling() {
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+            this.pollingInterval = null;
         }
     }
     
     checkForNewApprovals() {
         const currentProgress = this.getPromptCompletionProgress();
-        const lastProgress = this.state.lastKnownProgress || { approved: 0 };
+        const lastProgress = this.state.lastKnownProgress || { completed: 0 };
         
-        if (currentProgress.approved > lastProgress.approved) {
-            const newApprovals = currentProgress.approved - lastProgress.approved;
+        if (currentProgress.completed > lastProgress.completed) {
+            const newApprovals = currentProgress.completed - lastProgress.completed;
             this.showTemporaryMessage(
                 `${newApprovals} new prompt${newApprovals > 1 ? 's' : ''} approved!`, 
                 'success'
@@ -158,7 +182,7 @@ class WorkflowManager {
         }
         
         this.state.lastKnownProgress = currentProgress;
-        this.saveState();
+        // No saveState - state updated on next refresh
     }
 
     // Async state update with lock to prevent races
@@ -170,98 +194,73 @@ class WorkflowManager {
         this.isUpdating = true;
         try {
             await updater();
-            this.saveState();
+            // No saveState - will be updated on next API refresh
             return true;
         } finally {
             this.isUpdating = false;
         }
     }
 
-    saveState() {
-        localStorage.setItem(this.storageKey, JSON.stringify(this.state));
-    }
-
-    loadState() {
-        const savedState = localStorage.getItem(this.storageKey);
-        if (savedState) {
-            try {
-                const parsed = JSON.parse(savedState);
-                // Validate version and structure
-                if (!parsed.version || parsed.version < 1) {
-                    throw new Error('Invalid state version');
-                }
-                // Merge with defaults, preserving new fields
-                this.state = { ...this.state, ...parsed };
-            } catch (error) {
-                console.warn('Corrupted state detected:', error.message);
-                if (confirm('Workflow state appears corrupted. Reset to defaults?')) {
-                    this.resetState();
-                } else {
-                    // Fallback to in-memory defaults
-                    this.state = { ...this.state };
-                }
-            }
-        }
-
-        // Fix for stale state: if pending but no ID, reset to initial
-        if (!this.state.requirementsAnalysisId && this.state.requirementsPending) {
-            this.setRequirementsPending(false);
-            // Clear other progress if no ID
-            this.state.requirementsAnalysisId = null;
-            this.saveState();
-        }
-        // Extend to other stages if needed, but focus on requirements for now
-
-        // Circuit breaker auto-reset
-        if (this.state.apiFailures > 0) {
-            setTimeout(() => {
-                this.state.apiFailures = 0;
-                this.saveState();
-                console.log('Circuit breaker reset');
-            }, 60000); // 1 minute
-        }
-    }
-
     setRequirementsAnalysisId(id) {
+        // Remove localStorage.setItem calls
+        // State will be updated on next API refresh
         this.state.requirementsAnalysisId = id;
     }
 
     setProjectPlanningId(id) {
+        // Remove localStorage.setItem calls
+        // State will be updated on next API refresh
         this.state.projectPlanningId = id;
     }
 
     setStoryGenerationId(id) {
+        // Remove localStorage.setItem calls
+        // State will be updated on next API refresh
         this.state.storyGenerationId = id;
     }
 
     setCodeGenerationId(id) {
+        // Remove localStorage.setItem calls
+        // State will be updated on next API refresh
         this.state.codeGenerationId = id;
     }
 
     setRequirementsApproved(approved) {
+        // Remove localStorage.setItem calls
+        // State will be updated on next API refresh
         this.state.requirementsApproved = approved;
         if (approved) this.state.requirementsPending = false;
     }
 
     setPlanningApproved(approved) {
+        // Remove localStorage.setItem calls
+        // State will be updated on next API refresh
         this.state.planningApproved = approved;
         if (approved) this.state.planningPending = false;
     }
 
     setStoriesApproved(approved) {
+        // Remove localStorage.setItem calls
+        // State will be updated on next API refresh
         this.state.storiesApproved = approved;
         if (approved) this.state.storiesPending = false;
     }
 
     setRequirementsPending(pending) {
+        // Remove localStorage.setItem calls
+        // State will be updated on next API refresh
         this.state.requirementsPending = pending;
     }
 
     setPlanningPending(pending) {
+        // Remove localStorage.setItem calls
+        // State will be updated on next API refresh
         this.state.planningPending = pending;
     }
 
     setStoriesPending(pending) {
+        // Remove localStorage.setItem calls
+        // State will be updated on next API refresh
         this.state.storiesPending = pending;
     }
 
@@ -284,6 +283,8 @@ class WorkflowManager {
 
     // Phase 4: Story-level prompt management
     setStoryPromptId(storyIndex, promptId, reviewId = null) {
+        // Remove localStorage.setItem calls
+        // State will be updated on next API refresh
         if (!this.state.storyPrompts[storyIndex]) {
             this.state.storyPrompts[storyIndex] = {};
         }
@@ -291,7 +292,6 @@ class WorkflowManager {
         this.state.storyPrompts[storyIndex].reviewId = reviewId;
         this.state.storyPrompts[storyIndex].pending = true;
         this.state.storyPrompts[storyIndex].approved = false;
-        this.saveState();
     }
 
     // Removed: No longer needed for simplified navigation
@@ -304,7 +304,7 @@ class WorkflowManager {
         if (this.state.storyPrompts[storyIndex]) {
             this.state.storyPrompts[storyIndex].approved = approved;
             this.state.storyPrompts[storyIndex].pending = false;
-            this.saveState();
+            // No saveState - updated on next refresh
         }
     }
 
@@ -318,21 +318,8 @@ class WorkflowManager {
 
     // Check approval status for all story prompts
     async checkStoryPromptApprovals() {
-        for (const storyIndex in this.state.storyPrompts) {
-            const prompt = this.state.storyPrompts[storyIndex];
-            if (prompt.pending && prompt.promptId) {
-                try {
-                    const review = await window.APIClient.getReview(prompt.promptId);
-                    if (review.status === 'Approved') {
-                        this.setStoryPromptApproved(storyIndex, true);
-                    } else if (review.status === 'Rejected') {
-                        this.setStoryPromptApproved(storyIndex, false);
-                    }
-                } catch (error) {
-                    console.log(`No review found for prompt ${prompt.promptId}`);
-                }
-            }
-        }
+        // Now handled via API refresh - no individual checks needed
+        await this.refreshState();
     }
 
     // Enhanced UI update to include Phase 4
@@ -345,7 +332,8 @@ class WorkflowManager {
             const statusDiv = document.getElementById(`promptStatus-${index}`);
 
             if (promptBtn && statusDiv) {
-                const status = this.getStoryPromptStatus(index);
+                const storyPrompt = this.state.storyPrompts.find(sp => sp.storyIndex === index);
+                const status = storyPrompt ? (storyPrompt.isApproved ? 'Approved' : storyPrompt.isPending ? 'Pending Review' : 'Not Started') : 'Not Started';
                 statusDiv.textContent = status;
                 statusDiv.className = `prompt-status ${status.toLowerCase().replace(' ', '-')}`;
 
@@ -361,42 +349,16 @@ class WorkflowManager {
                     promptBtn.disabled = false;
                     promptBtn.textContent = 'View Prompt';
                     promptBtn.onclick = () => viewPrompt(index);
-                } else if (status === 'Rejected') {
-                    promptBtn.disabled = false;
-                    promptBtn.textContent = 'Retry';
-                    promptBtn.onclick = () => generateStoryPrompt(index);
                 }
             }
         });
     }
 
     // Reset workflow state for new/fresh start
-    resetState() {
-        localStorage.removeItem(this.storageKey);
-        this.state = {
-            version: 1,
-            apiFailures: 0,
-            enableDynamicStage4: true,
-            enableStoriesMVP: true,
-            requirementsAnalysisId: null,
-            projectPlanningId: null,
-            storyGenerationId: null,
-            codeGenerationId: null,
-            requirementsApproved: false,
-            planningApproved: false,
-            storiesApproved: false,
-            requirementsPending: false,
-            planningPending: false,
-            storiesPending: false,
-            requirementsGenerating: false,
-            planningGenerating: false,
-            storiesGenerating: false,
-            codeGenerating: false,
-            storyPrompts: {},
-            approvedStories: []
-        };
-        this.isUpdating = false;
-        this.saveState();
+    async resetState() {
+        // Clear any local state, but actual reset via API would require backend call
+        // For now, reload from API to get fresh state
+        await this.loadStateFromAPI();
         this.updateWorkflowUI();
     }
 
@@ -415,24 +377,14 @@ class WorkflowManager {
                 showMaintenanceBanner();
             }
         }
-        this.saveState();
+        // No saveState - updated on next refresh
     }
 
     // Reset failure counter on success
     recordApiSuccess() {
         if (this.state.apiFailures > 0) {
             this.state.apiFailures = 0;
-            this.saveState();
-        }
-    }
-
-    // State cleanup for storage limits (basic)
-    cleanupOldStates() {
-        const keys = Object.keys(localStorage).filter(k => k.startsWith('workflow_'));
-        if (keys.length > 10) {
-            // Keep newest 10, remove oldest
-            keys.slice(0, -10).forEach(k => localStorage.removeItem(k));
-            console.log('Cleaned up old workflow states');
+            // No saveState - updated on next refresh
         }
     }
 
@@ -445,7 +397,7 @@ class WorkflowManager {
 
     setHasVisitedStoriesPage(visited) {
         this.state.hasVisitedStoriesPage = visited;
-        this.saveState();
+        // No saveState - updated on next refresh
     }
 
     // Get overall completion status for Stage 4
@@ -454,17 +406,15 @@ class WorkflowManager {
             return 'Not Available';
         }
         
-        const storyPrompts = this.state.storyPrompts || {};
-        const promptCount = Object.keys(storyPrompts).length;
+        const storyPrompts = this.state.storyPrompts || [];
+        const promptCount = storyPrompts.length;
         
         if (promptCount === 0) {
             return 'Ready'; // Can start generating prompts
         }
         
-        const approvedCount = Object.values(storyPrompts)
-            .filter(prompt => prompt.status === 'Approved').length;
-        const pendingCount = Object.values(storyPrompts)
-            .filter(prompt => prompt.status === 'PendingReview').length;
+        const approvedCount = storyPrompts.filter(sp => sp.isApproved).length;
+        const pendingCount = storyPrompts.filter(sp => sp.isPending).length;
         
         if (pendingCount > 0) {
             return `Pending Review (${pendingCount})`;
@@ -503,72 +453,81 @@ class WorkflowManager {
 
     // Get story prompt ID by index
     getStoryPromptId(storyIndex) {
-        const prompt = this.state.storyPrompts[storyIndex];
-        return prompt ? prompt.promptId : null;
+        const storyPrompt = this.state.storyPrompts.find(sp => sp.storyIndex === storyIndex);
+        return storyPrompt ? storyPrompt.promptId : null;
     }
 
     // Get story prompt status by index
     getStoryPromptStatus(storyIndex) {
-        const prompt = this.state.storyPrompts[storyIndex];
-        if (!prompt) return 'Not Started';
-        if (prompt.pending) return 'Pending Review';
-        if (prompt.approved) return 'Approved';
+        const storyPrompt = this.state.storyPrompts.find(sp => sp.storyIndex === storyIndex);
+        if (!storyPrompt) return 'Not Started';
+        if (storyPrompt.isPending) return 'Pending Review';
+        if (storyPrompt.isApproved) return 'Approved';
         return 'Rejected';
     }
 
     updateWorkflowUI() {
-        const updateStageUI = (stageName, idKey, approvedKey, pendingKey, buttonId, statusId, prevStageApprovedKey = null) => {
-            const statusElement = document.getElementById(statusId);
-            const buttonElement = document.getElementById(buttonId);
+        if (this.isWorkflowPage) {
+            const updateStageUI = (stageName, idKey, approvedKey, pendingKey, buttonId, statusId, prevStageApprovedKey = null) => {
+                const statusElement = document.getElementById(statusId);
+                const buttonElement = document.getElementById(buttonId);
 
-            // Check if this stage is currently being generated
-            const generatingKey = `${stageName}Generating`;
-            if (this.state[generatingKey]) {
-                // Preserve the generating state
-                statusElement.textContent = 'Generating...';
-                statusElement.className = 'stage-status generating';
-                buttonElement.disabled = true;
-                return;
-            }
-
-            // Reset button state
-            buttonElement.disabled = true;
-            buttonElement.classList.remove('btn-primary', 'btn-success', 'btn-warning', 'btn-danger');
-
-            if (this.state[approvedKey]) {
-                statusElement.textContent = 'Approved';
-                statusElement.className = 'stage-status approved';
-                buttonElement.disabled = true;
-            } else if (this.state[pendingKey]) {
-                statusElement.textContent = 'Pending Review';
-                statusElement.className = 'stage-status pending-review';
-                buttonElement.disabled = true;
-            } else if (this.state[idKey]) {
-                statusElement.textContent = 'Generated, Awaiting Approval';
-                statusElement.className = 'stage-status generated';
-                buttonElement.disabled = true;
-            } else {
-                statusElement.textContent = 'Not Started';
-                statusElement.className = 'stage-status not-started';
-
-                // Enable button if prerequisites are met and not already approved/pending/generated
-                if (prevStageApprovedKey === null || this.state[prevStageApprovedKey]) {
-                    buttonElement.disabled = false;
-                    buttonElement.classList.add('btn-primary');
+                if (!statusElement || !buttonElement) {
+                    console.warn(`DOM elements for ${stageName} stage not found. This may be running on a non-workflow page.`);
+                    return;
                 }
-            }
-        };
 
-        updateStageUI('requirements', 'requirementsAnalysisId', 'requirementsApproved', 'requirementsPending', 'startRequirementsBtn', 'requirementsStatus');
-        updateStageUI('planning', 'projectPlanningId', 'planningApproved', 'planningPending', 'startPlanningBtn', 'planningStatus', 'requirementsApproved');
-        updateStageUI('stories', 'storyGenerationId', 'storiesApproved', 'storiesPending', 'startStoriesBtn', 'storiesStatus', 'planningApproved');
-        updateStageUI('code', 'codeGenerationId', null, null, 'startCodeBtn', 'codeStatus', 'storiesApproved');
+                // Check if this stage is currently being generated
+                const generatingKey = `${stageName}Generating`;
+                if (this.state[generatingKey]) {
+                    // Preserve the generating state
+                    statusElement.textContent = 'Generating...';
+                    statusElement.className = 'stage-status generating';
+                    buttonElement.disabled = true;
+                    return;
+                }
 
-        // Phase 4: Update story prompt interface
-        this.updateStoryPromptUI();
+                // Reset button state
+                buttonElement.disabled = true;
+                buttonElement.classList.remove('btn-primary', 'btn-success', 'btn-warning', 'btn-danger');
 
-        // Stage 4: Simplified prompt management
-        this.updateStage4UI();
+                if (this.state[approvedKey]) {
+                    statusElement.textContent = 'Approved';
+                    statusElement.className = 'stage-status approved';
+                    buttonElement.disabled = true;
+                } else if (this.state[pendingKey]) {
+                    statusElement.textContent = 'Pending Review';
+                    statusElement.className = 'stage-status pending-review';
+                    buttonElement.disabled = true;
+                } else if (this.state[idKey]) {
+                    statusElement.textContent = 'Generated, Awaiting Approval';
+                    statusElement.className = 'stage-status generated';
+                    buttonElement.disabled = true;
+                } else {
+                    statusElement.textContent = 'Not Started';
+                    statusElement.className = 'stage-status not-started';
+
+                    // Enable button if prerequisites are met and not already approved/pending/generated
+                    if (prevStageApprovedKey === null || this.state[prevStageApprovedKey]) {
+                        buttonElement.disabled = false;
+                        buttonElement.classList.add('btn-primary');
+                    }
+                }
+            };
+
+            updateStageUI('requirements', 'requirementsAnalysisId', 'requirementsApproved', 'requirementsPending', 'startRequirementsBtn', 'requirementsStatus');
+            updateStageUI('planning', 'projectPlanningId', 'planningApproved', 'planningPending', 'startPlanningBtn', 'planningStatus', 'requirementsApproved');
+            updateStageUI('stories', 'storyGenerationId', 'storiesApproved', 'storiesPending', 'startStoriesBtn', 'storiesStatus', 'planningApproved');
+            updateStageUI('code', 'codeGenerationId', null, null, 'startCodeBtn', 'codeStatus', 'storiesApproved');
+
+            // Phase 4: Update story prompt interface
+            this.updateStoryPromptUI();
+
+            // Stage 4: Simplified prompt management
+            this.updateStage4UI();
+        } else {
+            console.log('updateWorkflowUI called on non-workflow page. Skipping UI updates.');
+        }
     }
 
     updateStage4UI() {
@@ -579,47 +538,8 @@ class WorkflowManager {
     }
 
         async checkApprovedStatus() {
-            if (this.state.requirementsAnalysisId && !this.state.requirementsApproved) {
-                try {
-                    const canCreate = await window.APIClient.canCreateProjectPlan(this.state.requirementsAnalysisId);
-                    if (canCreate) {
-                        this.setRequirementsApproved(true);
-                    }
-                } catch (e) {
-                    console.error(`Error checking if project plan can be created:`, e);
-                }
-            }
-
-            if (this.state.projectPlanningId && !this.state.planningApproved) {
-                try {
-                    const canCreate = await window.APIClient.canGenerateStories(this.state.projectPlanningId);
-                    if (canCreate) {
-                        this.setPlanningApproved(true);
-                    }
-                } catch (e) {
-                    console.error(`Error checking if stories can be generated:`, e);
-                }
-            }
-
-            if (this.state.storyGenerationId && !this.state.storiesApproved) {
-                try {
-                    const canCreate = await window.APIClient.canGenerateCode(this.state.storyGenerationId);
-                    if (canCreate) {
-                        this.setStoriesApproved(true);
-                    }
-                } catch (e) {
-                    console.error(`Error checking if code can be generated:`, e);
-                }
-            }
-
-            // Also check for story prompt approvals if in stories management phase
-            if (this.state.storiesApproved) {
-                await this.checkStoryPromptApprovals();
-                this.checkForNewApprovals();
-            }
-
-            this.saveState();
-            this.updateWorkflowUI();
+            // Now handled via polling and API refresh - no individual checks needed
+            await this.refreshState();
         }
 
         // Show notification and redirect to stories management

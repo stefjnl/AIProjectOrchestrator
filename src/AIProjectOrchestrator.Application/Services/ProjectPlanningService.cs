@@ -308,6 +308,27 @@ namespace AIProjectOrchestrator.Application.Services
             }
         }
 
+        public async Task<ProjectPlanning?> GetPlanningByProjectAsync(int projectId, CancellationToken cancellationToken = default)
+        {
+            _logger.LogDebug("ProjectPlanningService: Getting planning for project {ProjectId}", projectId);
+            
+            try
+            {
+                // Query the repository for planning by project ID
+                var planningEntity = await _projectPlanningRepository.GetByProjectIdAsync(projectId, cancellationToken);
+                
+                _logger.LogDebug("ProjectPlanningService: Found planning for project {ProjectId}: {Found}", 
+                    projectId, planningEntity != null ? "Yes" : "No");
+                
+                return planningEntity;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "ProjectPlanningService: Error getting planning for project {ProjectId}", projectId);
+                return null;
+            }
+        }
+
         private string CreatePromptFromContext(
             RequirementsAnalysisResponse requirementsAnalysis, 
             ProjectPlanningRequest request)

@@ -29,5 +29,16 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
                 .Where(pg => pg.StoryGenerationId == storyGenerationId)
                 .ToListAsync(cancellationToken);
         }
+
+        public async Task<IEnumerable<PromptGeneration>> GetByProjectIdAsync(int projectId, CancellationToken cancellationToken = default)
+        {
+            return await _context.PromptGenerations
+                .Include(pg => pg.StoryGeneration)
+                    .ThenInclude(sg => sg.ProjectPlanning)
+                        .ThenInclude(pp => pp.RequirementsAnalysis)
+                            .ThenInclude(ra => ra.Project)
+                .Where(pg => pg.StoryGeneration.ProjectPlanning.RequirementsAnalysis.ProjectId == projectId)
+                .ToListAsync(cancellationToken);
+        }
     }
 }

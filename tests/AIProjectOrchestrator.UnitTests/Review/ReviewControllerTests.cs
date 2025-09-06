@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using AIProjectOrchestrator.Domain.Models.Review;
 using AIProjectOrchestrator.Domain.Services;
+using AIProjectOrchestrator.Application.Interfaces;
 using AIProjectOrchestrator.API.Controllers;
 using Xunit;
 
@@ -20,6 +21,8 @@ namespace AIProjectOrchestrator.UnitTests.Review
         private readonly Mock<IRequirementsAnalysisService> _mockRequirementsAnalysisService;
         private readonly Mock<IProjectPlanningService> _mockProjectPlanningService;
         private readonly Mock<IStoryGenerationService> _mockStoryGenerationService;
+        private readonly Mock<IPromptGenerationService> _mockPromptGenerationService;
+        private readonly Mock<IProjectService> _mockProjectService;
         private readonly Mock<ILogger<ReviewController>> _mockLogger;
         private readonly ReviewController _controller;
 
@@ -29,12 +32,16 @@ namespace AIProjectOrchestrator.UnitTests.Review
             _mockRequirementsAnalysisService = new Mock<IRequirementsAnalysisService>();
             _mockProjectPlanningService = new Mock<IProjectPlanningService>();
             _mockStoryGenerationService = new Mock<IStoryGenerationService>();
+            _mockPromptGenerationService = new Mock<IPromptGenerationService>();
             _mockLogger = new Mock<ILogger<ReviewController>>();
+            _mockProjectService = new Mock<IProjectService>();
             _controller = new ReviewController(
-                _mockReviewService.Object, 
+                _mockReviewService.Object,
                 _mockRequirementsAnalysisService.Object,
                 _mockProjectPlanningService.Object,
                 _mockStoryGenerationService.Object,
+                _mockPromptGenerationService.Object,
+                _mockProjectService.Object,
                 _mockLogger.Object);
         }
 

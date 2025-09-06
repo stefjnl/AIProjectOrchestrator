@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AIProjectOrchestrator.Domain.Models.Stories;
+using AIProjectOrchestrator.Domain.Entities;
 
 namespace AIProjectOrchestrator.Domain.Services
 {
@@ -46,6 +47,11 @@ namespace AIProjectOrchestrator.Domain.Services
             
         Task<int> GetStoryCountAsync(
             Guid storyGenerationId, 
+            CancellationToken cancellationToken = default);
+
+        // Get generation by project for workflow state
+        Task<StoryGeneration?> GetGenerationByProjectAsync(
+            int projectId,
             CancellationToken cancellationToken = default);
     }
 }

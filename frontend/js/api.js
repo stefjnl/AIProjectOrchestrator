@@ -134,6 +134,14 @@ window.APIClient = {
         return await this.get(`/PromptGeneration/${promptId}`);
     },
 
+    async getWorkflowStatus(projectId) {
+        return await this.get(`/review/workflow-status/${projectId}`);
+    },
+
+    async getStories(storyGenerationId) {
+        return await this.get(`/stories/${storyGenerationId}/approved`);
+    },
+
     async deleteProject(id) {
         return this._request('DELETE', `/projects/${id}`);
     },

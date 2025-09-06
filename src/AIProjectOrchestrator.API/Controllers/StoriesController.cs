@@ -1,9 +1,11 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using AIProjectOrchestrator.Domain.Services;
 using AIProjectOrchestrator.Domain.Models.Stories;
+using AIProjectOrchestrator.Domain.Models;
 
 namespace AIProjectOrchestrator.API.Controllers
 {
@@ -109,16 +111,28 @@ namespace AIProjectOrchestrator.API.Controllers
         }
 
         [HttpGet("{storyGenerationId:guid}/approved")]
-        public async Task<ActionResult<List<UserStory>>> GetApprovedStories(Guid storyGenerationId, CancellationToken cancellationToken)
+        public async Task<ActionResult<List<UserStoryDto>>> GetApprovedStories(Guid storyGenerationId, CancellationToken cancellationToken)
         {
             try
             {
                 var stories = await _storyGenerationService.GetApprovedStoriesAsync(storyGenerationId, cancellationToken);
-                if (stories == null)
+                if (stories == null || !stories.Any())
                 {
                     return NotFound(new { error = "Not found", message = "No approved stories found for this generation" });
                 }
-                return Ok(stories);
+
+                var storyDtos = stories.Select((story, index) => new UserStoryDto
+                {
+                    Index = index,
+                    Title = story.Title,
+                    AsA = "User", // Fallback; parse from Description if structured
+                    IWant = story.Description.Length > 0 ? story.Description.Substring(0, Math.Min(50, story.Description.Length)) + (story.Description.Length > 50 ? "..." : "") : "To perform an action",
+                    SoThat = "To achieve project goals", // Fallback
+                    AcceptanceCriteria = story.AcceptanceCriteria,
+                    StoryPoints = story.StoryPoints
+                }).ToList();
+
+                return Ok(storyDtos);
             }
             catch (Exception ex)
             {

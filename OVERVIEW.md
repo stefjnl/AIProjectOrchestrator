@@ -38,7 +38,7 @@ The frontend is a client-side web application built with HTML, CSS, and JavaScri
 **Key Components:**
 - Static HTML pages for different views (dashboard, project list, workflow, etc.)
 - JavaScript API client for communicating with the backend
-- Workflow management system with local storage for state persistence
+- Workflow management system with Postgres persistence via EF Core
 - Responsive design for various screen sizes
 
 **Main Pages:**
@@ -165,7 +165,7 @@ The user workflow follows a linear, multi-stage process with review checkpoints:
 2. **Human-in-the-Loop**: Review queue ensures human approval at each stage
 3. **AI Integration**: Multiple AI providers supported for redundancy
 4. **Persistent Storage**: PostgreSQL database stores all project artifacts
-5. **State Management**: Frontend maintains workflow state in local storage
+5. **State Management**: Frontend maintains workflow state in Postgres via EF Core
 6. **Responsive UI**: Clean, modern interface that works on different devices
 7. **Error Handling**: Comprehensive error handling throughout the application
 8. **Health Monitoring**: Built-in health checks for system components

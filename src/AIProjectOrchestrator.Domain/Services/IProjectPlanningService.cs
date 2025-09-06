@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using AIProjectOrchestrator.Domain.Models;
+using AIProjectOrchestrator.Domain.Entities;
 
 namespace AIProjectOrchestrator.Domain.Services
 {
@@ -33,6 +34,11 @@ namespace AIProjectOrchestrator.Domain.Services
         Task UpdatePlanningStatusAsync(
             Guid planningId,
             ProjectPlanningStatus status,
+            CancellationToken cancellationToken = default);
+
+        // Get planning by project for workflow state
+        Task<ProjectPlanning?> GetPlanningByProjectAsync(
+            int projectId,
             CancellationToken cancellationToken = default);
     }
 }

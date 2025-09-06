@@ -111,6 +111,47 @@ namespace AIProjectOrchestrator.Infrastructure.Data
             
             modelBuilder.Entity<Review>()
                 .HasIndex(r => r.Status);
+
+            // Add performance indexes for workflow queries
+            modelBuilder.Entity<RequirementsAnalysis>()
+                .HasIndex(r => r.ProjectId)
+                .HasDatabaseName("IX_RequirementsAnalysis_ProjectId");
+
+            modelBuilder.Entity<RequirementsAnalysis>()
+                .HasIndex(r => r.Status)
+                .HasDatabaseName("IX_RequirementsAnalysis_Status");
+
+            modelBuilder.Entity<ProjectPlanning>()
+                .HasIndex(p => p.RequirementsAnalysisId)
+                .HasDatabaseName("IX_ProjectPlanning_RequirementsAnalysisId");
+
+            modelBuilder.Entity<ProjectPlanning>()
+                .HasIndex(p => p.Status)
+                .HasDatabaseName("IX_ProjectPlanning_Status");
+
+            modelBuilder.Entity<StoryGeneration>()
+                .HasIndex(s => s.ProjectPlanningId)
+                .HasDatabaseName("IX_StoryGeneration_PlanningId");
+
+            modelBuilder.Entity<StoryGeneration>()
+                .HasIndex(s => s.Status)
+                .HasDatabaseName("IX_StoryGeneration_Status");
+
+            modelBuilder.Entity<PromptGeneration>()
+                .HasIndex(p => p.StoryGenerationId)
+                .HasDatabaseName("IX_PromptGeneration_StoryGenerationId");
+
+            modelBuilder.Entity<PromptGeneration>()
+                .HasIndex(p => p.Status)
+                .HasDatabaseName("IX_PromptGeneration_Status");
+
+            modelBuilder.Entity<Review>()
+                .HasIndex(r => new { r.PipelineStage, r.Status })
+                .HasDatabaseName("IX_Review_PipelineStage_Status");
+
+            modelBuilder.Entity<Review>()
+                .HasIndex(r => r.CreatedDate)
+                .HasDatabaseName("IX_Review_CreatedDate");
         }
     }
 }
