@@ -43,9 +43,6 @@
             <div class="workflow-stage" id="promptStage">
                 <h3>4. Prompt Generation</h3>
                 <div class="stage-status" id="promptStageStatus">Ready</div>
-                <div class="stage-description">
-                    <p>Generate AI coding prompts for your approved user stories using the dedicated Stories Management interface.</p>
-                </div>
                 <div class="stage-actions">
                     <button id="viewAllPromptsBtn" class="primary-btn">View All Prompts</button>
                     <button id="downloadResultsBtn" class="secondary-btn">Download Results</button>
@@ -423,7 +420,7 @@
             }
         }
 
-        // Enhanced Stage 3→4 transition with feature flag
+        // Enhanced Stage 3→4 transition with feature flag - Auto redirect without confirm
         async function checkStageProgression() {
             if (!workflowManager.state.enableStoriesMVP) {
                 return; // Skip if stories MVP disabled
@@ -437,16 +434,15 @@
                     return;
                 }
 
-                // Mark that user should be redirected to stories management
-                const shouldRedirect = confirm(
-                    'User stories have been approved! Would you like to go to the Stories Management page to generate coding prompts?'
+                // Auto-redirect without confirm for better UX
+                workflowManager.showTemporaryMessage(
+                    'User stories approved! Redirecting to Stories Management for prompt generation...',
+                    'info'
                 );
                 
-                if (shouldRedirect) {
-                    workflowManager.setHasVisitedStoriesPage(true);
-                    workflowManager.saveState();
-                    window.location.href = `stories-overview.html?projectId=${workflowManager.projectId}`;
-                }
+                workflowManager.setHasVisitedStoriesPage(true);
+                workflowManager.saveState();
+                window.location.href = `stories-overview.html?projectId=${workflowManager.projectId}`;
             }
         }
 
@@ -568,9 +564,9 @@
             if (!workflowManager.state.enableDynamicStage4) {
                 // Fallback to hardcoded if flag disabled
                 document.getElementById('dynamicStats').innerHTML = `
-                    <span>✅ 5 Stories Approved</span> | 
-                    <span>📥 3 Prompts Generated</span> | 
-                    <span>📤 Export Ready</span>
+                    <span>✅ Stories Ready for Prompts</span> | 
+                    <span>📥 No Prompts Generated</span> | 
+                    <span>📤 Ready to Start</span>
                 `;
                 return;
             }
@@ -581,9 +577,13 @@
                     ? `📤 ${progress.approved === progress.total ? 'Export Ready' : 'Pending'}`
                     : 'Not Available';
                 
+                // Show "No prompts" if fresh after stories approval
+                const displayGenerated = progress.generated > 0 ? progress.generated : 'No';
+                const displayApproved = progress.approved > 0 ? `${progress.approved}/${progress.total}` : 'Stories Ready';
+                
                 document.getElementById('dynamicStats').innerHTML = `
-                    <span>✅ ${progress.approved}/${progress.total} Stories Approved</span> | 
-                    <span>📥 ${progress.generated} Prompts Generated</span> | 
+                    <span>✅ ${displayApproved} Stories Approved</span> | 
+                    <span>📥 ${displayGenerated} Prompts Generated</span> | 
                     <span>${statusText}</span>
                 `;
                 
