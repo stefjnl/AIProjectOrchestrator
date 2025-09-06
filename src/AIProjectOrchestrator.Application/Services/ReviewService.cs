@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -11,26 +10,29 @@ using AIProjectOrchestrator.Domain.Models.Review.Dashboard;
 using AIProjectOrchestrator.Domain.Services;
 using AIProjectOrchestrator.Domain.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using AIProjectOrchestrator.Domain.Interfaces;
+using AIProjectOrchestrator.Domain.Entities;
 
 namespace AIProjectOrchestrator.Application.Services
 {
     public class ReviewService : IReviewService
     {
-        private readonly ConcurrentDictionary<Guid, ReviewSubmission> _reviews;
         private readonly ILogger<ReviewService> _logger;
         private readonly IOptions<ReviewSettings> _settings;
         private readonly IServiceProvider _serviceProvider;
+        private readonly IReviewRepository _reviewRepository;
         
 
         public ReviewService(
             ILogger<ReviewService> logger,
             IOptions<ReviewSettings> settings,
-            IServiceProvider serviceProvider)
+            IServiceProvider serviceProvider,
+            IReviewRepository reviewRepository)
         {
-            _reviews = new ConcurrentDictionary<Guid, ReviewSubmission>();
             _logger = logger;
             _settings = settings;
             _serviceProvider = serviceProvider;
+            _reviewRepository = reviewRepository;
         }
 
         public async Task<ReviewResponse> SubmitForReviewAsync(SubmitReviewRequest request, CancellationToken cancellationToken = default)
@@ -69,41 +71,53 @@ namespace AIProjectOrchestrator.Application.Services
                 throw new ArgumentException($"Invalid pipeline stage. Valid stages are: {string.Join(", ", _settings.Value.ValidPipelineStages)}", nameof(request.PipelineStage));
             }
 
-            // Check if we're at max capacity
-            if (_reviews.Count >= _settings.Value.MaxConcurrentReviews)
-            {
-                _logger.LogWarning("Maximum concurrent reviews reached ({MaxConcurrentReviews})", _settings.Value.MaxConcurrentReviews);
-                throw new InvalidOperationException($"Maximum concurrent reviews ({_settings.Value.MaxConcurrentReviews}) reached");
-            }
-
             // Create review submission
-            var review = new ReviewSubmission
+            var reviewId = Guid.NewGuid();
+            
+            // Create the database entity
+            var reviewEntity = new Review
             {
-                Id = Guid.NewGuid(),
-                ServiceName = request.ServiceName,
+                ReviewId = reviewId,
                 Content = request.Content,
-                CorrelationId = request.CorrelationId,
+                Status = ReviewStatus.Pending,
+                ServiceName = request.ServiceName,
                 PipelineStage = request.PipelineStage,
-                OriginalRequest = request.OriginalRequest,
-                AIResponse = request.AIResponse,
-                Metadata = new Dictionary<string, object>(request.Metadata)
+                Feedback = string.Empty,
+                CreatedDate = DateTime.UtcNow,
+                UpdatedDate = DateTime.UtcNow
             };
 
-            // Add to storage
-            if (!_reviews.TryAdd(review.Id, review))
+            // Set foreign key based on service name and metadata
+            if (request.Metadata != null && request.Metadata.TryGetValue("EntityId", out var entityIdObj) && int.TryParse(entityIdObj.ToString(), out var entityId))
             {
-                _logger.LogError("Failed to add review {ReviewId} to storage", review.Id);
-                throw new InvalidOperationException("Failed to submit review");
+                switch (request.ServiceName)
+                {
+                    case "RequirementsAnalysis":
+                        reviewEntity.RequirementsAnalysisId = entityId;
+                        break;
+                    case "ProjectPlanning":
+                        reviewEntity.ProjectPlanningId = entityId;
+                        break;
+                    case "StoryGeneration":
+                        reviewEntity.StoryGenerationId = entityId;
+                        break;
+                    case "PromptGeneration":
+                        reviewEntity.PromptGenerationId = entityId;
+                        break;
+                }
             }
 
+            // Save to database
+            await _reviewRepository.AddAsync(reviewEntity, cancellationToken);
+
             _logger.LogInformation("Review {ReviewId} submitted successfully for service {ServiceName} in pipeline stage {PipelineStage}", 
-                review.Id, request.ServiceName, request.PipelineStage);
+                reviewId, request.ServiceName, request.PipelineStage);
 
             return new ReviewResponse
             {
-                ReviewId = review.Id,
-                Status = review.Status,
-                SubmittedAt = review.SubmittedAt,
+                ReviewId = reviewId,
+                Status = ReviewStatus.Pending,
+                SubmittedAt = DateTime.UtcNow,
                 Message = "Review submitted successfully"
             };
         }
@@ -112,18 +126,32 @@ namespace AIProjectOrchestrator.Application.Services
         {
             _logger.LogDebug("Retrieving review {ReviewId}", reviewId);
 
-            if (_reviews.TryGetValue(reviewId, out var review))
+            var reviewEntity = await _reviewRepository.GetByReviewIdAsync(reviewId, cancellationToken);
+            if (reviewEntity != null)
             {
                 // Check if review has expired
-                if (review.Status == ReviewStatus.Pending && 
-                    DateTime.UtcNow.Subtract(review.SubmittedAt).TotalHours > _settings.Value.ReviewTimeoutHours)
+                if (reviewEntity.Status == ReviewStatus.Pending && 
+                    DateTime.UtcNow.Subtract(reviewEntity.CreatedDate).TotalHours > _settings.Value.ReviewTimeoutHours)
                 {
-                    review.Status = ReviewStatus.Expired;
-                    review.ReviewedAt = DateTime.UtcNow;
+                    reviewEntity.Status = ReviewStatus.Expired;
+                    reviewEntity.UpdatedDate = DateTime.UtcNow;
+                    await _reviewRepository.UpdateAsync(reviewEntity, cancellationToken);
                     _logger.LogInformation("Review {ReviewId} has expired", reviewId);
                 }
 
-                return review;
+                return new ReviewSubmission
+                {
+                    Id = reviewEntity.ReviewId,
+                    ServiceName = reviewEntity.ServiceName,
+                    Content = reviewEntity.Content,
+                    CorrelationId = string.Empty, // This would need to be stored in the database
+                    PipelineStage = reviewEntity.PipelineStage,
+                    Status = reviewEntity.Status,
+                    SubmittedAt = reviewEntity.CreatedDate,
+                    ReviewedAt = reviewEntity.UpdatedDate,
+                    Decision = null, // This would need to be reconstructed from database fields
+                    Metadata = new Dictionary<string, object>() // This would need to be stored in the database
+                };
             }
 
             _logger.LogWarning("Review {ReviewId} not found", reviewId);
@@ -134,50 +162,67 @@ namespace AIProjectOrchestrator.Application.Services
         {
             _logger.LogDebug("Approving review {ReviewId}", reviewId);
 
-            if (!_reviews.TryGetValue(reviewId, out var review))
+            var reviewEntity = await _reviewRepository.GetByReviewIdAsync(reviewId, cancellationToken);
+            if (reviewEntity == null)
             {
                 _logger.LogWarning("Review {ReviewId} not found", reviewId);
                 throw new InvalidOperationException($"Review {reviewId} not found");
             }
 
             // Check if review is in a valid state for approval
-            if (review.Status != ReviewStatus.Pending)
+            if (reviewEntity.Status != ReviewStatus.Pending)
             {
-                _logger.LogWarning("Review {ReviewId} is not in pending state. Current status: {Status}", reviewId, review.Status);
-                throw new InvalidOperationException($"Review is not in pending state. Current status: {review.Status}");
+                _logger.LogWarning("Review {ReviewId} is not in pending state. Current status: {Status}", reviewId, reviewEntity.Status);
+                throw new InvalidOperationException($"Review is not in pending state. Current status: {reviewEntity.Status}");
             }
 
             // Check if review has expired
-            if (DateTime.UtcNow.Subtract(review.SubmittedAt).TotalHours > _settings.Value.ReviewTimeoutHours)
+            if (DateTime.UtcNow.Subtract(reviewEntity.CreatedDate).TotalHours > _settings.Value.ReviewTimeoutHours)
             {
-                review.Status = ReviewStatus.Expired;
-                review.ReviewedAt = DateTime.UtcNow;
+                reviewEntity.Status = ReviewStatus.Expired;
+                reviewEntity.UpdatedDate = DateTime.UtcNow;
+                await _reviewRepository.UpdateAsync(reviewEntity, cancellationToken);
                 _logger.LogInformation("Review {ReviewId} has expired and cannot be approved", reviewId);
                 throw new InvalidOperationException("Review has expired and cannot be approved");
             }
 
             // Update review
-            review.Status = ReviewStatus.Approved;
-            review.ReviewedAt = DateTime.UtcNow;
+            reviewEntity.Status = ReviewStatus.Approved;
+            reviewEntity.UpdatedDate = DateTime.UtcNow;
+            reviewEntity.Feedback = decision?.Feedback ?? string.Empty;
             
-            review.Decision = new ReviewDecision
-            {
-                Status = ReviewStatus.Approved,
-                Reason = decision?.Reason ?? "Approved without specific reason",
-                Feedback = decision?.Feedback ?? string.Empty,
-                InstructionImprovements = new Dictionary<string, string>(decision?.InstructionImprovements ?? new Dictionary<string, string>())
-            };
+            await _reviewRepository.UpdateAsync(reviewEntity, cancellationToken);
 
             _logger.LogInformation("Review {ReviewId} approved successfully", reviewId);
 
             // Notify that the review has been approved to trigger workflow progression
-            await NotifyReviewApprovedAsync(reviewId, review, cancellationToken);
+            var reviewSubmission = new ReviewSubmission
+            {
+                Id = reviewEntity.ReviewId,
+                ServiceName = reviewEntity.ServiceName,
+                Content = reviewEntity.Content,
+                CorrelationId = string.Empty,
+                PipelineStage = reviewEntity.PipelineStage,
+                Status = reviewEntity.Status,
+                SubmittedAt = reviewEntity.CreatedDate,
+                ReviewedAt = reviewEntity.UpdatedDate,
+                Decision = new ReviewDecision
+                {
+                    Status = ReviewStatus.Approved,
+                    Reason = decision?.Reason ?? "Approved without specific reason",
+                    Feedback = decision?.Feedback ?? string.Empty,
+                    InstructionImprovements = new Dictionary<string, string>(decision?.InstructionImprovements ?? new Dictionary<string, string>())
+                },
+                Metadata = new Dictionary<string, object>() // This would need to be stored in the database
+            };
+            
+            await NotifyReviewApprovedAsync(reviewId, reviewSubmission, cancellationToken);
 
             return new ReviewResponse
             {
-                ReviewId = review.Id,
-                Status = review.Status,
-                SubmittedAt = review.SubmittedAt,
+                ReviewId = reviewEntity.ReviewId,
+                Status = reviewEntity.Status,
+                SubmittedAt = reviewEntity.CreatedDate,
                 Message = "Review approved successfully"
             };
         }
@@ -186,7 +231,8 @@ namespace AIProjectOrchestrator.Application.Services
         {
             _logger.LogDebug("Rejecting review {ReviewId}", reviewId);
 
-            if (!_reviews.TryGetValue(reviewId, out var review))
+            var reviewEntity = await _reviewRepository.GetByReviewIdAsync(reviewId, cancellationToken);
+            if (reviewEntity == null)
             {
                 _logger.LogWarning("Review {ReviewId} not found", reviewId);
                 throw new InvalidOperationException($"Review {reviewId} not found");
@@ -199,40 +245,36 @@ namespace AIProjectOrchestrator.Application.Services
             }
 
             // Check if review is in a valid state for rejection
-            if (review.Status != ReviewStatus.Pending)
+            if (reviewEntity.Status != ReviewStatus.Pending)
             {
-                _logger.LogWarning("Review {ReviewId} is not in pending state. Current status: {Status}", reviewId, review.Status);
-                throw new InvalidOperationException($"Review is not in pending state. Current status: {review.Status}");
+                _logger.LogWarning("Review {ReviewId} is not in pending state. Current status: {Status}", reviewId, reviewEntity.Status);
+                throw new InvalidOperationException($"Review is not in pending state. Current status: {reviewEntity.Status}");
             }
 
             // Check if review has expired
-            if (DateTime.UtcNow.Subtract(review.SubmittedAt).TotalHours > _settings.Value.ReviewTimeoutHours)
+            if (DateTime.UtcNow.Subtract(reviewEntity.CreatedDate).TotalHours > _settings.Value.ReviewTimeoutHours)
             {
-                review.Status = ReviewStatus.Expired;
-                review.ReviewedAt = DateTime.UtcNow;
+                reviewEntity.Status = ReviewStatus.Expired;
+                reviewEntity.UpdatedDate = DateTime.UtcNow;
+                await _reviewRepository.UpdateAsync(reviewEntity, cancellationToken);
                 _logger.LogInformation("Review {ReviewId} has expired and cannot be rejected", reviewId);
                 throw new InvalidOperationException("Review has expired and cannot be rejected");
             }
 
             // Update review
-            review.Status = ReviewStatus.Rejected;
-            review.ReviewedAt = DateTime.UtcNow;
+            reviewEntity.Status = ReviewStatus.Rejected;
+            reviewEntity.UpdatedDate = DateTime.UtcNow;
+            reviewEntity.Feedback = decision.Feedback ?? string.Empty;
             
-            review.Decision = new ReviewDecision
-            {
-                Status = ReviewStatus.Rejected,
-                Reason = decision.Reason,
-                Feedback = decision.Feedback ?? string.Empty,
-                InstructionImprovements = new Dictionary<string, string>(decision.InstructionImprovements ?? new Dictionary<string, string>())
-            };
+            await _reviewRepository.UpdateAsync(reviewEntity, cancellationToken);
 
             _logger.LogInformation("Review {ReviewId} rejected successfully", reviewId);
 
             return new ReviewResponse
             {
-                ReviewId = review.Id,
-                Status = review.Status,
-                SubmittedAt = review.SubmittedAt,
+                ReviewId = reviewEntity.ReviewId,
+                Status = reviewEntity.Status,
+                SubmittedAt = reviewEntity.CreatedDate,
                 Message = "Review rejected successfully"
             };
         }
@@ -241,13 +283,32 @@ namespace AIProjectOrchestrator.Application.Services
         {
             _logger.LogDebug("Retrieving pending reviews");
 
+            var reviewEntities = await _reviewRepository.GetPendingReviewsAsync(cancellationToken);
             var now = DateTime.UtcNow;
             var timeoutHours = _settings.Value.ReviewTimeoutHours;
 
-            var pendingReviews = _reviews.Values
-                .Where(r => r.Status == ReviewStatus.Pending)
-                .Where(r => now.Subtract(r.SubmittedAt).TotalHours <= timeoutHours)
-                .ToList();
+            var pendingReviews = new List<ReviewSubmission>();
+            foreach (var reviewEntity in reviewEntities)
+            {
+                // Check if review has expired
+                if (reviewEntity.Status == ReviewStatus.Pending && 
+                    now.Subtract(reviewEntity.CreatedDate).TotalHours <= timeoutHours)
+                {
+                    pendingReviews.Add(new ReviewSubmission
+                    {
+                        Id = reviewEntity.ReviewId,
+                        ServiceName = reviewEntity.ServiceName,
+                        Content = reviewEntity.Content,
+                        CorrelationId = string.Empty,
+                        PipelineStage = reviewEntity.PipelineStage,
+                        Status = reviewEntity.Status,
+                        SubmittedAt = reviewEntity.CreatedDate,
+                        ReviewedAt = reviewEntity.UpdatedDate,
+                        Decision = null,
+                        Metadata = new Dictionary<string, object>()
+                    });
+                }
+            }
 
             _logger.LogInformation("Found {PendingReviewCount} pending reviews", pendingReviews.Count);
 
@@ -259,7 +320,7 @@ namespace AIProjectOrchestrator.Application.Services
             try
             {
                 // Simple health check - verify we can access the storage
-                var count = _reviews.Count;
+                var count = await _reviewRepository.GetAllAsync(cancellationToken);
                 return true;
             }
             catch (Exception ex)
@@ -275,16 +336,18 @@ namespace AIProjectOrchestrator.Application.Services
             var timeoutHours = _settings.Value.ReviewTimeoutHours;
             var expiredCount = 0;
 
-            var expiredReviews = _reviews.Values
-                .Where(r => r.Status == ReviewStatus.Pending)
-                .Where(r => now.Subtract(r.SubmittedAt).TotalHours > timeoutHours)
-                .ToList();
-
-            foreach (var review in expiredReviews)
+            var reviewEntities = await _reviewRepository.GetAllAsync(cancellationToken);
+            foreach (var reviewEntity in reviewEntities)
             {
-                review.Status = ReviewStatus.Expired;
-                review.ReviewedAt = now;
-                expiredCount++;
+                // Check if review has expired
+                if (reviewEntity.Status == ReviewStatus.Pending && 
+                    now.Subtract(reviewEntity.CreatedDate).TotalHours > timeoutHours)
+                {
+                    reviewEntity.Status = ReviewStatus.Expired;
+                    reviewEntity.UpdatedDate = now;
+                    await _reviewRepository.UpdateAsync(reviewEntity, cancellationToken);
+                    expiredCount++;
+                }
             }
 
             if (expiredCount > 0)
@@ -298,7 +361,7 @@ namespace AIProjectOrchestrator.Application.Services
         // Add to ReviewService (Application layer)
         public async Task<ReviewDashboardData> GetDashboardDataAsync(CancellationToken cancellationToken)
         {
-            // Aggregate pending reviews from in-memory storage
+            // Aggregate pending reviews from database
             // Cross-reference with requirements/planning/story services to build workflow status
             // Return structured data for dashboard consumption
             
@@ -337,34 +400,67 @@ namespace AIProjectOrchestrator.Application.Services
         {
             _logger.LogInformation("Review {ReviewId} approved, triggering workflow progression", reviewId);
 
+            // First get the full review entity to access FKs
+            var reviewEntity = await _reviewRepository.GetByReviewIdAsync(reviewId, cancellationToken);
+            if (reviewEntity == null)
+            {
+                _logger.LogWarning("Review entity {ReviewId} not found for propagation", reviewId);
+                return;
+            }
+
             using (var scope = _serviceProvider.CreateScope())
             {
-                if (review.ServiceName == "RequirementsAnalysis")
+                if (review.ServiceName == "RequirementsAnalysis" && reviewEntity.RequirementsAnalysisId.HasValue)
                 {
-                    if (review.Metadata.TryGetValue("AnalysisId", out var analysisIdObj) &&
-                        Guid.TryParse(analysisIdObj.ToString(), out var analysisId))
+                    // Fetch the analysis entity using the FK
+                    var requirementsRepo = scope.ServiceProvider.GetRequiredService<IRequirementsAnalysisRepository>();
+                    var analysisEntity = await requirementsRepo.GetByIdAsync(reviewEntity.RequirementsAnalysisId.Value, cancellationToken);
+                    if (analysisEntity != null && Guid.TryParse(analysisEntity.AnalysisId, out var analysisId))
                     {
                         var requirementsService = scope.ServiceProvider.GetRequiredService<IRequirementsAnalysisService>();
                         await requirementsService.UpdateAnalysisStatusAsync(analysisId, Domain.Models.RequirementsAnalysisStatus.Approved, cancellationToken);
+                        _logger.LogInformation("Propagated approval to RequirementsAnalysis {AnalysisId} via FK {EntityId}", analysisId, reviewEntity.RequirementsAnalysisId.Value);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Could not find RequirementsAnalysis entity for review {ReviewId} using FK {EntityId}", reviewId, reviewEntity.RequirementsAnalysisId.Value);
                     }
                 }
-                else if (review.ServiceName == "ProjectPlanning")
+                else if (review.ServiceName == "ProjectPlanning" && reviewEntity.ProjectPlanningId.HasValue)
                 {
-                    if (review.Metadata.TryGetValue("PlanningId", out var planningIdObj) &&
-                        Guid.TryParse(planningIdObj.ToString(), out var planningId))
+                    // Similar logic for ProjectPlanning
+                    var planningRepo = scope.ServiceProvider.GetRequiredService<IProjectPlanningRepository>();
+                    var planningEntity = await planningRepo.GetByIdAsync(reviewEntity.ProjectPlanningId.Value, cancellationToken);
+                    if (planningEntity != null && Guid.TryParse(planningEntity.PlanningId, out var planningId))
                     {
                         var planningService = scope.ServiceProvider.GetRequiredService<IProjectPlanningService>();
                         await planningService.UpdatePlanningStatusAsync(planningId, Domain.Models.ProjectPlanningStatus.Approved, cancellationToken);
+                        _logger.LogInformation("Propagated approval to ProjectPlanning {PlanningId} via FK {EntityId}", planningId, reviewEntity.ProjectPlanningId.Value);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Could not find ProjectPlanning entity for review {ReviewId} using FK {EntityId}", reviewId, reviewEntity.ProjectPlanningId.Value);
                     }
                 }
-                else if (review.ServiceName == "StoryGeneration")
+                else if (review.ServiceName == "StoryGeneration" && reviewEntity.StoryGenerationId.HasValue)
                 {
-                    if (review.Metadata.TryGetValue("GenerationId", out var generationIdObj) &&
-                        Guid.TryParse(generationIdObj.ToString(), out var generationId))
+                    // Similar logic for StoryGeneration
+                    var storyRepo = scope.ServiceProvider.GetRequiredService<IStoryGenerationRepository>();
+                    var storyEntity = await storyRepo.GetByIdAsync(reviewEntity.StoryGenerationId.Value, cancellationToken);
+                    if (storyEntity != null && Guid.TryParse(storyEntity.GenerationId, out var generationId))
                     {
                         var storyService = scope.ServiceProvider.GetRequiredService<IStoryGenerationService>();
                         await storyService.UpdateGenerationStatusAsync(generationId, Domain.Models.Stories.StoryGenerationStatus.Approved, cancellationToken);
+                        _logger.LogInformation("Propagated approval to StoryGeneration {GenerationId} via FK {EntityId}", generationId, reviewEntity.StoryGenerationId.Value);
                     }
+                    else
+                    {
+                        _logger.LogWarning("Could not find StoryGeneration entity for review {ReviewId} using FK {EntityId}", reviewId, reviewEntity.StoryGenerationId.Value);
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("No valid FK found for service {ServiceName} in review {ReviewId}", review.ServiceName, reviewId);
                 }
             }
         }

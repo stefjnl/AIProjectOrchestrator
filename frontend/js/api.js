@@ -1,4 +1,3 @@
-
 window.APIClient = {
     baseUrl: 'http://localhost:8086/api',
 
@@ -116,5 +115,32 @@ window.APIClient = {
     },
     async rejectReview(reviewId, feedback) {
         return this.post(`/review/${reviewId}/reject`, { feedback });
+    },
+
+    // Phase 4: Prompt Generation API methods
+    async generatePrompt(request) {
+        return await this.post('/PromptGeneration/generate', request);
+    },
+
+    async getPromptStatus(promptId) {
+        return await this.get(`/PromptGeneration/${promptId}/status`);
+    },
+
+    async canGeneratePrompt(storyGenerationId, storyIndex) {
+        return await this.get(`/PromptGeneration/can-generate/${storyGenerationId}/${storyIndex}`);
+    },
+
+    async getPrompt(promptId) {
+        return await this.get(`/PromptGeneration/${promptId}`);
+    },
+
+    async deleteProject(id) {
+        return this._request('DELETE', `/projects/${id}`);
+    },
+
+    // Helper method to retrieve approved stories
+    async getApprovedStories(storyGenerationId) {
+        // Note: This endpoint may need to be created or use existing story endpoints
+        return await this.get(`/stories/${storyGenerationId}/approved`);
     }
 };

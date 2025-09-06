@@ -34,13 +34,19 @@ namespace AIProjectOrchestrator.UnitTests.Stories
             _mockReviewService = new Mock<IReviewService>();
             _mockLogger = new Mock<ILogger<StoryGenerationService>>();
             
+            // For unit tests, we'll mock the repositories as well
+            var mockStoryGenerationRepository = new Mock<Domain.Interfaces.IStoryGenerationRepository>();
+            var mockProjectPlanningRepository = new Mock<Domain.Interfaces.IProjectPlanningRepository>();
+            
             _service = new StoryGenerationService(
                 _mockRequirementsAnalysisService.Object,
                 _mockProjectPlanningService.Object,
                 _mockInstructionService.Object,
                 _mockAIClientFactory.Object,
                 new Lazy<IReviewService>(() => _mockReviewService.Object),
-                _mockLogger.Object);
+                _mockLogger.Object,
+                mockStoryGenerationRepository.Object,
+                mockProjectPlanningRepository.Object);
         }
 
         [Fact]

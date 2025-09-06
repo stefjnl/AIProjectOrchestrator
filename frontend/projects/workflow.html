@@ -12,6 +12,7 @@
         <div class="header">
             <h1 id="projectTitle">Loading Project...</h1>
             <p id="projectDescription"></p>
+            <button id="resetWorkflowBtn" onclick="workflowManager.resetState()" style="float: right; margin-left: 10px;">Reset Workflow</button>
         </div>
 
         <div class="workflow-stages">
@@ -36,9 +37,32 @@
                 <button id="startStoriesBtn" onclick="startStoryGeneration()">Generate Stories</button>
             </div>
 
-            <!-- Stage 4: Code Generation -->
+            <!-- Add after existing Stage 3 section -->
+
+            <!-- Stage 4: Prompt Generation -->
+            <div class="workflow-stage" id="promptStage">
+                <h3>4. Prompt Generation</h3>
+                <div class="stage-status" id="promptStageStatus">Ready</div>
+                <div class="stage-actions">
+                    <button id="viewAllPromptsBtn" class="primary-btn">View All Prompts</button>
+                    <button id="downloadResultsBtn" class="secondary-btn">Download Results</button>
+                </div>
+                <div class="completion-dashboard">
+                    <div class="stats-summary" id="dynamicStats">
+                        <span>Loading stats...</span>
+                    </div>
+                    <button id="refreshStatsBtn" onclick="initStage4UI()" style="margin-left: 10px; padding: 4px 8px; font-size: 12px;">Refresh Status</button>
+                </div>
+                <div class="stage-progress" id="promptProgress" style="display: none;">
+                    <div class="progress-summary">
+                        <span id="promptProgressText">0 of 0 prompts approved</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stage 5: Code Generation -->
             <div class="workflow-stage">
-                <h3>4. Code Generation</h3>
+                <h3>5. Code Generation</h3>
                 <div class="stage-status" id="codeStatus">Not Started</div>
                 <button id="startCodeBtn" onclick="startCodeGeneration()">Generate Code</button>
             </div>
@@ -62,30 +86,70 @@
 
             workflowManager = new WorkflowManager(projectId);
             workflowManager.loadState();
+
+            // Force initial state for new projects if stale pending without ID
+            if (workflowManager.state.requirementsPending && !workflowManager.state.requirementsAnalysisId) {
+                workflowManager.setRequirementsPending(false);
+                workflowManager.saveState();
+            }
+
             await workflowManager.checkApprovedStatus();
 
-            try {
-                const project = await window.APIClient.getProject(projectId);
-                displayProjectInfo(project);
-                workflowManager.updateWorkflowUI(); // Update UI after project info is loaded
-            } catch (error) {
-                // Instead of immediately redirecting, show error and give user options
-                const userChoice = confirm(`Error loading project: ${error.message}. Would you like to try again? Cancel to go to home.`);
-                if (userChoice) {
-                    // Reload the page to try again
-                    window.location.reload();
-                } else {
-                    // Redirect to home
-                    window.location.href = '/';
-                }
-            }
-        });
+            // NEW: Check for stories management redirect
+            await checkStoriesManagementRedirect();
 
-        function displayProjectInfo(project) {
-            document.title = `${project.name} - Workflow`;
+            // Add progression checking
+            await checkStageProgression();
+
+            // Enhanced initialization to load approved stories
+            await workflowManager.checkStoryPromptApprovals();
+
+            // Initialize Stage 4 dynamic UI if enabled
+            if (workflowManager.state.enableDynamicStage4) {
+                initStage4UI();
+            }
+
+        try {
+            const project = await window.APIClient.getProject(projectId);
+            workflowManager.recordApiSuccess();
+            // Update project info directly
             document.getElementById('projectTitle').textContent = project.name;
             document.getElementById('projectDescription').textContent = project.description;
+            workflowManager.updateWorkflowUI(); // Update UI after project info is loaded
+        } catch (error) {
+            workflowManager.recordApiFailure();
+            if (workflowManager.isApiDisabled()) {
+                showMaintenanceBanner();
+            }
+            // Fallback to mock project data
+            document.getElementById('projectTitle').textContent = 'Demo Project';
+            document.getElementById('projectDescription').textContent = 'This is a demonstration project for testing the workflow.';
+            workflowManager.updateWorkflowUI();
+            console.warn(`Using demo data due to API error: ${error.message}`);
         }
+
+            // Cross-tab sync
+            window.addEventListener('storage', function(event) {
+                if (event.key === workflowManager.storageKey) {
+                    location.reload();
+                }
+            });
+
+            // Page visibility refresh
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden && workflowManager.state.enableDynamicStage4) {
+                    workflowManager.loadState();
+                    workflowManager.checkStoryPromptApprovals().then(() => {
+                        initStage4UI();
+                    }).catch(() => {
+                        workflowManager.recordApiFailure();
+                        if (workflowManager.isApiDisabled()) {
+                            showMaintenanceBanner();
+                        }
+                    });
+                }
+            });
+        });
 
         // Helper function to manage UI state during async operations
         async function handleStageStart(buttonId, statusId, startFunction) {
@@ -139,7 +203,7 @@
                     workflowManager.updateWorkflowUI();
 
                     alert('Requirements analysis submitted for review. Please check the review queue.');
-                    window.location.href = '/reviews/queue.html';
+                    window.location.href = `/reviews/queue.html?projectId=${encodeURIComponent(workflowManager.projectId)}`;
                 } catch (error) {
                     // Clear generating state on error
                     workflowManager.setRequirementsGenerating(false);
@@ -179,11 +243,11 @@
                 workflowManager.updateWorkflowUI();
 
                 alert('Project planning submitted for review. Please check the review queue.');
-                window.location.href = '/reviews/queue.html';
+                window.location.href = `/reviews/queue.html?projectId=${encodeURIComponent(workflowManager.projectId)}`;
             });
         }
 
-        // Stage 3: Story Generation
+        // Stage 3: Story Generation - Simplified redirect per proposal
         function startStoryGeneration() {
             handleStageStart('startStoriesBtn', 'storiesStatus', async () => {
                 // Set generating state
@@ -210,8 +274,8 @@
                 workflowManager.saveState();
                 workflowManager.updateWorkflowUI();
 
-                alert('User stories submitted for review. Please check the review queue.');
-                window.location.href = '/reviews/queue.html';
+                workflowManager.showTemporaryMessage('User stories submitted for review. Check the review queue, then return here to continue.', 'info');
+                window.location.href = `/reviews/queue.html?projectId=${encodeURIComponent(workflowManager.projectId)}`;
             });
         }
 
@@ -236,6 +300,346 @@
                 alert('Code generation has been completed!');
                 // Optional: redirect or update UI to show completion
             });
+        }
+
+        // Add these functions to the existing script section:
+
+        // Simplified: No auto-redirect check - user navigates manually after approval
+        async function checkStoriesManagementRedirect() {
+            // Check if stories are approved and show guidance
+            if (workflowManager.state.storiesApproved && !workflowManager.state.storyGenerationId) {
+                // Show notification and redirect to stories management
+                await workflowManager.showStoriesRedirectNotification();
+            }
+        }
+
+        // Stage 4 Management Functions - Simplified per proposal
+        function goToStoriesManagement() {
+            if (!workflowManager.state.storiesApproved) {
+                alert('Stories must be approved before managing prompts.');
+                return;
+            }
+            
+            // Simple navigation without intent parameters
+            window.location.href = `stories-overview.html?projectId=${workflowManager.projectId}`;
+        }
+
+        function continueToCodeGeneration() {
+            const progress = workflowManager.getPromptCompletionProgress();
+            if (progress.approved < progress.total) {
+                alert(`Please approve ${progress.total - progress.approved} more prompts before continuing to code generation.`);
+                return;
+            }
+            // In production, redirect to code generation stage
+            workflowManager.showTemporaryMessage('All prompts approved! Proceeding to code generation...', 'success');
+            // window.location.href = 'code-generation.html?projectId=' + workflowManager.projectId;
+        }
+
+        // Completion View for Stage 4 - Simplified dashboard per proposal
+        function updateStage4UI() {
+            const manageBtn = document.getElementById('manageStoriesBtn');
+            const continueBtn = document.getElementById('continueToCodeBtn');
+            const progressDiv = document.getElementById('promptProgress');
+            const progressText = document.getElementById('promptProgressText');
+            const statusDiv = document.getElementById('promptStageStatus');
+            
+            if (!manageBtn || !continueBtn) return;
+            
+            if (!workflowManager.state.storiesApproved) {
+                // Stories not approved yet
+                manageBtn.disabled = true;
+                manageBtn.textContent = 'Awaiting Story Approval';
+                statusDiv.textContent = 'Waiting';
+                statusDiv.className = 'stage-status waiting';
+                progressDiv.style.display = 'none';
+            } else {
+                // Stories approved - enable management and show completion view
+                const progress = workflowManager.getPromptCompletionProgress();
+                
+                manageBtn.disabled = false;
+                progressDiv.style.display = 'block';
+                
+                // Completion dashboard mode
+                if (progress.approved === progress.total && progress.total > 0) {
+                    // Full completion view
+                    manageBtn.textContent = 'View All Prompts';
+                    statusDiv.textContent = 'Complete - Project Ready';
+                    statusDiv.className = 'stage-status complete';
+                    
+                    // Enhanced progress with summary stats
+                    const summaryHtml = `
+                        <div class="completion-summary">
+                            <p><strong>Project Summary:</strong></p>
+                            <ul>
+                                <li>Total Stories: ${progress.total}</li>
+                                <li>Generated Prompts: ${progress.generated}</li>
+                                <li>Approved Prompts: ${progress.approved}</li>
+                                <li>Pending Reviews: ${progress.pending}</li>
+                                <li>Progress: ${progress.percentComplete}%</li>
+                            </ul>
+                            <button onclick="downloadAllApprovedFromWorkflow()" class="btn btn-success" style="margin-top: 10px;">
+                                Download All Approved Prompts
+                            </button>
+                        </div>
+                    `;
+                    progressDiv.innerHTML = `
+                        <div class="progress-summary">
+                            <span id="promptProgressText">${progressText.textContent}</span>
+                        </div>
+                        ${summaryHtml}
+                        ${document.getElementById('promptProgressBar') ? '' : updateProgressBar(progress).outerHTML}
+                    `;
+                } else {
+                    // Standard management view
+                    manageBtn.textContent = 'Manage Stories & Prompts';
+                    statusDiv.textContent = 'Ready';
+                    statusDiv.className = 'stage-status ready';
+                    
+                    // Standard progress text
+                    if (progress.total > 0) {
+                        const parts = [];
+                        if (progress.approved > 0) parts.push(`${progress.approved} approved`);
+                        if (progress.pending > 0) parts.push(`${progress.pending} pending`);
+                        if (progress.notStarted > 0) parts.push(`${progress.notStarted} not started`);
+                        
+                        progressText.textContent = `${progress.approved}/${progress.total} prompts approved` + 
+                            (parts.length > 1 ? ` (${parts.join(', ')})` : '');
+                        
+                        // Progress bar
+                        updateProgressBar(progress);
+                    }
+                }
+                
+                // Enable continue button if all prompts approved
+                continueBtn.disabled = progress.approved < progress.total;
+                if (progress.approved === progress.total && progress.total > 0) {
+                    continueBtn.textContent = 'Continue to Code Generation →';
+                } else {
+                    continueBtn.textContent = `Complete ${progress.total - progress.approved} more prompts to continue`;
+                }
+            }
+        }
+
+        // Enhanced Stage 3→4 transition with feature flag - Auto redirect without confirm
+        async function checkStageProgression() {
+            if (!workflowManager.state.enableStoriesMVP) {
+                return; // Skip if stories MVP disabled
+            }
+
+            // Check if Stage 3 was just approved and should redirect to stories
+            if (workflowManager.state.storiesApproved && !workflowManager.getHasVisitedStoriesPage()) {
+                // Check if we have story generation ID (prerequisite)
+                if (!workflowManager.state.storyGenerationId) {
+                    console.warn('Stories approved but no generation ID - cannot proceed to prompt management');
+                    return;
+                }
+
+                // Auto-redirect without confirm for better UX
+                workflowManager.showTemporaryMessage(
+                    'User stories approved! Redirecting to Stories Management for prompt generation...',
+                    'info'
+                );
+                
+                workflowManager.setHasVisitedStoriesPage(true);
+                workflowManager.saveState();
+                window.location.href = `stories-overview.html?projectId=${workflowManager.projectId}`;
+            }
+        }
+
+        // Helper for completion view download
+        function downloadAllApprovedFromWorkflow() {
+            // Redirect to stories page for bulk download
+            window.location.href = `stories-overview.html?projectId=${workflowManager.projectId}`;
+        }
+
+        function updateProgressBar(progress) {
+            let progressBar = document.getElementById('promptProgressBar');
+            if (!progressBar) {
+                progressBar = document.createElement('div');
+                progressBar.id = 'promptProgressBar';
+                progressBar.className = 'progress-bar';
+                progressBar.innerHTML = `
+                    <div class="progress-bar-fill" id="promptProgressFill" style="width: ${progress.percentComplete}%"></div>
+                    <div class="progress-bar-text" id="promptProgressPercent">${progress.percentComplete}%</div>
+                `;
+                return progressBar; // Return for insertion in completion view
+            }
+            
+            const fill = document.getElementById('promptProgressFill');
+            const percentText = document.getElementById('promptProgressPercent');
+            
+            if (fill && percentText) {
+                fill.style.width = `${progress.percentComplete}%`;
+                percentText.textContent = `${progress.percentComplete}%`;
+            }
+            return progressBar;
+        }
+
+        // Stage 4: View All Prompts - Navigate to stories management
+        function viewAllPrompts() {
+            if (!workflowManager.state.storyGenerationId) {
+                alert('No approved stories found. Complete Stage 3 first.');
+                return;
+            }
+            
+            // Navigate to stories management with proper context
+            window.location.href = `stories-overview.html?projectId=${workflowManager.projectId}&source=workflow`;
+        }
+
+        // Stage 4: Download Results - Bulk download all approved prompts
+        async function downloadResults() {
+            try {
+                if (!workflowManager.state.storyGenerationId) {
+                    alert('No approved stories found. Complete Stage 3 first.');
+                    return;
+                }
+                
+                // Get all approved stories and their prompts
+                const stories = await window.APIClient.getApprovedStories(workflowManager.state.storyGenerationId);
+                const approvedPrompts = [];
+                
+                for (let i = 0; i < stories.length; i++) {
+                    const promptId = workflowManager.getStoryPromptId(i);
+                    if (promptId && workflowManager.getStoryPromptStatus(i) === 'Approved') {
+                        const prompt = await window.APIClient.getPrompt(promptId);
+                        approvedPrompts.push({
+                            storyIndex: i,
+                            storyTitle: stories[i].title,
+                            content: prompt.generatedPrompt
+                        });
+                    }
+                }
+                
+                if (approvedPrompts.length === 0) {
+                    alert('No approved prompts available for download.');
+                    return;
+                }
+                
+                // Create ZIP file content or multiple .md files
+                downloadPromptsAsZip(approvedPrompts);
+                
+            } catch (error) {
+                alert('Error downloading results: ' + error.message);
+            }
+        }
+
+        // Helper function for ZIP download
+        function downloadPromptsAsZip(prompts) {
+            // Simple approach: Download individual .md files
+            prompts.forEach(prompt => {
+                const blob = new Blob([prompt.content], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `prompt-${prompt.storyIndex}-${prompt.storyTitle.replace(/\s+/g, '-')}.md`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+        }
+
+        // Ensure buttons have proper event handlers
+        window.addEventListener('DOMContentLoaded', function() {
+            // Add event listeners to Stage 4 buttons
+            const viewPromptsBtn = document.getElementById('viewAllPromptsBtn');
+            const downloadBtn = document.getElementById('downloadResultsBtn');
+            
+            if (viewPromptsBtn) {
+                viewPromptsBtn.addEventListener('click', viewAllPrompts);
+            }
+            
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', downloadResults);
+            }
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            workflowManager.stopStatusPolling();
+        });
+
+        // Stage 4: Initialize dynamic stats
+        function initStage4UI() {
+            if (!workflowManager.state.enableDynamicStage4) {
+                // Fallback to hardcoded if flag disabled
+                document.getElementById('dynamicStats').innerHTML = `
+                    <span>✅ Stories Ready for Prompts</span> | 
+                    <span>📥 No Prompts Generated</span> | 
+                    <span>📤 Ready to Start</span>
+                `;
+                return;
+            }
+
+            try {
+                const progress = workflowManager.getPromptCompletionProgress();
+                const statusText = progress.total > 0 
+                    ? `📤 ${progress.approved === progress.total ? 'Export Ready' : 'Pending'}`
+                    : 'Not Available';
+                
+                // Show "No prompts" if fresh after stories approval
+                const displayGenerated = progress.generated > 0 ? progress.generated : 'No';
+                const displayApproved = progress.approved > 0 ? `${progress.approved}/${progress.total}` : 'Stories Ready';
+                
+                document.getElementById('dynamicStats').innerHTML = `
+                    <span>✅ ${displayApproved} Stories Approved</span> | 
+                    <span>📥 ${displayGenerated} Prompts Generated</span> | 
+                    <span>${statusText}</span>
+                `;
+                
+                // Update stage status
+                const statusEl = document.getElementById('promptStageStatus');
+                let status = 'Ready';
+                if (!workflowManager.state.storiesApproved) {
+                    status = 'Waiting';
+                } else if (progress.total > 0 && progress.approved === progress.total) {
+                    status = 'Complete';
+                } else if (progress.generated > 0) {
+                    status = 'In Progress';
+                }
+                statusEl.textContent = status;
+                statusEl.className = `stage-status ${status.toLowerCase().replace(' ', '-')}`;
+
+                // Update button states
+                const viewBtn = document.getElementById('viewAllPromptsBtn');
+                const downloadBtn = document.getElementById('downloadResultsBtn');
+                
+                if (viewBtn) {
+                    viewBtn.disabled = !workflowManager.state.storiesApproved || !workflowManager.state.storyGenerationId;
+                }
+                
+                if (downloadBtn) {
+                    downloadBtn.disabled = progress.approved === 0;
+                }
+
+                workflowManager.recordApiSuccess();
+
+            } catch (error) {
+                console.error('Failed to initialize Stage 4 UI:', error);
+                workflowManager.recordApiFailure();
+                if (workflowManager.isApiDisabled()) {
+                    showMaintenanceBanner();
+                }
+                // Fallback display
+                document.getElementById('dynamicStats').innerHTML = `
+                    <span>Error loading stats - <button onclick="initStage4UI()">Retry</button></span>
+                `;
+            }
+        }
+
+        // Maintenance banner for circuit breaker
+        function showMaintenanceBanner() {
+            if (document.getElementById('maintenance-banner')) return;
+            const banner = document.createElement('div');
+            banner.id = 'maintenance-banner';
+            banner.className = 'maintenance-banner';
+            banner.innerHTML = `
+                <div style="background: #ff6b6b; color: white; padding: 10px; text-align: center; margin: 10px;">
+                    <strong>API Maintenance Mode</strong><br>
+                    System temporarily unavailable. Retrying in 60s or <button onclick="location.reload()" style="background: white; color: #ff6b6b; border: none; padding: 2px 8px; cursor: pointer;">Refresh</button>
+                </div>
+            `;
+            document.body.insertBefore(banner, document.body.firstChild);
         }
     </script>
 </body>

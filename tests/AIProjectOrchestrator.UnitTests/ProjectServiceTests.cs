@@ -3,6 +3,7 @@ using Moq;
 using AIProjectOrchestrator.Application.Services;
 using AIProjectOrchestrator.Domain.Interfaces;
 using AIProjectOrchestrator.Domain.Entities;
+using System.Threading;
 
 namespace AIProjectOrchestrator.UnitTests
 {
@@ -18,7 +19,7 @@ namespace AIProjectOrchestrator.UnitTests
                 new Project { Id = 1, Name = "Project 1" },
                 new Project { Id = 2, Name = "Project 2" }
             };
-            mockRepository.Setup(repo => repo.GetAllAsync()).ReturnsAsync(expectedProjects);
+            mockRepository.Setup(repo => repo.GetAllAsync(CancellationToken.None)).ReturnsAsync(expectedProjects);
             
             var projectService = new ProjectService(mockRepository.Object);
 

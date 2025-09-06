@@ -107,5 +107,23 @@ namespace AIProjectOrchestrator.API.Controllers
                 return StatusCode(500, new { error = "Internal server error", message = ex.Message });
             }
         }
+
+        [HttpGet("{storyGenerationId:guid}/approved")]
+        public async Task<ActionResult<List<UserStory>>> GetApprovedStories(Guid storyGenerationId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var stories = await _storyGenerationService.GetApprovedStoriesAsync(storyGenerationId, cancellationToken);
+                if (stories == null)
+                {
+                    return NotFound(new { error = "Not found", message = "No approved stories found for this generation" });
+                }
+                return Ok(stories);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
+            }
+        }
     }
 }

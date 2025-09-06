@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -7,12 +6,15 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using AIProjectOrchestrator.Domain.Interfaces;
 using AIProjectOrchestrator.Domain.Services;
 using AIProjectOrchestrator.Domain.Models;
 using AIProjectOrchestrator.Domain.Models.Stories;
 using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Domain.Models.Review;
 using AIProjectOrchestrator.Infrastructure.AI;
+using AIProjectOrchestrator.Domain.Entities;
+using System.Text.Json;
 
 namespace AIProjectOrchestrator.Application.Services
 {
@@ -24,8 +26,8 @@ namespace AIProjectOrchestrator.Application.Services
         private readonly IAIClientFactory _aiClientFactory;
         private readonly Lazy<IReviewService> _reviewService;
         private readonly ILogger<StoryGenerationService> _logger;
-        private readonly ConcurrentDictionary<Guid, StoryGenerationStatus> _generationStatuses;
-        private readonly ConcurrentDictionary<Guid, StoryGenerationResponse> _generationResponses; // Store full responses instead of just stories
+        private readonly IStoryGenerationRepository _storyGenerationRepository;
+        private readonly IProjectPlanningRepository _projectPlanningRepository;
 
         public StoryGenerationService(
             IRequirementsAnalysisService requirementsAnalysisService,
@@ -33,7 +35,9 @@ namespace AIProjectOrchestrator.Application.Services
             IInstructionService instructionService,
             IAIClientFactory aiClientFactory,
             Lazy<IReviewService> reviewService,
-            ILogger<StoryGenerationService> logger)
+            ILogger<StoryGenerationService> logger,
+            IStoryGenerationRepository storyGenerationRepository,
+            IProjectPlanningRepository projectPlanningRepository)
         {
             _requirementsAnalysisService = requirementsAnalysisService;
             _projectPlanningService = projectPlanningService;
@@ -41,8 +45,8 @@ namespace AIProjectOrchestrator.Application.Services
             _aiClientFactory = aiClientFactory;
             _reviewService = reviewService;
             _logger = logger;
-            _generationStatuses = new ConcurrentDictionary<Guid, StoryGenerationStatus>();
-            _generationResponses = new ConcurrentDictionary<Guid, StoryGenerationResponse>(); // Initialize the new dictionary
+            _storyGenerationRepository = storyGenerationRepository;
+            _projectPlanningRepository = projectPlanningRepository;
         }
 
         public async Task<StoryGenerationResponse> GenerateStoriesAsync(
@@ -62,9 +66,6 @@ namespace AIProjectOrchestrator.Application.Services
                     throw new ArgumentException("Planning ID is required");
                 }
 
-                // Set status to processing
-                _generationStatuses[generationId] = StoryGenerationStatus.Processing;
-
                 // Validate dependencies (both requirements AND planning approved)
                 await ValidateAllDependenciesAsync(request.PlanningId, cancellationToken);
 
@@ -75,7 +76,6 @@ namespace AIProjectOrchestrator.Application.Services
                 if (string.IsNullOrEmpty(planningContent))
                 {
                     _logger.LogError("Story generation {GenerationId} failed: Planning content not found", generationId);
-                    _generationStatuses[generationId] = StoryGenerationStatus.Failed;
                     throw new InvalidOperationException("Planning content not found");
                 }
 
@@ -98,7 +98,6 @@ namespace AIProjectOrchestrator.Application.Services
                 {
                     _logger.LogError("Story generation {GenerationId} failed: Invalid instruction content - {ValidationMessage}",
                         generationId, instructionContent.ValidationMessage);
-                    _generationStatuses[generationId] = StoryGenerationStatus.Failed;
                     throw new InvalidOperationException($"Failed to load valid instructions: {instructionContent.ValidationMessage}");
                 }
 
@@ -127,7 +126,6 @@ namespace AIProjectOrchestrator.Application.Services
                 if (aiClient == null)
                 {
                     _logger.LogError("Story generation {GenerationId} failed: OpenRouter AI client not available", generationId);
-                    _generationStatuses[generationId] = StoryGenerationStatus.Failed;
                     throw new InvalidOperationException("OpenRouter AI client is not available");
                 }
 
@@ -140,12 +138,36 @@ namespace AIProjectOrchestrator.Application.Services
                 {
                     _logger.LogError("Story generation {GenerationId} failed: AI call failed - {ErrorMessage}",
                         generationId, aiResponse.ErrorMessage);
-                    _generationStatuses[generationId] = StoryGenerationStatus.Failed;
                     throw new InvalidOperationException($"AI call failed: {aiResponse.ErrorMessage}");
                 }
 
                 // Parse AI response to story collection
                 var stories = await ParseAIResponseToStories(aiResponse.Content, cancellationToken);
+
+                // Create and store the story generation entity first to get the entity ID
+                // Get the ProjectPlanning entity ID
+                var projectPlanning = await _projectPlanningRepository.GetByPlanningIdAsync(request.PlanningId.ToString(), cancellationToken);
+                if (projectPlanning == null)
+                {
+                    _logger.LogError("Story generation {GenerationId} failed: Project planning not found", generationId);
+                    throw new InvalidOperationException("Project planning not found");
+                }
+
+                var storyGenerationEntity = new StoryGeneration
+                {
+                    GenerationId = generationId.ToString(),
+                    ProjectPlanningId = projectPlanning.Id,
+                    Status = StoryGenerationStatus.PendingReview,
+                    Content = aiResponse.Content,
+                    ReviewId = string.Empty, // Will be updated after review submission
+                    CreatedDate = DateTime.UtcNow,
+                    StoriesJson = JsonSerializer.Serialize(stories),
+                    Stories = stories
+                };
+
+                // Save to database
+                await _storyGenerationRepository.AddAsync(storyGenerationEntity, cancellationToken);
+                var savedStoryGenerationId = storyGenerationEntity.Id; // Get the database-generated int ID
 
                 // Submit for review
                 _logger.LogDebug("Submitting AI response for review in story generation {GenerationId}", generationId);
@@ -172,12 +194,17 @@ namespace AIProjectOrchestrator.Application.Services
                     Metadata = new System.Collections.Generic.Dictionary<string, object>
                     {
                         { "GenerationId", generationId },
+                        { "EntityId", savedStoryGenerationId }, // Pass the entity int ID for FK linking
                         { "PlanningId", request.PlanningId },
                         { "ProjectId", projectId }
                     }
                 };
 
                 var reviewResponse = await _reviewService.Value.SubmitForReviewAsync(reviewRequest, cancellationToken);
+
+                // Update the story generation entity with the review ID
+                storyGenerationEntity.ReviewId = reviewResponse.ReviewId.ToString();
+                await _storyGenerationRepository.UpdateAsync(storyGenerationEntity, cancellationToken);
 
                 // Create the response object
                 var response = new StoryGenerationResponse
@@ -190,12 +217,6 @@ namespace AIProjectOrchestrator.Application.Services
                     CreatedAt = DateTime.UtcNow
                 };
 
-                // Set status to pending review
-                _generationStatuses[generationId] = StoryGenerationStatus.PendingReview;
-
-                // Store the full response for later retrieval
-                _generationResponses[generationId] = response;
-
                 _logger.LogInformation("Story generation {GenerationId} completed successfully. Review ID: {ReviewId}",
                     generationId, reviewResponse.ReviewId);
 
@@ -204,7 +225,6 @@ namespace AIProjectOrchestrator.Application.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Story generation {GenerationId} failed with exception", generationId);
-                _generationStatuses[generationId] = StoryGenerationStatus.Failed;
                 throw;
             }
         }
@@ -213,20 +233,12 @@ namespace AIProjectOrchestrator.Application.Services
             Guid generationId,
             CancellationToken cancellationToken = default)
         {
-            // First check the status dictionary
-            if (_generationStatuses.TryGetValue(generationId, out var status))
+            var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(generationId.ToString(), cancellationToken);
+            if (storyGeneration != null)
             {
-                return status;
-            }
-            
-            // If not found in status dictionary, check if we have the response in memory
-            if (_generationResponses.TryGetValue(generationId, out var response))
-            {
-                return response.Status;
+                return storyGeneration.Status;
             }
 
-            // If we don't have the status in memory, it might have been cleaned up
-            // In a production system, we would check a persistent store
             return StoryGenerationStatus.Failed;
         }
 
@@ -234,13 +246,24 @@ namespace AIProjectOrchestrator.Application.Services
             Guid generationId,
             CancellationToken cancellationToken = default)
         {
-            if (_generationResponses.TryGetValue(generationId, out var response))
+            var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(generationId.ToString(), cancellationToken);
+            if (storyGeneration != null)
             {
-                return response.Stories;
+                if (!string.IsNullOrEmpty(storyGeneration.StoriesJson))
+                {
+                    try
+                    {
+                        return JsonSerializer.Deserialize<List<UserStory>>(storyGeneration.StoriesJson) ?? new List<UserStory>();
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogError(ex, "Failed to deserialize stories JSON for generation {GenerationId}", generationId);
+                        return new List<UserStory>();
+                    }
+                }
+                return storyGeneration.Stories.ToList();
             }
 
-            // If we don't have the result in memory, it might have been cleaned up
-            // In a production system, we would check a persistent store
             return null;
         }
 
@@ -276,14 +299,16 @@ namespace AIProjectOrchestrator.Application.Services
 
         public async Task<Guid?> GetPlanningIdAsync(Guid storyGenerationId, CancellationToken cancellationToken = default)
         {
-            // Check if we have the story generation response in memory
-            if (_generationResponses.TryGetValue(storyGenerationId, out var response))
+            var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(storyGenerationId.ToString(), cancellationToken);
+            if (storyGeneration != null)
             {
-                return response.PlanningId;
+                var projectPlanning = await _projectPlanningRepository.GetByIdAsync(storyGeneration.ProjectPlanningId, cancellationToken);
+                if (projectPlanning != null)
+                {
+                    return Guid.Parse(projectPlanning.PlanningId);
+                }
             }
             
-            // If we don't have the result in memory, it might have been cleaned up
-            // In a production system, we would check a persistent store
             return null;
         }
 
@@ -355,7 +380,7 @@ namespace AIProjectOrchestrator.Application.Services
                     var title = match.Groups[1].Value.Trim();
                     var description = match.Groups.Count > 2 && !string.IsNullOrEmpty(match.Groups[2].Value)
                         ? match.Groups[2].Value.Trim()
-                        : "";
+                        : string.Empty;
 
                     stories.Add(new UserStory
                     {
@@ -382,7 +407,6 @@ namespace AIProjectOrchestrator.Application.Services
             if (requirementsAnalysisId == null)
             {
                 _logger.LogWarning("Story generation failed: Planning {PlanningId} not found", planningId);
-                _generationStatuses[Guid.Empty] = StoryGenerationStatus.PlanningNotApproved;
                 throw new InvalidOperationException("Planning not found");
             }
 
@@ -394,7 +418,6 @@ namespace AIProjectOrchestrator.Application.Services
             {
                 _logger.LogWarning("Story generation failed: Requirements analysis {RequirementsAnalysisId} is not approved",
                     requirementsAnalysisId.Value);
-                _generationStatuses[Guid.Empty] = StoryGenerationStatus.RequirementsNotApproved;
                 throw new InvalidOperationException("Requirements analysis is not approved");
             }
 
@@ -403,7 +426,6 @@ namespace AIProjectOrchestrator.Application.Services
             if (!canGenerate)
             {
                 _logger.LogWarning("Story generation failed: Planning {PlanningId} is not approved", planningId);
-                _generationStatuses[Guid.Empty] = StoryGenerationStatus.PlanningNotApproved;
                 throw new InvalidOperationException("Planning is not approved");
             }
         }
@@ -464,16 +486,14 @@ namespace AIProjectOrchestrator.Application.Services
             StoryGenerationStatus status,
             CancellationToken cancellationToken = default)
         {
-            // Update the in-memory status
-            _generationStatuses[generationId] = status;
-            
-            // If we have the response in memory, also update its status
-            if (_generationResponses.TryGetValue(generationId, out var response))
+            var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(generationId.ToString(), cancellationToken);
+            if (storyGeneration != null)
             {
-                response.Status = status;
+                storyGeneration.Status = status;
+                await _storyGenerationRepository.UpdateAsync(storyGeneration, cancellationToken);
+                
+                _logger.LogInformation("Updated story generation {GenerationId} status to {Status}", generationId, status);
             }
-            
-            _logger.LogInformation("Updated story generation {GenerationId} status to {Status}", generationId, status);
         }
         
         public async Task<UserStory> GetIndividualStoryAsync(
@@ -483,15 +503,34 @@ namespace AIProjectOrchestrator.Application.Services
         {
             cancellationToken.ThrowIfCancellationRequested();
             
-            if (_generationResponses.TryGetValue(storyGenerationId, out var response))
+            var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(storyGenerationId.ToString(), cancellationToken);
+            if (storyGeneration != null)
             {
-                if (storyIndex >= 0 && storyIndex < response.Stories.Count)
+                List<UserStory> stories;
+                if (!string.IsNullOrEmpty(storyGeneration.StoriesJson))
                 {
-                    return response.Stories[storyIndex];
+                    try
+                    {
+                        stories = JsonSerializer.Deserialize<List<UserStory>>(storyGeneration.StoriesJson) ?? new List<UserStory>();
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogError(ex, "Failed to deserialize stories JSON for generation {GenerationId}", storyGenerationId);
+                        stories = new List<UserStory>();
+                    }
                 }
                 else
                 {
-                    throw new ArgumentOutOfRangeException(nameof(storyIndex), $"Story index {storyIndex} is out of range. Total stories: {response.Stories.Count}");
+                    stories = storyGeneration.Stories.ToList();
+                }
+                
+                if (storyIndex >= 0 && storyIndex < stories.Count)
+                {
+                    return stories[storyIndex];
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(storyIndex), $"Story index {storyIndex} is out of range. Total stories: {stories.Count}");
                 }
             }
             
@@ -504,9 +543,22 @@ namespace AIProjectOrchestrator.Application.Services
         {
             cancellationToken.ThrowIfCancellationRequested();
             
-            if (_generationResponses.TryGetValue(storyGenerationId, out var response))
+            var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(storyGenerationId.ToString(), cancellationToken);
+            if (storyGeneration != null)
             {
-                return response.Stories;
+                if (!string.IsNullOrEmpty(storyGeneration.StoriesJson))
+                {
+                    try
+                    {
+                        return JsonSerializer.Deserialize<List<UserStory>>(storyGeneration.StoriesJson) ?? new List<UserStory>();
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogError(ex, "Failed to deserialize stories JSON for generation {GenerationId}", storyGenerationId);
+                        return new List<UserStory>();
+                    }
+                }
+                return storyGeneration.Stories.ToList();
             }
             
             throw new InvalidOperationException($"Story generation with ID {storyGenerationId} not found");
@@ -518,9 +570,23 @@ namespace AIProjectOrchestrator.Application.Services
         {
             cancellationToken.ThrowIfCancellationRequested();
             
-            if (_generationResponses.TryGetValue(storyGenerationId, out var response))
+            var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(storyGenerationId.ToString(), cancellationToken);
+            if (storyGeneration != null)
             {
-                return response.Stories.Count;
+                if (!string.IsNullOrEmpty(storyGeneration.StoriesJson))
+                {
+                    try
+                    {
+                        var stories = JsonSerializer.Deserialize<List<UserStory>>(storyGeneration.StoriesJson) ?? new List<UserStory>();
+                        return stories.Count;
+                    }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogError(ex, "Failed to deserialize stories JSON for generation {GenerationId}", storyGenerationId);
+                        return 0;
+                    }
+                }
+                return storyGeneration.Stories.Count;
             }
             
             throw new InvalidOperationException($"Story generation with ID {storyGenerationId} not found");

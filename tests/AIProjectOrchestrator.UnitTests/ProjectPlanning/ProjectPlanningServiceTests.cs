@@ -10,6 +10,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using AIProjectOrchestrator.Domain.Interfaces;
 
 namespace AIProjectOrchestrator.UnitTests.ProjectPlanning
 {
@@ -20,6 +21,7 @@ namespace AIProjectOrchestrator.UnitTests.ProjectPlanning
         private readonly Mock<IAIClientFactory> _mockAIClientFactory;
         private readonly Mock<IReviewService> _mockReviewService;
         private readonly Mock<ILogger<ProjectPlanningService>> _mockLogger;
+        private readonly Mock<IProjectPlanningRepository> _mockProjectPlanningRepository;
         private readonly ProjectPlanningService _service;
 
         public ProjectPlanningServiceTests()
@@ -29,13 +31,15 @@ namespace AIProjectOrchestrator.UnitTests.ProjectPlanning
             _mockAIClientFactory = new Mock<IAIClientFactory>();
             _mockReviewService = new Mock<IReviewService>();
             _mockLogger = new Mock<ILogger<ProjectPlanningService>>();
+            _mockProjectPlanningRepository = new Mock<IProjectPlanningRepository>();
             
             _service = new ProjectPlanningService(
                 _mockRequirementsAnalysisService.Object,
                 _mockInstructionService.Object,
                 _mockAIClientFactory.Object,
                 new Lazy<IReviewService>(() => _mockReviewService.Object),
-                _mockLogger.Object);
+                _mockLogger.Object,
+                _mockProjectPlanningRepository.Object);
         }
 
         [Fact]
@@ -57,7 +61,7 @@ namespace AIProjectOrchestrator.UnitTests.ProjectPlanning
                 ProjectDescription = "Build task management system for small teams",
                 AnalysisResult = "### Project Overview\\nA task management system for small teams...",
                 ReviewId = Guid.NewGuid(),
-                Status = RequirementsAnalysisStatus.PendingReview,
+                Status = RequirementsAnalysisStatus.Approved, // Changed to Approved to satisfy CanCreatePlanAsync check
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -92,7 +96,7 @@ namespace AIProjectOrchestrator.UnitTests.ProjectPlanning
                 .ReturnsAsync(requirementsAnalysis);
 
             _mockRequirementsAnalysisService.Setup(x => x.GetAnalysisStatusAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(RequirementsAnalysisStatus.PendingReview);
+                .ReturnsAsync(RequirementsAnalysisStatus.Approved); // Changed to Approved to satisfy CanCreatePlanAsync check
 
             _mockInstructionService.Setup(x => x.GetInstructionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(instructionContent);
@@ -108,7 +112,7 @@ namespace AIProjectOrchestrator.UnitTests.ProjectPlanning
             _mockReviewService.Setup(x => x.SubmitForReviewAsync(It.IsAny<SubmitReviewRequest>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(reviewResponse);
 
-            // Act
+            // Act & Assert
             var result = await _service.CreateProjectPlanAsync(request, CancellationToken.None);
 
             // Assert
@@ -322,7 +326,7 @@ namespace AIProjectOrchestrator.UnitTests.ProjectPlanning
                 ProjectDescription = "Build task management system for small teams",
                 AnalysisResult = "### Project Overview\\nA task management system for small teams...",
                 ReviewId = Guid.NewGuid(),
-                Status = RequirementsAnalysisStatus.PendingReview,
+                Status = RequirementsAnalysisStatus.Approved,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -357,7 +361,7 @@ namespace AIProjectOrchestrator.UnitTests.ProjectPlanning
                 .ReturnsAsync(requirementsAnalysis);
 
             _mockRequirementsAnalysisService.Setup(x => x.GetAnalysisStatusAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(RequirementsAnalysisStatus.PendingReview);
+                .ReturnsAsync(RequirementsAnalysisStatus.Approved);
 
             _mockInstructionService.Setup(x => x.GetInstructionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(instructionContent);
@@ -407,7 +411,7 @@ namespace AIProjectOrchestrator.UnitTests.ProjectPlanning
                 ProjectDescription = "Build task management system for small teams",
                 AnalysisResult = "### Project Overview\\nA task management system for small teams...",
                 ReviewId = Guid.NewGuid(),
-                Status = RequirementsAnalysisStatus.PendingReview,
+                Status = RequirementsAnalysisStatus.Approved,
                 CreatedAt = DateTime.UtcNow
             };
 

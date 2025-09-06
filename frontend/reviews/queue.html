@@ -60,20 +60,31 @@
                 alert('Review approved successfully!');
                 
                 // Try to get the review details to determine which project it belongs to
+                let projectId = null;
                 try {
                     const review = await window.APIClient.getReview(reviewId);
                     // Extract project ID from metadata if available
                     if (review.metadata && review.metadata.ProjectId) {
-                        // Redirect back to the project page
-                        window.location.href = `/projects/workflow.html?projectId=${review.metadata.ProjectId}`;
-                        return;
+                        projectId = review.metadata.ProjectId;
                     }
                 } catch (e) {
                     console.error('Error getting review details:', e);
                 }
-                
-                // If we can't determine the project, just reload the reviews
-                await loadPendingReviews();
+
+                // Fallback to URL parameter if available
+                if (!projectId) {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    projectId = urlParams.get('projectId');
+                    console.log('Using URL projectId for redirect:', projectId);
+                }
+
+                if (projectId && projectId !== 'unknown' && projectId !== 'null') {
+                    // Redirect back to the project page
+                    window.location.href = `/projects/workflow.html?projectId=${encodeURIComponent(projectId)}`;
+                } else {
+                    console.warn('No valid project ID found for redirect, reloading reviews');
+                    await loadPendingReviews();
+                }
             } catch (error) {
                 alert('Error approving review: ' + error.message);
             } finally {
@@ -106,6 +117,20 @@
                 rejectBtn.textContent = 'Reject';
             }
         }
+
+        // Add init for projectId from URL
+        window.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectId = urlParams.get('projectId');
+            
+            if (projectId && projectId !== 'unknown' && projectId !== 'null') {
+                console.log('Review queue - Using URL projectId:', projectId);
+                window.currentProjectId = projectId; // Global for use in approveReview
+            } else {
+                console.warn('Review queue - No projectId in URL:', projectId);
+                window.currentProjectId = null;
+            }
+        });
     </script>
 </body>
 </html>
