@@ -7,7 +7,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using AIProjectOrchestrator.Domain.Models.Review;
 using AIProjectOrchestrator.Domain.Models.Review.Dashboard;
+using AIProjectOrchestrator.Domain.Models;
+using AIProjectOrchestrator.Domain.Entities;
 using AIProjectOrchestrator.Domain.Services;
+using AIProjectOrchestrator.Domain.Models.Stories;
+using AIProjectOrchestrator.Application.Interfaces;
 
 namespace AIProjectOrchestrator.API.Controllers
 {
@@ -19,6 +23,8 @@ namespace AIProjectOrchestrator.API.Controllers
         private readonly IRequirementsAnalysisService _requirementsAnalysisService;
         private readonly IProjectPlanningService _projectPlanningService;
         private readonly IStoryGenerationService _storyGenerationService;
+        private readonly IPromptGenerationService _promptGenerationService;
+        private readonly IProjectService _projectService;
         private readonly ILogger<ReviewController> _logger;
 
         public ReviewController(
@@ -26,12 +32,16 @@ namespace AIProjectOrchestrator.API.Controllers
             IRequirementsAnalysisService requirementsAnalysisService,
             IProjectPlanningService projectPlanningService,
             IStoryGenerationService storyGenerationService,
+            IPromptGenerationService promptGenerationService,
+            IProjectService projectService,
             ILogger<ReviewController> logger)
         {
             _reviewService = reviewService;
             _requirementsAnalysisService = requirementsAnalysisService;
             _projectPlanningService = projectPlanningService;
             _storyGenerationService = storyGenerationService;
+            _promptGenerationService = promptGenerationService;
+            _projectService = projectService;
             _logger = logger;
         }
 
@@ -290,13 +300,135 @@ namespace AIProjectOrchestrator.API.Controllers
         }
 
         [HttpGet("workflow-status/{projectId}")]
-        [ProducesResponseType(typeof(WorkflowStatus), StatusCodes.Status200OK)]
-        public async Task<ActionResult<WorkflowStatus>> GetWorkflowStatusAsync(Guid projectId, CancellationToken cancellationToken)
+        [ProducesResponseType(typeof(WorkflowStateResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<WorkflowStateResponse>> GetWorkflowStatusAsync(int projectId, CancellationToken cancellationToken = default)
         {
-            // Track complete workflow status across all services
-            // Requirements status, Planning status, Stories status
-            // Return current stage and next required action
-            throw new NotImplementedException("This method will be implemented in Phase 6");
+            try
+            {
+                var project = await _projectService.GetProjectAsync(projectId, cancellationToken);
+                if (project == null)
+                    return NotFound(new ProblemDetails
+                    {
+                        Title = "Project not found",
+                        Detail = $"Project with ID {projectId} not found",
+                        Status = StatusCodes.Status404NotFound
+                    });
+
+                var workflowState = new WorkflowStateResponse
+                {
+                    ProjectId = projectId,
+                    ProjectName = project.Name,
+                    RequirementsAnalysis = await GetRequirementsAnalysisStateAsync(projectId, cancellationToken) ?? new RequirementsAnalysisState { Status = RequirementsAnalysisStatus.NotStarted },
+                    ProjectPlanning = await GetProjectPlanningStateAsync(projectId, cancellationToken) ?? new ProjectPlanningState { Status = ProjectPlanningStatus.NotStarted },
+                    StoryGeneration = await GetStoryGenerationStateAsync(projectId, cancellationToken) ?? new StoryGenerationState { Status = StoryGenerationStatus.NotStarted },
+                    PromptGeneration = await GetPromptGenerationStateAsync(projectId, cancellationToken) ?? new PromptGenerationState()
+                };
+
+                return Ok(workflowState);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving workflow status for project {ProjectId}", projectId);
+                return StatusCode(500, new ProblemDetails
+                {
+                    Title = "Error retrieving workflow status",
+                    Detail = ex.Message,
+                    Status = StatusCodes.Status500InternalServerError
+                });
+            }
+        }
+
+        private async Task<RequirementsAnalysisState> GetRequirementsAnalysisStateAsync(int projectId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var analysis = await _requirementsAnalysisService.GetAnalysisByProjectAsync(projectId, cancellationToken);
+                if (analysis == null)
+                    return null;
+
+                return new RequirementsAnalysisState
+                {
+                    AnalysisId = analysis.AnalysisId,
+                    Status = analysis.Status,
+                    ReviewId = analysis.ReviewId
+                };
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private async Task<ProjectPlanningState> GetProjectPlanningStateAsync(int projectId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var planning = await _projectPlanningService.GetPlanningByProjectAsync(projectId, cancellationToken);
+                if (planning == null)
+                    return null;
+
+                return new ProjectPlanningState
+                {
+                    PlanningId = planning.PlanningId,
+                    Status = planning.Status,
+                    ReviewId = planning.ReviewId
+                };
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private async Task<StoryGenerationState> GetStoryGenerationStateAsync(int projectId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var generation = await _storyGenerationService.GetGenerationByProjectAsync(projectId, cancellationToken);
+                if (generation == null)
+                    return null;
+
+                var storyCount = await _storyGenerationService.GetStoryCountAsync(Guid.Parse(generation.GenerationId), cancellationToken);
+
+                return new StoryGenerationState
+                {
+                    GenerationId = generation.GenerationId,
+                    Status = generation.Status,
+                    ReviewId = generation.ReviewId,
+                    StoryCount = storyCount
+                };
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private async Task<PromptGenerationState> GetPromptGenerationStateAsync(int projectId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var prompts = await _promptGenerationService.GetPromptsByProjectAsync(projectId, cancellationToken);
+                if (!prompts.Any())
+                    return null;
+
+                var storyPrompts = prompts.Select(p => new StoryPromptState
+                {
+                    StoryIndex = p.StoryIndex,
+                    StoryTitle = $"Story {p.StoryIndex + 1}", // Default title, can be enhanced to fetch from stories
+                    PromptId = p.PromptId,
+                    Status = p.Status,
+                    ReviewId = p.ReviewId
+                }).ToList();
+
+                return new PromptGenerationState { StoryPrompts = storyPrompts };
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         [HttpPost("test-scenario")]

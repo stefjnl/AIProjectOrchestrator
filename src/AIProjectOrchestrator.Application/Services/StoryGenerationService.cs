@@ -536,9 +536,16 @@ namespace AIProjectOrchestrator.Application.Services
             
             throw new InvalidOperationException($"Story generation with ID {storyGenerationId} not found");
         }
+
+        public async Task<StoryGeneration?> GetGenerationByProjectAsync(int projectId, CancellationToken cancellationToken = default)
+        {
+            var generations = await _storyGenerationRepository.GetByProjectIdAsync(projectId, cancellationToken);
+            // Return the latest/most recent generation (assuming one active per project for workflow state)
+            return generations.OrderByDescending(g => g.CreatedDate).FirstOrDefault();
+        }
         
         public async Task<List<UserStory>> GetAllStoriesAsync(
-            Guid storyGenerationId, 
+            Guid storyGenerationId,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -546,50 +553,37 @@ namespace AIProjectOrchestrator.Application.Services
             var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(storyGenerationId.ToString(), cancellationToken);
             if (storyGeneration != null)
             {
+                List<UserStory> stories;
                 if (!string.IsNullOrEmpty(storyGeneration.StoriesJson))
                 {
                     try
                     {
-                        return JsonSerializer.Deserialize<List<UserStory>>(storyGeneration.StoriesJson) ?? new List<UserStory>();
+                        stories = JsonSerializer.Deserialize<List<UserStory>>(storyGeneration.StoriesJson) ?? new List<UserStory>();
                     }
                     catch (JsonException ex)
                     {
                         _logger.LogError(ex, "Failed to deserialize stories JSON for generation {GenerationId}", storyGenerationId);
-                        return new List<UserStory>();
+                        stories = new List<UserStory>();
                     }
                 }
-                return storyGeneration.Stories.ToList();
+                else
+                {
+                    stories = storyGeneration.Stories.ToList();
+                }
+                
+                return stories;
             }
             
-            throw new InvalidOperationException($"Story generation with ID {storyGenerationId} not found");
+            return new List<UserStory>();
         }
-        
+
         public async Task<int> GetStoryCountAsync(
-            Guid storyGenerationId, 
+            Guid storyGenerationId,
             CancellationToken cancellationToken = default)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            
-            var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(storyGenerationId.ToString(), cancellationToken);
-            if (storyGeneration != null)
-            {
-                if (!string.IsNullOrEmpty(storyGeneration.StoriesJson))
-                {
-                    try
-                    {
-                        var stories = JsonSerializer.Deserialize<List<UserStory>>(storyGeneration.StoriesJson) ?? new List<UserStory>();
-                        return stories.Count;
-                    }
-                    catch (JsonException ex)
-                    {
-                        _logger.LogError(ex, "Failed to deserialize stories JSON for generation {GenerationId}", storyGenerationId);
-                        return 0;
-                    }
-                }
-                return storyGeneration.Stories.Count;
-            }
-            
-            throw new InvalidOperationException($"Story generation with ID {storyGenerationId} not found");
+            var stories = await GetAllStoriesAsync(storyGenerationId, cancellationToken);
+            return stories.Count;
         }
+
     }
 }

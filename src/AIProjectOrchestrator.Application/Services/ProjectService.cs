@@ -21,6 +21,11 @@ public class ProjectService(IProjectRepository projectRepository) : IProjectServ
         return await projectRepository.GetByIdAsync(id);
     }
 
+    public async Task<Project?> GetProjectAsync(int id, CancellationToken cancellationToken = default)
+    {
+        return await projectRepository.GetByIdAsync(id, cancellationToken);
+    }
+
     public async Task<Project> CreateProjectAsync(Project project)
     {
         return await projectRepository.AddAsync(project);

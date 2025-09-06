@@ -85,28 +85,39 @@
             }
 
             workflowManager = new WorkflowManager(projectId);
-            workflowManager.loadState();
+            
+            // Show loading state
+            document.body.classList.add('loading');
+            
+            // Load state from API instead of localStorage
+            try {
+                await workflowManager.loadStateFromAPI();
+                await workflowManager.checkApprovedStatus();
 
-            // Force initial state for new projects if stale pending without ID
-            if (workflowManager.state.requirementsPending && !workflowManager.state.requirementsAnalysisId) {
-                workflowManager.setRequirementsPending(false);
-                workflowManager.saveState();
-            }
+                // NEW: Check for stories management redirect
+                await checkStoriesManagementRedirect();
 
-            await workflowManager.checkApprovedStatus();
+                // Add progression checking
+                await checkStageProgression();
 
-            // NEW: Check for stories management redirect
-            await checkStoriesManagementRedirect();
+                // Enhanced initialization to load approved stories
+                await workflowManager.checkStoryPromptApprovals();
 
-            // Add progression checking
-            await checkStageProgression();
-
-            // Enhanced initialization to load approved stories
-            await workflowManager.checkStoryPromptApprovals();
-
-            // Initialize Stage 4 dynamic UI if enabled
-            if (workflowManager.state.enableDynamicStage4) {
-                initStage4UI();
+                // Initialize Stage 4 dynamic UI if enabled
+                if (workflowManager.state.enableDynamicStage4) {
+                    initStage4UI();
+                }
+                
+                // Start polling for updates
+                workflowManager.startPolling();
+                
+                // Hide loading state
+                document.body.classList.remove('loading');
+                
+            } catch (error) {
+                console.error('Failed to initialize workflow:', error);
+                alert('Failed to load workflow. Please try again.');
+                document.body.classList.remove('loading');
             }
 
         try {
@@ -128,26 +139,20 @@
             console.warn(`Using demo data due to API error: ${error.message}`);
         }
 
-            // Cross-tab sync
-            window.addEventListener('storage', function(event) {
-                if (event.key === workflowManager.storageKey) {
-                    location.reload();
+            // Page visibility listener for polling optimization
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden) {
+                    workflowManager.stopPolling();
+                } else {
+                    workflowManager.startPolling();
+                    // Refresh state when tab becomes visible
+                    workflowManager.refreshState().catch(console.error);
                 }
             });
-
-            // Page visibility refresh
-            document.addEventListener('visibilitychange', function() {
-                if (!document.hidden && workflowManager.state.enableDynamicStage4) {
-                    workflowManager.loadState();
-                    workflowManager.checkStoryPromptApprovals().then(() => {
-                        initStage4UI();
-                    }).catch(() => {
-                        workflowManager.recordApiFailure();
-                        if (workflowManager.isApiDisabled()) {
-                            showMaintenanceBanner();
-                        }
-                    });
-                }
+            
+            // Cleanup on page unload
+            window.addEventListener('beforeunload', function() {
+                workflowManager.stopPolling();
             });
         });
 
@@ -184,7 +189,6 @@
                 try {
                     // Set generating state
                     workflowManager.setRequirementsGenerating(true);
-                    workflowManager.saveState();
                     workflowManager.updateWorkflowUI();
 
                     const project = await window.APIClient.getProject(workflowManager.projectId);
@@ -199,7 +203,7 @@
                     workflowManager.setRequirementsAnalysisId(response.analysisId);
                     workflowManager.setRequirementsPending(true);
                     workflowManager.setRequirementsGenerating(false); // Clear generating state
-                    workflowManager.saveState();
+                    // Don't save state - will be updated by polling
                     workflowManager.updateWorkflowUI();
 
                     alert('Requirements analysis submitted for review. Please check the review queue.');
@@ -207,7 +211,6 @@
                 } catch (error) {
                     // Clear generating state on error
                     workflowManager.setRequirementsGenerating(false);
-                    workflowManager.saveState();
                     workflowManager.updateWorkflowUI();
                     throw error; // Re-throw to be handled by handleStageStart
                 }
@@ -219,13 +222,11 @@
             handleStageStart('startPlanningBtn', 'planningStatus', async () => {
                 // Set generating state
                 workflowManager.setPlanningGenerating(true);
-                workflowManager.saveState();
                 workflowManager.updateWorkflowUI();
 
                 const canCreate = await window.APIClient.canCreateProjectPlan(workflowManager.state.requirementsAnalysisId);
                 if (!canCreate) {
                     workflowManager.setPlanningGenerating(false); // Clear generating state
-                    workflowManager.saveState();
                     workflowManager.updateWorkflowUI();
                     throw new Error('Cannot start project planning. Requirements must be approved first.');
                 }
@@ -239,7 +240,7 @@
                 workflowManager.setProjectPlanningId(response.planningId);
                 workflowManager.setPlanningPending(true);
                 workflowManager.setPlanningGenerating(false); // Clear generating state
-                workflowManager.saveState();
+                // Don't save state - will be updated by polling
                 workflowManager.updateWorkflowUI();
 
                 alert('Project planning submitted for review. Please check the review queue.');
@@ -252,13 +253,11 @@
             handleStageStart('startStoriesBtn', 'storiesStatus', async () => {
                 // Set generating state
                 workflowManager.setStoriesGenerating(true);
-                workflowManager.saveState();
                 workflowManager.updateWorkflowUI();
 
                 const canGenerate = await window.APIClient.canGenerateStories(workflowManager.state.projectPlanningId);
                 if (!canGenerate) {
                     workflowManager.setStoriesGenerating(false); // Clear generating state
-                    workflowManager.saveState();
                     workflowManager.updateWorkflowUI();
                     throw new Error('Cannot generate stories. Project planning must be approved first.');
                 }
@@ -271,7 +270,7 @@
                 workflowManager.setStoryGenerationId(response.generationId);
                 workflowManager.setStoriesPending(true);
                 workflowManager.setStoriesGenerating(false); // Clear generating state
-                workflowManager.saveState();
+                // Don't save state - will be updated by polling
                 workflowManager.updateWorkflowUI();
 
                 workflowManager.showTemporaryMessage('User stories submitted for review. Check the review queue, then return here to continue.', 'info');
@@ -294,7 +293,7 @@
                 const response = await window.APIClient.generateCode(request);
                 workflowManager.setCodeGenerationId(response.generationId);
                 // This is the final stage, so it doesn't go to pending review in the same way
-                workflowManager.saveState();
+                // Don't save state - will be updated by polling
                 workflowManager.updateWorkflowUI();
 
                 alert('Code generation has been completed!');

@@ -26,60 +26,6 @@
     <script>
         let workflowManager;
 
-        // Mock stories data for demo (non-persisted)
-        const MOCK_STORIES = [
-            {
-                id: 1,
-                title: 'User Registration',
-                userType: 'New User',
-                wantStatement: 'to register an account',
-                soThatStatement: 'to access personalized features',
-                acceptanceCriteria: ['Validate email format', 'Password strength requirements', 'Email confirmation sent', 'User profile created'],
-                priority: 'High',
-                storyPoints: 5
-            },
-            {
-                id: 2,
-                title: 'User Login',
-                userType: 'Returning User',
-                wantStatement: 'to log into their account',
-                soThatStatement: 'to access their shopping history and preferences',
-                acceptanceCriteria: ['Email/password validation', 'Remember me functionality', 'Failed login attempts tracking', 'Session management'],
-                priority: 'High',
-                storyPoints: 3
-            },
-            {
-                id: 3,
-                title: 'Product Browse',
-                userType: 'Shopper',
-                wantStatement: 'to browse available products',
-                soThatStatement: 'to find items they are interested in purchasing',
-                acceptanceCriteria: ['Category filtering', 'Search functionality', 'Product sorting', 'Pagination for large catalogs'],
-                priority: 'Medium',
-                storyPoints: 8
-            },
-            {
-                id: 4,
-                title: 'Shopping Cart',
-                userType: 'Customer',
-                wantStatement: 'to add items to their shopping cart',
-                soThatStatement: 'to review and modify their selections before checkout',
-                acceptanceCriteria: ['Add/remove items', 'Quantity adjustments', 'Cart persistence across sessions', 'Cart total calculation'],
-                priority: 'High',
-                storyPoints: 5
-            },
-            {
-                id: 5,
-                title: 'Checkout Process',
-                userType: 'Customer',
-                wantStatement: 'to complete their purchase',
-                soThatStatement: 'to receive their ordered products',
-                acceptanceCriteria: ['Payment processing', 'Shipping address validation', 'Order confirmation', 'Email receipt'],
-                priority: 'Critical',
-                storyPoints: 13
-            }
-        ];
-
         window.addEventListener('DOMContentLoaded', async function() {
             const urlParams = new URLSearchParams(window.location.search);
             const projectId = urlParams.get('projectId');
@@ -91,38 +37,38 @@
             }
 
             workflowManager = new WorkflowManager(projectId);
-            workflowManager.loadState();
-
-            // Load project info (fallback to mock if API fails)
+            
+            // Show loading state
+            document.body.classList.add('loading');
+            
             try {
+                // Load state from API instead of localStorage
+                await workflowManager.loadStateFromAPI();
+                
+                // Load project info
                 const project = await window.APIClient.getProject(projectId);
                 workflowManager.recordApiSuccess();
                 document.getElementById('projectTitle').textContent = project.name;
                 document.getElementById('projectDescription').textContent = project.description;
-            } catch (error) {
-                workflowManager.recordApiFailure();
-                if (workflowManager.isApiDisabled()) {
-                    showMaintenanceBanner();
-                }
-                document.getElementById('projectTitle').textContent = 'Demo Project';
-                document.getElementById('projectDescription').textContent = 'This is a demonstration of the Stories & Prompts Management interface.';
-                console.warn(`Using demo project data due to API error: ${error.message}`);
-            }
 
-            // Load and render stories
-            await loadAndRenderStories();
+                // Load and render stories
+                await loadAndRenderStories();
+
+                // Start polling for updates
+                workflowManager.startPolling();
+                
+                // Hide loading state
+                document.body.classList.remove('loading');
+                
+            } catch (error) {
+                console.error('Failed to initialize stories overview:', error);
+                showError('Failed to load stories. Please try again.');
+                document.body.classList.remove('loading');
+            }
 
             // Set up back button
             document.getElementById('backToWorkflow').addEventListener('click', function() {
-                workflowManager.saveState();
                 window.location.href = `workflow.html?projectId=${workflowManager.projectId}`;
-            });
-
-            // Cross-tab sync
-            window.addEventListener('storage', function(event) {
-                if (event.key === workflowManager.storageKey) {
-                    location.reload();
-                }
             });
 
             // Trigger sync with workflow page
@@ -133,8 +79,13 @@
             // Page visibility refresh
             document.addEventListener('visibilitychange', function() {
                 if (!document.hidden && workflowManager.state.enableStoriesMVP) {
-                    loadAndRenderStories();
+                    workflowManager.refreshState().then(loadAndRenderStories).catch(console.error);
                 }
+            });
+            
+            // Cleanup on page unload
+            window.addEventListener('beforeunload', function() {
+                workflowManager.stopPolling();
             });
         });
 
@@ -144,212 +95,201 @@
                 return;
             }
 
-            let stories = [];
-            let isDemoMode = false;
-
             try {
-                stories = await window.APIClient.getApprovedStories(workflowManager.state.storyGenerationId);
+                // Remove MOCK_STORIES fallback - use API only
+                if (!workflowManager.state.storyGenerationId) {
+                    showError('No stories available. Please complete the story generation stage first.');
+                    return;
+                }
+                
+                // Fetch stories from API
+                const stories = await window.APIClient.getStories(workflowManager.state.storyGenerationId);
                 workflowManager.recordApiSuccess();
-                isDemoMode = false;
+                
+                if (!stories || stories.length === 0) {
+                    showError('No stories found for this project.');
+                    return;
+                }
+                
+                // Get prompt statuses for each story
+                const storyPrompts = workflowManager.state.storyPrompts || [];
+                
+                renderStoriesGrid(stories, storyPrompts);
+                updateSummaryStats(stories, storyPrompts);
+                
             } catch (error) {
+                console.error('Error loading stories:', error);
                 workflowManager.recordApiFailure();
                 if (workflowManager.isApiDisabled()) {
                     showMaintenanceBanner();
                 }
-                console.warn('API failed, using demo data:', error.message);
-                stories = MOCK_STORIES;
-                isDemoMode = true;
-                // Show demo mode banner
-                document.getElementById('demoBanner') ? null : createDemoBanner();
+                showError('Failed to load stories from the server.');
             }
-
-            // Handle empty approved stories case (backend success but no data)
-            if (!isDemoMode && stories.length === 0) {
-                const projectId = workflowManager.projectId;
-                document.getElementById('storiesContainer').innerHTML = `
-                    <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 8px; margin: 20px;">
-                        <h3>No Approved Stories Found</h3>
-                        <p>The API returned no approved stories for this generation. This may indicate a backend issue or that stories need to be regenerated.</p>
-                        <div style="margin-top: 20px;">
-                            <button onclick="loadAndRenderStories()" class="primary-btn" style="margin-right: 10px;">Retry Loading Stories</button>
-                            <button onclick="window.location.href='workflow.html?projectId=${projectId}'" class="secondary-btn">Back to Workflow</button>
-                        </div>
-                    </div>
-                `;
-                updateSummaryStats(0);
-                return;
-            }
-
-            // Update state (don't persist mocks)
-            if (!isDemoMode) {
-                workflowManager.state.approvedStories = stories;
-                workflowManager.saveState();
-            }
-
-            renderStoriesGrid(stories, isDemoMode);
         }
 
-        function createDemoBanner() {
-            const banner = document.createElement('div');
-            banner.id = 'demoBanner';
-            banner.style.cssText = 'background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 10px; margin: 10px; border-radius: 4px; text-align: center;';
-            banner.innerHTML = `
-                <strong>Demo Mode Active</strong> - Using mock data (not saved to backend). 
-                <button onclick="loadAndRenderStories()" style="margin-left: 10px; padding: 2px 8px; background: #ffc107; border: none; cursor: pointer;">Retry API</button>
-            `;
-            document.querySelector('.header').parentNode.insertBefore(banner, document.querySelector('.header').nextSibling);
-        }
-
-        function renderStoriesGrid(stories, isDemoMode = false) {
+        function renderStoriesGrid(stories, storyPrompts) {
             const container = document.getElementById('storiesContainer');
-            if (!container) return;
-
-            let html = '';
-            stories.forEach((story, index) => {
-                const status = workflowManager.getStoryPromptStatus(index);
-                const isApproved = status === 'Approved';
+            
+            container.innerHTML = stories.map((story, index) => {
+                const storyPrompt = storyPrompts.find(sp => sp.storyIndex === index);
+                const status = storyPrompt?.status || 'Not Started';
+                const statusClass = getStatusClass(status);
                 
-                html += `
-                    <div class="story-card">
-                        <h3>${escapeHTML(story.title)}</h3>
-                        <p><strong>${escapeHTML(story.userType)}</strong> wants ${escapeHTML(story.wantStatement)} so that ${escapeHTML(story.soThatStatement)}</p>
-                        <ul class="acceptance-criteria">
-                            ${story.acceptanceCriteria.map(crit => `<li>${escapeHTML(crit)}</li>`).join('')}
-                        </ul>
-                        <div class="story-meta">
-                            <span>Priority: ${escapeHTML(story.priority)}</span>
-                            <span>Points: ${story.storyPoints}</span>
+                return `
+                    <div class="story-card" data-story-index="${index}">
+                        <div class="story-header">
+                            <h3>Story ${index + 1}: ${story.title}</h3>
+                            <span class="status-badge ${statusClass}">${status}</span>
                         </div>
-                        <div class="prompt-status" id="status-${index}">${status}</div>
-                        <div class="prompt-actions">
-                            <button id="gen-${index}" onclick="generateStoryPrompt(${index})" ${status !== 'Not Started' && status !== 'Rejected' ? 'disabled' : ''}>
-                                ${status === 'Not Started' ? 'Generate Prompt' : status === 'Rejected' ? 'Retry' : 'Processing...'}
+                        <div class="story-content">
+                            <p><strong>As a</strong> ${story.asA}</p>
+                            <p><strong>I want</strong> ${story.iWant}</p>
+                            <p><strong>So that</strong> ${story.soThat}</p>
+                        </div>
+                        <div class="story-actions">
+                            <button onclick="generatePrompt(${index})" 
+                                    ${storyPrompt?.isApproved ? 'disabled' : ''}>
+                                ${storyPrompt?.isApproved ? 'Prompt Generated' : 'Generate Prompt'}
                             </button>
-                            <button id="view-${index}" onclick="viewStoryPrompt(${index})" style="display: ${isApproved ? 'inline' : 'none'}; margin-left: 10px;">
-                                View Prompt
-                            </button>
+                            ${storyPrompt?.isApproved ? 
+                                `<button onclick="viewPrompt('${storyPrompt.promptId}')">View Prompt</button>` : 
+                                ''}
                         </div>
                     </div>
                 `;
-            });
+            }).join('');
 
-            container.innerHTML = html;
-
-            // Update statuses and buttons
-            stories.forEach((_, index) => {
-                updateStoryUI(index);
-            });
-
-            // Update summary
-            updateSummaryStats(stories.length);
+            updateSummaryStats(stories, storyPrompts);
         }
-
-        function updateStoryUI(index) {
-            const statusEl = document.getElementById(`status-${index}`);
-            const genBtn = document.getElementById(`gen-${index}`);
-            const viewBtn = document.getElementById(`view-${index}`);
-            
-            if (!statusEl || !genBtn) return;
-
-            const status = workflowManager.getStoryPromptStatus(index);
-            statusEl.textContent = status;
-            statusEl.className = `prompt-status ${status.toLowerCase().replace(' ', '-')}`;
-
-            if (status === 'Not Started' || status === 'Rejected') {
-                genBtn.disabled = false;
-                genBtn.textContent = status === 'Not Started' ? 'Generate Prompt' : 'Retry';
-                genBtn.onclick = () => generateStoryPrompt(index);
-                if (viewBtn) viewBtn.style.display = 'none';
-            } else if (status === 'Pending Review') {
-                genBtn.disabled = true;
-                genBtn.textContent = 'Processing...';
-                if (viewBtn) viewBtn.style.display = 'none';
-            } else if (status === 'Approved') {
-                genBtn.disabled = true;
-                genBtn.textContent = 'Approved';
-                if (viewBtn) viewBtn.style.display = 'inline';
+        
+        function getStatusClass(status) {
+            switch(status.toLowerCase()) {
+                case 'approved': return 'success';
+                case 'pending review': return 'warning';
+                case 'not started': return 'secondary';
+                default: return 'danger';
             }
         }
 
-        function updateSummaryStats(totalStories) {
+        function updateSummaryStats(stories, storyPrompts) {
             const summaryEl = document.getElementById('summaryStats');
             if (!summaryEl) return;
 
             const progress = workflowManager.getPromptCompletionProgress();
             summaryEl.innerHTML = `
-                <strong>${progress.approved}/${totalStories} prompts approved</strong>
+                <strong>${progress.completed}/${progress.total} prompts approved</strong>
                 ${progress.pending > 0 ? ` | ${progress.pending} pending review` : ''}
-                ${progress.generated > 0 ? ` | ${progress.generated} generated` : ''}
+                ${progress.total > 0 ? ` | ${Math.round(progress.percentage)}% complete` : ''}
             `;
         }
 
-        async function generateStoryPrompt(storyIndex) {
+        async function generatePrompt(storyIndex) {
             if (!workflowManager.state.storiesApproved) {
                 alert('Stories must be approved before generating prompts.');
                 return;
             }
 
-            const genBtn = document.getElementById(`gen-${storyIndex}`);
-            const statusEl = document.getElementById(`status-${storyIndex}`);
-            
-            genBtn.disabled = true;
-            genBtn.textContent = 'Generating...';
-            statusEl.textContent = 'Generating...';
-
             try {
-                // Check prerequisites
-                const canGenerate = await window.APIClient.canGeneratePrompt(
-                    workflowManager.state.storyGenerationId, 
-                    storyIndex
-                );
-                if (!canGenerate) {
-                    throw new Error('Prerequisites not met for prompt generation.');
-                }
-
-                // Ensure storyGenerationId is a valid Guid string
-                let storyGenId = workflowManager.state.storyGenerationId;
-                if (!storyGenId || storyGenId === 'unknown' || storyGenId === 'null') {
-                    // Use a mock Guid for demo/testing
-                    storyGenId = '00000000-0000-0000-0000-000000000000';
-                    console.warn('Using mock storyGenerationId for prompt generation:', storyGenId);
-                }
-
                 const request = {
-                    storyGenerationId: storyGenId,
+                    storyGenerationId: workflowManager.state.storyGenerationId,
                     storyIndex: storyIndex,
                     technicalPreferences: {}
                 };
-
-                console.log('Sending prompt generation request:', request);
+                
                 const response = await window.APIClient.generatePrompt(request);
                 workflowManager.recordApiSuccess();
                 
-                // Set prompt tracking
-                workflowManager.setStoryPromptId(storyIndex, response.promptId, response.reviewId);
-                statusEl.textContent = 'Pending Review';
-                genBtn.textContent = 'Pending Review';
-                genBtn.disabled = true;
-
-                // Single poll after 5 seconds to check initial status
-                setTimeout(async () => {
-                    try {
-                        await workflowManager.checkStoryPromptApprovals();
-                        updateStoryUI(storyIndex);
-                    } catch (error) {
-                        console.error('Poll failed:', error);
-                    }
-                }, 5000);
-
+                // Don't save state - will be updated by polling
+                alert('Prompt generation submitted for review. Please check the review queue.');
+                
+                // Refresh the view
+                await workflowManager.refreshState();
+                await loadAndRenderStories();
+                
             } catch (error) {
+                console.error('Error generating prompt:', error);
                 workflowManager.recordApiFailure();
                 if (workflowManager.isApiDisabled()) {
                     showMaintenanceBanner();
                 }
-                alert(`Failed to generate prompt: ${error.message}`);
-                genBtn.disabled = false;
-                genBtn.textContent = 'Retry';
-                statusEl.textContent = 'Failed';
+                alert('Error generating prompt: ' + error.message);
             }
+        }
+        
+        async function viewPrompt(promptId) {
+            try {
+                const prompt = await window.APIClient.getPrompt(promptId);
+                workflowManager.recordApiSuccess();
+                
+                // Simple inline view for MVP
+                const viewDiv = document.createElement('div');
+                viewDiv.id = 'tempPromptView';
+                viewDiv.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;';
+                
+                viewDiv.innerHTML = `
+                    <div style="background: white; padding: 20px; max-width: 80%; max-height: 80%; overflow: auto; border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                            <h3>Generated Prompt</h3>
+                            <button onclick="closeTempView()" style="background: #dc3545; color: white; border: none; padding: 5px 10px; cursor: pointer;">Close</button>
+                        </div>
+                        <pre style="white-space: pre-wrap; background: #f8f9fa; padding: 15px; border-radius: 4px; max-height: 400px; overflow: auto;">${escapeHTML(prompt.generatedPrompt)}</pre>
+                        <div style="margin-top: 15px; text-align: right;">
+                            <button onclick="copyPrompt('${promptId}')" style="margin-right: 10px; padding: 5px 10px;">Copy</button>
+                            <button onclick="downloadSinglePrompt('${promptId}')" style="padding: 5px 10px;">Download .md</button>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(viewDiv);
+                
+            } catch (error) {
+                workflowManager.recordApiFailure();
+                alert(`Failed to load prompt: ${error.message}`);
+            }
+        }
+        
+        function closeTempView() {
+            const view = document.getElementById('tempPromptView');
+            if (view) view.remove();
+        }
+
+        function copyPrompt(promptId) {
+            // For MVP, copy from the displayed content
+            const pre = document.querySelector('#tempPromptView pre');
+            if (pre) {
+                navigator.clipboard.writeText(pre.textContent).then(() => {
+                    alert('Prompt copied to clipboard!');
+                }).catch(() => {
+                    alert('Failed to copy - please select and copy manually.');
+                });
+            }
+        }
+
+        async function downloadSinglePrompt(promptId) {
+            try {
+                const prompt = await window.APIClient.getPrompt(promptId);
+                workflowManager.recordApiSuccess();
+                
+                const blob = new Blob([prompt.generatedPrompt], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `prompt-${promptId}.md`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                closeTempView();
+            } catch (error) {
+                workflowManager.recordApiFailure();
+                alert(`Download failed: ${error.message}`);
+            }
+        }
+
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
         }
 
         async function viewStoryPrompt(storyIndex) {
@@ -437,6 +377,17 @@
             const div = document.createElement('div');
             div.textContent = str;
             return div.innerHTML;
+        }
+
+        // Maintenance banner for circuit breaker
+        function showError(message) {
+            document.getElementById('storiesContainer').innerHTML = `
+                <div style="text-align: center; padding: 40px; background: #f8f9fa; border-radius: 8px; margin: 20px;">
+                    <h3>Error Loading Stories</h3>
+                    <p>${message}</p>
+                    <button onclick="loadAndRenderStories()" class="primary-btn">Retry</button>
+                </div>
+            `;
         }
 
         // Maintenance banner for circuit breaker

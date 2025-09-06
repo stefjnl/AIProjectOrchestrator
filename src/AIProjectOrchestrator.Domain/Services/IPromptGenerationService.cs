@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using AIProjectOrchestrator.Domain.Models.PromptGeneration;
+using AIProjectOrchestrator.Domain.Entities;
 
 namespace AIProjectOrchestrator.Domain.Services
 {
@@ -27,6 +28,11 @@ namespace AIProjectOrchestrator.Domain.Services
 
         Task<PromptGenerationResponse?> GetPromptAsync(
             Guid promptId,
+            CancellationToken cancellationToken = default);
+
+        // Get prompts by project for workflow state
+        Task<IEnumerable<PromptGeneration>> GetPromptsByProjectAsync(
+            int projectId,
             CancellationToken cancellationToken = default);
     }
 }
