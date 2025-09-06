@@ -3,6 +3,11 @@ class WorkflowManager {
         this.projectId = projectId;
         this.storageKey = `workflow_${projectId}`;
         this.state = {
+            version: 1, // State version for validation
+            apiFailures: 0, // Circuit breaker counter
+            enableDynamicStage4: true, // Feature flag for Task 1
+            enableStoriesMVP: true, // Feature flag for Task 2
+            // Existing state fields
             requirementsAnalysisId: null,
             projectPlanningId: null,
             storyGenerationId: null,
@@ -22,6 +27,7 @@ class WorkflowManager {
             storyPrompts: {}, // { storyIndex: { promptId, status, pending, approved } }
             approvedStories: [] // Cache of approved story data
         };
+        this.isUpdating = false; // Lock for async state updates
 
         // Periodically check for approved reviews to update the workflow state
         setInterval(() => this.checkApprovedStatus(), 5000); // 5 seconds
@@ -147,6 +153,22 @@ class WorkflowManager {
         this.saveState();
     }
 
+    // Async state update with lock to prevent races
+    async updateState(updater) {
+        if (this.isUpdating) {
+            console.log('State update locked - skipping');
+            return false;
+        }
+        this.isUpdating = true;
+        try {
+            await updater();
+            this.saveState();
+            return true;
+        } finally {
+            this.isUpdating = false;
+        }
+    }
+
     saveState() {
         localStorage.setItem(this.storageKey, JSON.stringify(this.state));
     }
@@ -154,7 +176,23 @@ class WorkflowManager {
     loadState() {
         const savedState = localStorage.getItem(this.storageKey);
         if (savedState) {
-            this.state = { ...this.state, ...JSON.parse(savedState) };
+            try {
+                const parsed = JSON.parse(savedState);
+                // Validate version and structure
+                if (!parsed.version || parsed.version < 1) {
+                    throw new Error('Invalid state version');
+                }
+                // Merge with defaults, preserving new fields
+                this.state = { ...this.state, ...parsed };
+            } catch (error) {
+                console.warn('Corrupted state detected:', error.message);
+                if (confirm('Workflow state appears corrupted. Reset to defaults?')) {
+                    this.resetState();
+                } else {
+                    // Fallback to in-memory defaults
+                    this.state = { ...this.state };
+                }
+            }
         }
 
         // Fix for stale state: if pending but no ID, reset to initial
@@ -165,6 +203,15 @@ class WorkflowManager {
             this.saveState();
         }
         // Extend to other stages if needed, but focus on requirements for now
+
+        // Circuit breaker auto-reset
+        if (this.state.apiFailures > 0) {
+            setTimeout(() => {
+                this.state.apiFailures = 0;
+                this.saveState();
+                console.log('Circuit breaker reset');
+            }, 60000); // 1 minute
+        }
     }
 
     setRequirementsAnalysisId(id) {
@@ -318,6 +365,10 @@ class WorkflowManager {
     resetState() {
         localStorage.removeItem(this.storageKey);
         this.state = {
+            version: 1,
+            apiFailures: 0,
+            enableDynamicStage4: true,
+            enableStoriesMVP: true,
             requirementsAnalysisId: null,
             projectPlanningId: null,
             storyGenerationId: null,
@@ -335,8 +386,45 @@ class WorkflowManager {
             storyPrompts: {},
             approvedStories: []
         };
+        this.isUpdating = false;
         this.saveState();
         this.updateWorkflowUI();
+    }
+
+    // Circuit breaker check
+    isApiDisabled() {
+        return this.state.apiFailures >= 3;
+    }
+
+    // Increment failure and check breaker
+    recordApiFailure() {
+        this.state.apiFailures++;
+        if (this.isApiDisabled()) {
+            console.warn('API circuit breaker tripped');
+            // Show maintenance banner (page-specific implementation needed)
+            if (typeof showMaintenanceBanner === 'function') {
+                showMaintenanceBanner();
+            }
+        }
+        this.saveState();
+    }
+
+    // Reset failure counter on success
+    recordApiSuccess() {
+        if (this.state.apiFailures > 0) {
+            this.state.apiFailures = 0;
+            this.saveState();
+        }
+    }
+
+    // State cleanup for storage limits (basic)
+    cleanupOldStates() {
+        const keys = Object.keys(localStorage).filter(k => k.startsWith('workflow_'));
+        if (keys.length > 10) {
+            // Keep newest 10, remove oldest
+            keys.slice(0, -10).forEach(k => localStorage.removeItem(k));
+            console.log('Cleaned up old workflow states');
+        }
     }
 
     // Add these methods to existing WorkflowManager class

@@ -15,18 +15,70 @@
             <p id="projectDescription">Stories management workspace for prompt generation.</p>
         </div>
 
-        <!-- Placeholder Content -->
-        <div class="stories-placeholder">
-            <h2>Stories Management Workspace — Under Construction</h2>
-            <p>This interface is currently being developed. For now, it serves as a navigation point in the workflow.</p>
-            <button id="backToWorkflow" class="primary-btn">← Back to Project Workflow</button>
-        </div>
+        <!-- Stories Management Interface -->
+        <div id="summaryStats" style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 4px;"></div>
+        <div id="storiesContainer" class="stories-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0;"></div>
+        <button id="backToWorkflow" class="primary-btn" style="margin: 20px 0;">← Back to Project Workflow</button>
     </div>
 
     <script src="/js/api.js"></script>
     <script src="/js/workflow.js"></script>
     <script>
         let workflowManager;
+
+        // Mock stories data for demo (non-persisted)
+        const MOCK_STORIES = [
+            {
+                id: 1,
+                title: 'User Registration',
+                userType: 'New User',
+                wantStatement: 'to register an account',
+                soThatStatement: 'to access personalized features',
+                acceptanceCriteria: ['Validate email format', 'Password strength requirements', 'Email confirmation sent', 'User profile created'],
+                priority: 'High',
+                storyPoints: 5
+            },
+            {
+                id: 2,
+                title: 'User Login',
+                userType: 'Returning User',
+                wantStatement: 'to log into their account',
+                soThatStatement: 'to access their shopping history and preferences',
+                acceptanceCriteria: ['Email/password validation', 'Remember me functionality', 'Failed login attempts tracking', 'Session management'],
+                priority: 'High',
+                storyPoints: 3
+            },
+            {
+                id: 3,
+                title: 'Product Browse',
+                userType: 'Shopper',
+                wantStatement: 'to browse available products',
+                soThatStatement: 'to find items they are interested in purchasing',
+                acceptanceCriteria: ['Category filtering', 'Search functionality', 'Product sorting', 'Pagination for large catalogs'],
+                priority: 'Medium',
+                storyPoints: 8
+            },
+            {
+                id: 4,
+                title: 'Shopping Cart',
+                userType: 'Customer',
+                wantStatement: 'to add items to their shopping cart',
+                soThatStatement: 'to review and modify their selections before checkout',
+                acceptanceCriteria: ['Add/remove items', 'Quantity adjustments', 'Cart persistence across sessions', 'Cart total calculation'],
+                priority: 'High',
+                storyPoints: 5
+            },
+            {
+                id: 5,
+                title: 'Checkout Process',
+                userType: 'Customer',
+                wantStatement: 'to complete their purchase',
+                soThatStatement: 'to receive their ordered products',
+                acceptanceCriteria: ['Payment processing', 'Shipping address validation', 'Order confirmation', 'Email receipt'],
+                priority: 'Critical',
+                storyPoints: 13
+            }
+        ];
 
         window.addEventListener('DOMContentLoaded', async function() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -44,23 +96,337 @@
             // Load project info (fallback to mock if API fails)
             try {
                 const project = await window.APIClient.getProject(projectId);
+                workflowManager.recordApiSuccess();
                 document.getElementById('projectTitle').textContent = project.name;
                 document.getElementById('projectDescription').textContent = project.description;
             } catch (error) {
+                workflowManager.recordApiFailure();
+                if (workflowManager.isApiDisabled()) {
+                    showMaintenanceBanner();
+                }
                 document.getElementById('projectTitle').textContent = 'Demo Project';
                 document.getElementById('projectDescription').textContent = 'This is a demonstration of the Stories & Prompts Management interface.';
+                console.warn(`Using demo project data due to API error: ${error.message}`);
             }
+
+            // Load and render stories
+            await loadAndRenderStories();
 
             // Set up back button
             document.getElementById('backToWorkflow').addEventListener('click', function() {
-                window.location.href = `workflow.html?projectId=${workflowManager.projectId}&fromStories=true`;
+                workflowManager.saveState();
+                window.location.href = `workflow.html?projectId=${workflowManager.projectId}`;
+            });
+
+            // Cross-tab sync
+            window.addEventListener('storage', function(event) {
+                if (event.key === workflowManager.storageKey) {
+                    location.reload();
+                }
             });
 
             // Trigger sync with workflow page
             if (typeof workflowManager.syncWithStoriesPage === 'function') {
                 await workflowManager.syncWithStoriesPage();
             }
+
+            // Page visibility refresh
+            document.addEventListener('visibilitychange', function() {
+                if (!document.hidden && workflowManager.state.enableStoriesMVP) {
+                    loadAndRenderStories();
+                }
+            });
         });
+
+        async function loadAndRenderStories() {
+            if (!workflowManager.state.storiesApproved || !workflowManager.state.storyGenerationId) {
+                document.getElementById('storiesContainer').innerHTML = '<p>Complete Stage 3 (User Stories) first to manage prompts.</p>';
+                return;
+            }
+
+            let stories = [];
+            let isDemoMode = false;
+
+            try {
+                stories = await window.APIClient.getApprovedStories(workflowManager.state.storyGenerationId);
+                workflowManager.recordApiSuccess();
+                isDemoMode = false;
+            } catch (error) {
+                workflowManager.recordApiFailure();
+                if (workflowManager.isApiDisabled()) {
+                    showMaintenanceBanner();
+                }
+                console.warn('API failed, using demo data:', error.message);
+                stories = MOCK_STORIES;
+                isDemoMode = true;
+                // Show demo mode banner
+                document.getElementById('demoBanner') ? null : createDemoBanner();
+            }
+
+            // Update state (don't persist mocks)
+            if (!isDemoMode) {
+                workflowManager.state.approvedStories = stories;
+                workflowManager.saveState();
+            }
+
+            renderStoriesGrid(stories, isDemoMode);
+        }
+
+        function createDemoBanner() {
+            const banner = document.createElement('div');
+            banner.id = 'demoBanner';
+            banner.style.cssText = 'background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 10px; margin: 10px; border-radius: 4px; text-align: center;';
+            banner.innerHTML = `
+                <strong>Demo Mode Active</strong> - Using mock data (not saved to backend). 
+                <button onclick="loadAndRenderStories()" style="margin-left: 10px; padding: 2px 8px; background: #ffc107; border: none; cursor: pointer;">Retry API</button>
+            `;
+            document.querySelector('.header').parentNode.insertBefore(banner, document.querySelector('.header').nextSibling);
+        }
+
+        function renderStoriesGrid(stories, isDemoMode = false) {
+            const container = document.getElementById('storiesContainer');
+            if (!container) return;
+
+            let html = '';
+            stories.forEach((story, index) => {
+                const status = workflowManager.getStoryPromptStatus(index);
+                const isApproved = status === 'Approved';
+                
+                html += `
+                    <div class="story-card">
+                        <h3>${escapeHTML(story.title)}</h3>
+                        <p><strong>${escapeHTML(story.userType)}</strong> wants ${escapeHTML(story.wantStatement)} so that ${escapeHTML(story.soThatStatement)}</p>
+                        <ul class="acceptance-criteria">
+                            ${story.acceptanceCriteria.map(crit => `<li>${escapeHTML(crit)}</li>`).join('')}
+                        </ul>
+                        <div class="story-meta">
+                            <span>Priority: ${escapeHTML(story.priority)}</span>
+                            <span>Points: ${story.storyPoints}</span>
+                        </div>
+                        <div class="prompt-status" id="status-${index}">${status}</div>
+                        <div class="prompt-actions">
+                            <button id="gen-${index}" onclick="generateStoryPrompt(${index})" ${status !== 'Not Started' && status !== 'Rejected' ? 'disabled' : ''}>
+                                ${status === 'Not Started' ? 'Generate Prompt' : status === 'Rejected' ? 'Retry' : 'Processing...'}
+                            </button>
+                            <button id="view-${index}" onclick="viewStoryPrompt(${index})" style="display: ${isApproved ? 'inline' : 'none'}; margin-left: 10px;">
+                                View Prompt
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+
+            // Update statuses and buttons
+            stories.forEach((_, index) => {
+                updateStoryUI(index);
+            });
+
+            // Update summary
+            updateSummaryStats(stories.length);
+        }
+
+        function updateStoryUI(index) {
+            const statusEl = document.getElementById(`status-${index}`);
+            const genBtn = document.getElementById(`gen-${index}`);
+            const viewBtn = document.getElementById(`view-${index}`);
+            
+            if (!statusEl || !genBtn) return;
+
+            const status = workflowManager.getStoryPromptStatus(index);
+            statusEl.textContent = status;
+            statusEl.className = `prompt-status ${status.toLowerCase().replace(' ', '-')}`;
+
+            if (status === 'Not Started' || status === 'Rejected') {
+                genBtn.disabled = false;
+                genBtn.textContent = status === 'Not Started' ? 'Generate Prompt' : 'Retry';
+                genBtn.onclick = () => generateStoryPrompt(index);
+                if (viewBtn) viewBtn.style.display = 'none';
+            } else if (status === 'Pending Review') {
+                genBtn.disabled = true;
+                genBtn.textContent = 'Processing...';
+                if (viewBtn) viewBtn.style.display = 'none';
+            } else if (status === 'Approved') {
+                genBtn.disabled = true;
+                genBtn.textContent = 'Approved';
+                if (viewBtn) viewBtn.style.display = 'inline';
+            }
+        }
+
+        function updateSummaryStats(totalStories) {
+            const summaryEl = document.getElementById('summaryStats');
+            if (!summaryEl) return;
+
+            const progress = workflowManager.getPromptCompletionProgress();
+            summaryEl.innerHTML = `
+                <strong>${progress.approved}/${totalStories} prompts approved</strong>
+                ${progress.pending > 0 ? ` | ${progress.pending} pending review` : ''}
+                ${progress.generated > 0 ? ` | ${progress.generated} generated` : ''}
+            `;
+        }
+
+        async function generateStoryPrompt(storyIndex) {
+            if (!workflowManager.state.storiesApproved) {
+                alert('Stories must be approved before generating prompts.');
+                return;
+            }
+
+            const genBtn = document.getElementById(`gen-${storyIndex}`);
+            const statusEl = document.getElementById(`status-${storyIndex}`);
+            
+            genBtn.disabled = true;
+            genBtn.textContent = 'Generating...';
+            statusEl.textContent = 'Generating...';
+
+            try {
+                // Check prerequisites
+                const canGenerate = await window.APIClient.canGeneratePrompt(
+                    workflowManager.state.storyGenerationId, 
+                    storyIndex
+                );
+                if (!canGenerate) {
+                    throw new Error('Prerequisites not met for prompt generation.');
+                }
+
+                const request = {
+                    storyGenerationId: workflowManager.state.storyGenerationId,
+                    storyIndex: storyIndex,
+                    technicalPreferences: {}
+                };
+
+                const response = await window.APIClient.generatePrompt(request);
+                workflowManager.recordApiSuccess();
+                
+                // Set prompt tracking
+                workflowManager.setStoryPromptId(storyIndex, response.promptId);
+                statusEl.textContent = 'Pending Review';
+                genBtn.textContent = 'Pending Review';
+                genBtn.disabled = true;
+
+                // Single poll after 5 seconds to check initial status
+                setTimeout(async () => {
+                    try {
+                        await workflowManager.checkStoryPromptApprovals();
+                        updateStoryUI(storyIndex);
+                    } catch (error) {
+                        console.error('Poll failed:', error);
+                    }
+                }, 5000);
+
+            } catch (error) {
+                workflowManager.recordApiFailure();
+                if (workflowManager.isApiDisabled()) {
+                    showMaintenanceBanner();
+                }
+                alert(`Failed to generate prompt: ${error.message}`);
+                genBtn.disabled = false;
+                genBtn.textContent = 'Retry';
+                statusEl.textContent = 'Failed';
+            }
+        }
+
+        async function viewStoryPrompt(storyIndex) {
+            const promptId = workflowManager.getStoryPromptId(storyIndex);
+            if (!promptId) {
+                alert('No prompt found for this story.');
+                return;
+            }
+
+            try {
+                const prompt = await window.APIClient.getPrompt(promptId);
+                workflowManager.recordApiSuccess();
+                
+                // Simple inline view for MVP
+                const viewDiv = document.createElement('div');
+                viewDiv.id = 'tempPromptView';
+                viewDiv.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;';
+                
+                viewDiv.innerHTML = `
+                    <div style="background: white; padding: 20px; max-width: 80%; max-height: 80%; overflow: auto; border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                            <h3>Prompt for Story ${storyIndex + 1}</h3>
+                            <button onclick="closeTempView()" style="background: #dc3545; color: white; border: none; padding: 5px 10px; cursor: pointer;">Close</button>
+                        </div>
+                        <pre style="white-space: pre-wrap; background: #f8f9fa; padding: 15px; border-radius: 4px; max-height: 400px; overflow: auto;">${escapeHTML(prompt.generatedPrompt)}</pre>
+                        <div style="margin-top: 15px; text-align: right;">
+                            <button onclick="copyPrompt(${storyIndex})" style="margin-right: 10px; padding: 5px 10px;">Copy</button>
+                            <button onclick="downloadSinglePrompt(${storyIndex})" style="padding: 5px 10px;">Download .md</button>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(viewDiv);
+                
+            } catch (error) {
+                workflowManager.recordApiFailure();
+                if (workflowManager.isApiDisabled()) {
+                    showMaintenanceBanner();
+                }
+                alert(`Failed to load prompt: ${error.message}`);
+            }
+        }
+
+        function closeTempView() {
+            const view = document.getElementById('tempPromptView');
+            if (view) view.remove();
+        }
+
+        function copyPrompt(storyIndex) {
+            const promptId = workflowManager.getStoryPromptId(storyIndex);
+            // For MVP, copy from the displayed content
+            const pre = document.querySelector('#tempPromptView pre');
+            if (pre) {
+                navigator.clipboard.writeText(pre.textContent).then(() => {
+                    alert('Prompt copied to clipboard!');
+                }).catch(() => {
+                    alert('Failed to copy - please select and copy manually.');
+                });
+            }
+        }
+
+        async function downloadSinglePrompt(storyIndex) {
+            const promptId = workflowManager.getStoryPromptId(storyIndex);
+            try {
+                const prompt = await window.APIClient.getPrompt(promptId);
+                workflowManager.recordApiSuccess();
+                
+                const blob = new Blob([prompt.generatedPrompt], { type: 'text/markdown' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `prompt-story-${storyIndex + 1}-ecommerce.md`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                closeTempView();
+            } catch (error) {
+                workflowManager.recordApiFailure();
+                alert(`Download failed: ${error.message}`);
+            }
+        }
+
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // Maintenance banner for circuit breaker
+        function showMaintenanceBanner() {
+            if (document.getElementById('maintenance-banner')) return;
+            const banner = document.createElement('div');
+            banner.id = 'maintenance-banner';
+            banner.className = 'maintenance-banner';
+            banner.innerHTML = `
+                <div style="background: #ff6b6b; color: white; padding: 10px; text-align: center; margin: 10px;">
+                    <strong>API Maintenance Mode</strong><br>
+                    System temporarily unavailable. Retrying in 60s or <button onclick="location.reload()" style="background: white; color: #ff6b6b; border: none; padding: 2px 8px; cursor: pointer;">Refresh</button>
+                </div>
+            `;
+            document.body.insertBefore(banner, document.body.firstChild);
+        }
     </script>
 </body>
 </html>
