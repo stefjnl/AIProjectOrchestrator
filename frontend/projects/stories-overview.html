@@ -111,6 +111,13 @@
                 // Get prompt statuses for each story
                 const storyPrompts = workflowManager.state.storyPrompts || [];
                 
+                // Debug logging for storyPrompts structure
+                console.log('Raw storyPrompts data:', storyPrompts);
+                if (storyPrompts.length > 0) {
+                    console.log('First storyPrompt:', storyPrompts[0]);
+                    console.log('Sample storyPrompt status:', storyPrompts[0]?.status, 'type:', typeof storyPrompts[0]?.status);
+                }
+                
                 renderStoriesGrid(stories, storyPrompts);
                 updateSummaryStats(stories, storyPrompts);
                 
@@ -136,6 +143,10 @@
             container.innerHTML = stories.map((story, index) => {
                 const storyPrompt = storyPrompts.find(sp => sp.storyIndex === index);
                 const status = storyPrompt?.status || 'Not Started';
+                
+                // Debug logging for status before getStatusClass
+                console.log(`Status for story index ${index}:`, status, 'type:', typeof status, 'storyPrompt:', storyPrompt);
+                
                 const statusClass = getStatusClass(status);
                 
                 // Debug logging for story object structure
@@ -146,6 +157,10 @@
                 const asA = story.AsA || story.asA || 'undefined';
                 const iWant = story.IWant || story.iWant || 'undefined';
                 const soThat = story.SoThat || story.soThat || 'undefined';
+
+                // Null safety for storyPrompt properties
+                const isPromptApproved = !!(storyPrompt?.isApproved || false);
+                const promptId = storyPrompt?.promptId || '';
 
                 return `
                     <div class="story-card" data-story-index="${index}">
@@ -160,11 +175,11 @@
                         </div>
                         <div class="story-actions">
                             <button onclick="generatePrompt(${index})" 
-                                    ${storyPrompt?.isApproved ? 'disabled' : ''}>
-                                ${storyPrompt?.isApproved ? 'Prompt Generated' : 'Generate Prompt'}
+                                    ${isPromptApproved ? 'disabled' : ''}>
+                                ${isPromptApproved ? 'Prompt Generated' : 'Generate Prompt'}
                             </button>
-                            ${storyPrompt?.isApproved ? 
-                                `<button onclick="viewPrompt('${storyPrompt.promptId}')">View Prompt</button>` : 
+                            ${isPromptApproved ? 
+                                `<button onclick="viewPrompt('${promptId}')">View Prompt</button>` : 
                                 ''}
                         </div>
                     </div>
@@ -175,11 +190,22 @@
         }
         
         function getStatusClass(status) {
-            switch(status.toLowerCase()) {
+            if (!status || typeof status !== 'string') {
+                console.warn('Invalid status value in getStatusClass:', status, 'type:', typeof status);
+                return 'danger';
+            }
+            
+            const lowerStatus = status.toLowerCase();
+            switch(lowerStatus) {
                 case 'approved': return 'success';
+                case 'pending': 
                 case 'pending review': return 'warning';
-                case 'not started': return 'secondary';
-                default: return 'danger';
+                case 'not started': 
+                case 'notstarted': return 'secondary';
+                case 'rejected': return 'danger';
+                default: 
+                    console.warn('Unknown status value:', lowerStatus);
+                    return 'danger';
             }
         }
 
