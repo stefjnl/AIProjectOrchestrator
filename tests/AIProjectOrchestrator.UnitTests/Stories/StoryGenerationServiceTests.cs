@@ -647,5 +647,317 @@ namespace AIProjectOrchestrator.UnitTests.Stories
                 r.Prompt.Contains("# Project Planning Content") &&
                 r.Prompt.Contains("Focus on user authentication features")), It.IsAny<CancellationToken>()), Times.Once);
         }
+        
+        [Fact]
+        public async Task GetIndividualStoryAsync_WithValidIndex_ReturnsStory()
+        {
+            // Arrange
+            var planningId = Guid.NewGuid();
+            var request = new StoryGenerationRequest
+            {
+                PlanningId = planningId
+            };
+
+            var instructionContent = new InstructionContent
+            {
+                ServiceName = "StoryGenerator",
+                Content = "# Role\nYou are a story generator\n# Task\nGenerate stories\n# Constraints\nFocus on clarity",
+                LastModified = DateTime.UtcNow,
+                IsValid = true,
+                ValidationMessage = string.Empty
+            };
+
+            var aiResponse = new AIResponse
+            {
+                Content = "### Story 1\n**Title:** User Login\n**Description:** As a user, I want to log in\n**Acceptance Criteria:**\n- User can enter credentials\n- System validates credentials\n**Priority:** High\n**Estimated Complexity:** Medium",
+                TokensUsed = 150,
+                ProviderName = "Claude",
+                IsSuccess = true,
+                ErrorMessage = null,
+                ResponseTime = TimeSpan.FromMilliseconds(500)
+            };
+
+            var reviewResponse = new ReviewResponse
+            {
+                ReviewId = Guid.NewGuid(),
+                Status = ReviewStatus.Pending,
+                SubmittedAt = DateTime.UtcNow,
+                Message = "Review submitted successfully"
+            };
+
+            _mockProjectPlanningService.Setup(x => x.GetRequirementsAnalysisIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Guid.NewGuid());
+
+            _mockRequirementsAnalysisService.Setup(x => x.CanAnalyzeRequirementsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+
+            _mockProjectPlanningService.Setup(x => x.CanCreatePlanAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+
+            _mockProjectPlanningService.Setup(x => x.GetPlanningResultContentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync("# Project Planning Content\nThis is the planning content.");
+
+            _mockRequirementsAnalysisService.Setup(x => x.GetAnalysisResultContentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync("# Requirements Analysis Content\nThis is the requirements content.");
+
+            _mockInstructionService.Setup(x => x.GetInstructionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(instructionContent);
+
+            var mockAIClient = new Mock<IAIClient>();
+            mockAIClient.Setup(x => x.ProviderName).Returns("Claude");
+            mockAIClient.Setup(x => x.CallAsync(It.IsAny<AIRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(aiResponse);
+
+            _mockAIClientFactory.Setup(x => x.GetClient(It.IsAny<string>()))
+                .Returns(mockAIClient.Object);
+
+            _mockReviewService.Setup(x => x.SubmitForReviewAsync(It.IsAny<SubmitReviewRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(reviewResponse);
+
+            // First, generate stories
+            var generationResult = await _service.GenerateStoriesAsync(request, CancellationToken.None);
+
+            // Act
+            var story = await _service.GetIndividualStoryAsync(generationResult.GenerationId, 0, CancellationToken.None);
+
+            // Assert
+            Assert.NotNull(story);
+            Assert.Equal("User Login", story.Title);
+            Assert.Equal("As a user, I want to log in", story.Description);
+            Assert.Contains("User can enter credentials", story.AcceptanceCriteria);
+            Assert.Equal("High", story.Priority);
+        }
+        
+        [Fact]
+        public async Task GetAllStoriesAsync_WithValidId_ReturnsAllStories()
+        {
+            // Arrange
+            var planningId = Guid.NewGuid();
+            var request = new StoryGenerationRequest
+            {
+                PlanningId = planningId
+            };
+
+            var instructionContent = new InstructionContent
+            {
+                ServiceName = "StoryGenerator",
+                Content = "# Role\nYou are a story generator\n# Task\nGenerate stories\n# Constraints\nFocus on clarity",
+                LastModified = DateTime.UtcNow,
+                IsValid = true,
+                ValidationMessage = string.Empty
+            };
+
+            var aiResponse = new AIResponse
+            {
+                Content = "### Story 1\n**Title:** User Login\n**Description:** As a user, I want to log in\n**Acceptance Criteria:**\n- User can enter credentials\n- System validates credentials\n**Priority:** High\n**Estimated Complexity:** Medium\n\n" +
+                          "### Story 2\n**Title:** User Logout\n**Description:** As a user, I want to log out\n**Acceptance Criteria:**\n- User can click logout button\n- System clears session\n**Priority:** Medium\n**Estimated Complexity:** Low",
+                TokensUsed = 300,
+                ProviderName = "Claude",
+                IsSuccess = true,
+                ErrorMessage = null,
+                ResponseTime = TimeSpan.FromMilliseconds(500)
+            };
+
+            var reviewResponse = new ReviewResponse
+            {
+                ReviewId = Guid.NewGuid(),
+                Status = ReviewStatus.Pending,
+                SubmittedAt = DateTime.UtcNow,
+                Message = "Review submitted successfully"
+            };
+
+            _mockProjectPlanningService.Setup(x => x.GetRequirementsAnalysisIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Guid.NewGuid());
+
+            _mockRequirementsAnalysisService.Setup(x => x.CanAnalyzeRequirementsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+
+            _mockProjectPlanningService.Setup(x => x.CanCreatePlanAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+
+            _mockProjectPlanningService.Setup(x => x.GetPlanningResultContentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync("# Project Planning Content\nThis is the planning content.");
+
+            _mockRequirementsAnalysisService.Setup(x => x.GetAnalysisResultContentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync("# Requirements Analysis Content\nThis is the requirements content.");
+
+            _mockInstructionService.Setup(x => x.GetInstructionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(instructionContent);
+
+            var mockAIClient = new Mock<IAIClient>();
+            mockAIClient.Setup(x => x.ProviderName).Returns("Claude");
+            mockAIClient.Setup(x => x.CallAsync(It.IsAny<AIRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(aiResponse);
+
+            _mockAIClientFactory.Setup(x => x.GetClient(It.IsAny<string>()))
+                .Returns(mockAIClient.Object);
+
+            _mockReviewService.Setup(x => x.SubmitForReviewAsync(It.IsAny<SubmitReviewRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(reviewResponse);
+
+            // First, generate stories
+            var generationResult = await _service.GenerateStoriesAsync(request, CancellationToken.None);
+
+            // Act
+            var stories = await _service.GetAllStoriesAsync(generationResult.GenerationId, CancellationToken.None);
+
+            // Assert
+            Assert.NotNull(stories);
+            Assert.Equal(2, stories.Count);
+            Assert.Equal("User Login", stories[0].Title);
+            Assert.Equal("User Logout", stories[1].Title);
+        }
+        
+        [Fact]
+        public async Task GetStoryCountAsync_WithValidId_ReturnsCorrectCount()
+        {
+            // Arrange
+            var planningId = Guid.NewGuid();
+            var request = new StoryGenerationRequest
+            {
+                PlanningId = planningId
+            };
+
+            var instructionContent = new InstructionContent
+            {
+                ServiceName = "StoryGenerator",
+                Content = "# Role\nYou are a story generator\n# Task\nGenerate stories\n# Constraints\nFocus on clarity",
+                LastModified = DateTime.UtcNow,
+                IsValid = true,
+                ValidationMessage = string.Empty
+            };
+
+            var aiResponse = new AIResponse
+            {
+                Content = "### Story 1\n**Title:** User Login\n**Description:** As a user, I want to log in\n**Acceptance Criteria:**\n- User can enter credentials\n- System validates credentials\n**Priority:** High\n**Estimated Complexity:** Medium\n\n" +
+                          "### Story 2\n**Title:** User Logout\n**Description:** As a user, I want to log out\n**Acceptance Criteria:**\n- User can click logout button\n- System clears session\n**Priority:** Medium\n**Estimated Complexity:** Low\n\n" +
+                          "### Story 3\n**Title:** User Profile\n**Description:** As a user, I want to view my profile\n**Acceptance Criteria:**\n- User can see profile info\n- User can edit profile\n**Priority:** Low\n**Estimated Complexity:** Medium",
+                TokensUsed = 450,
+                ProviderName = "Claude",
+                IsSuccess = true,
+                ErrorMessage = null,
+                ResponseTime = TimeSpan.FromMilliseconds(500)
+            };
+
+            var reviewResponse = new ReviewResponse
+            {
+                ReviewId = Guid.NewGuid(),
+                Status = ReviewStatus.Pending,
+                SubmittedAt = DateTime.UtcNow,
+                Message = "Review submitted successfully"
+            };
+
+            _mockProjectPlanningService.Setup(x => x.GetRequirementsAnalysisIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Guid.NewGuid());
+
+            _mockRequirementsAnalysisService.Setup(x => x.CanAnalyzeRequirementsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+
+            _mockProjectPlanningService.Setup(x => x.CanCreatePlanAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+
+            _mockProjectPlanningService.Setup(x => x.GetPlanningResultContentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync("# Project Planning Content\nThis is the planning content.");
+
+            _mockRequirementsAnalysisService.Setup(x => x.GetAnalysisResultContentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync("# Requirements Analysis Content\nThis is the requirements content.");
+
+            _mockInstructionService.Setup(x => x.GetInstructionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(instructionContent);
+
+            var mockAIClient = new Mock<IAIClient>();
+            mockAIClient.Setup(x => x.ProviderName).Returns("Claude");
+            mockAIClient.Setup(x => x.CallAsync(It.IsAny<AIRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(aiResponse);
+
+            _mockAIClientFactory.Setup(x => x.GetClient(It.IsAny<string>()))
+                .Returns(mockAIClient.Object);
+
+            _mockReviewService.Setup(x => x.SubmitForReviewAsync(It.IsAny<SubmitReviewRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(reviewResponse);
+
+            // First, generate stories
+            var generationResult = await _service.GenerateStoriesAsync(request, CancellationToken.None);
+
+            // Act
+            var count = await _service.GetStoryCountAsync(generationResult.GenerationId, CancellationToken.None);
+
+            // Assert
+            Assert.Equal(3, count);
+        }
+        
+        [Fact]
+        public async Task GetIndividualStoryAsync_WithInvalidIndex_ThrowsException()
+        {
+            // Arrange
+            var planningId = Guid.NewGuid();
+            var request = new StoryGenerationRequest
+            {
+                PlanningId = planningId
+            };
+
+            var instructionContent = new InstructionContent
+            {
+                ServiceName = "StoryGenerator",
+                Content = "# Role\nYou are a story generator\n# Task\nGenerate stories\n# Constraints\nFocus on clarity",
+                LastModified = DateTime.UtcNow,
+                IsValid = true,
+                ValidationMessage = string.Empty
+            };
+
+            var aiResponse = new AIResponse
+            {
+                Content = "### Story 1\n**Title:** User Login\n**Description:** As a user, I want to log in\n**Acceptance Criteria:**\n- User can enter credentials\n- System validates credentials\n**Priority:** High\n**Estimated Complexity:** Medium",
+                TokensUsed = 150,
+                ProviderName = "Claude",
+                IsSuccess = true,
+                ErrorMessage = null,
+                ResponseTime = TimeSpan.FromMilliseconds(500)
+            };
+
+            var reviewResponse = new ReviewResponse
+            {
+                ReviewId = Guid.NewGuid(),
+                Status = ReviewStatus.Pending,
+                SubmittedAt = DateTime.UtcNow,
+                Message = "Review submitted successfully"
+            };
+
+            _mockProjectPlanningService.Setup(x => x.GetRequirementsAnalysisIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Guid.NewGuid());
+
+            _mockRequirementsAnalysisService.Setup(x => x.CanAnalyzeRequirementsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+
+            _mockProjectPlanningService.Setup(x => x.CanCreatePlanAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
+
+            _mockProjectPlanningService.Setup(x => x.GetPlanningResultContentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync("# Project Planning Content\nThis is the planning content.");
+
+            _mockRequirementsAnalysisService.Setup(x => x.GetAnalysisResultContentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync("# Requirements Analysis Content\nThis is the requirements content.");
+
+            _mockInstructionService.Setup(x => x.GetInstructionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(instructionContent);
+
+            var mockAIClient = new Mock<IAIClient>();
+            mockAIClient.Setup(x => x.ProviderName).Returns("Claude");
+            mockAIClient.Setup(x => x.CallAsync(It.IsAny<AIRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(aiResponse);
+
+            _mockAIClientFactory.Setup(x => x.GetClient(It.IsAny<string>()))
+                .Returns(mockAIClient.Object);
+
+            _mockReviewService.Setup(x => x.SubmitForReviewAsync(It.IsAny<SubmitReviewRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(reviewResponse);
+
+            // First, generate stories
+            var generationResult = await _service.GenerateStoriesAsync(request, CancellationToken.None);
+
+            // Act & Assert
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => 
+                _service.GetIndividualStoryAsync(generationResult.GenerationId, 5, CancellationToken.None)); // Index 5 is out of range
+        }
     }
 }

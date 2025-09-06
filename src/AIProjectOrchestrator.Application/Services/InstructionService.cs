@@ -84,7 +84,7 @@ namespace AIProjectOrchestrator.Application.Services
             var fileName = GetInstructionFileName(serviceName);
             var filePath = Path.Combine(_fullInstructionsPath, fileName);
 
-            _logger.LogInformation("Looking for instruction file at: {FilePath}", filePath);
+            _logger.LogInformation("Looking for instruction file at: {FilePath} (from service name: {ServiceName})", filePath, serviceName);
 
             // Check if file exists
             if (!File.Exists(filePath))
