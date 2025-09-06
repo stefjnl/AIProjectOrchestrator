@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stories & Prompts Management - AI Orchestrator</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <div class="header">
+            <a href="/index.html">Home</a> > <a href="/projects/list.html">Projects</a> > <a href="/projects/workflow.html">Workflow</a> > <strong>Stories & Prompts</strong>
+            <h1 id="projectTitle">Stories Management</h1>
+            <p id="projectDescription">Stories management workspace for prompt generation.</p>
+        </div>
+
+        <!-- Placeholder Content -->
+        <div class="stories-placeholder">
+            <h2>Stories Management Workspace — Under Construction</h2>
+            <p>This interface is currently being developed. For now, it serves as a navigation point in the workflow.</p>
+            <button id="backToWorkflow" class="primary-btn">← Back to Project Workflow</button>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/workflow.js"></script>
+    <script>
+        let workflowManager;
+
+        window.addEventListener('DOMContentLoaded', async function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const projectId = urlParams.get('projectId');
+            
+            if (!projectId) {
+                alert('Project ID is required');
+                window.location.href = '/projects/list.html';
+                return;
+            }
+
+            workflowManager = new WorkflowManager(projectId);
+            workflowManager.loadState();
+
+            // Load project info (fallback to mock if API fails)
+            try {
+                const project = await window.APIClient.getProject(projectId);
+                document.getElementById('projectTitle').textContent = project.name;
+                document.getElementById('projectDescription').textContent = project.description;
+            } catch (error) {
+                document.getElementById('projectTitle').textContent = 'Demo Project';
+                document.getElementById('projectDescription').textContent = 'This is a demonstration of the Stories & Prompts Management interface.';
+            }
+
+            // Set up back button
+            document.getElementById('backToWorkflow').addEventListener('click', function() {
+                window.location.href = `workflow.html?projectId=${workflowManager.projectId}&fromStories=true`;
+            });
+
+            // Trigger sync with workflow page
+            if (typeof workflowManager.syncWithStoriesPage === 'function') {
+                await workflowManager.syncWithStoriesPage();
+            }
+        });
+    </script>
+</body>
+</html>

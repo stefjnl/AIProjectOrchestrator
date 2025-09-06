@@ -152,6 +152,11 @@ textarea {
 .stage-status.pending-review { background-color: #fff3cd; color: #856404; }
 .stage-status.approved { background-color: #d4edda; color: #155724; }
 .stage-status.generated { background-color: #cce5ff; color: #004085; }
+.stage-status.generating { background-color: #cce5ff; color: #004085; }
+.stage-status.ready { background-color: #d4edda; color: #155724; }
+.stage-status.waiting { background-color: #fff3cd; color: #856404; }
+.stage-status.in-progress { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+.stage-status.complete { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
 
 /* Specific Styles for Review Queue */
 .review-item {
@@ -461,4 +466,274 @@ textarea {
 .generate-prompt-btn:disabled {
     background-color: #6c757d;
     cursor: not-allowed;
+}
+
+/* Phase 2: Simplified Stage 4 Styles */
+.stage-description {
+    margin: 10px 0;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border-left: 4px solid #007bff;
+}
+
+.stage-description p {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.stage-actions {
+    display: flex;
+    gap: 15px;
+    margin: 15px 0;
+    flex-wrap: wrap;
+}
+
+.primary-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.primary-btn:hover:not(:disabled) {
+    background-color: #0056b3;
+}
+
+.primary-btn:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+
+.secondary-btn {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.secondary-btn:hover:not(:disabled) {
+    background-color: #1e7e34;
+}
+
+.secondary-btn:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+
+.stage-progress {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+}
+
+.progress-summary {
+    font-size: 14px;
+    color: #495057;
+    font-weight: 500;
+}
+
+/* Phase 3: Enhanced styling and polish */
+
+/* Toast notifications */
+.notification-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 15px 20px;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 14px;
+    z-index: 1001;
+    max-width: 400px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    animation: fadeInOut 0.3s ease-out;
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; transform: translate(-50%, -20px); }
+    20% { opacity: 1; transform: translate(-50%, 0); }
+    80% { opacity: 1; transform: translate(-50%, 0); }
+    100% { opacity: 0; transform: translate(-50%, -20px); }
+}
+
+/* Completion dashboard */
+.completion-dashboard {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.stats-summary {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-size: 14px;
+    color: #495057;
+    font-weight: 500;
+}
+
+.stats-summary span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Enhanced breadcrumb */
+.breadcrumb-progress {
+    font-size: 12px;
+    color: #28a745;
+    font-weight: normal;
+}
+
+/* Progress bar styling */
+.progress-bar {
+    position: relative;
+    width: 100%;
+    height: 24px;
+    background-color: #e9ecef;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #28a745, #20c997);
+    border-radius: 12px;
+    transition: width 0.3s ease;
+    min-width: 0;
+}
+
+.progress-bar-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    font-weight: bold;
+    color: #495057;
+    text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+}
+
+/* Enhanced selection visual feedback */
+.story-card.selected {
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0,123,255,0.25);
+    transform: translateY(-1px);
+}
+
+/* Keyboard shortcut hints */
+.keyboard-hints {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.keyboard-hints.show {
+    opacity: 1;
+}
+
+.keyboard-hints kbd {
+    background: #555;
+    border: 1px solid #777;
+    border-radius: 3px;
+    padding: 2px 4px;
+    font-size: 11px;
+}
+
+/* Enhanced loading states */
+.btn-loading {
+    position: relative;
+    color: transparent !important;
+}
+
+.btn-loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Mobile responsiveness improvements */
+@media (max-width: 768px) {
+    .stories-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .bulk-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .actions-left, .actions-right {
+        justify-content: center;
+    }
+    
+    .stage-actions {
+        flex-direction: column;
+    }
+    
+    .temp-notification {
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+}
+
+/* Print styles for prompt content */
+@media print {
+    .prompt-modal-content {
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+    
+    .prompt-modal-header,
+    .prompt-modal-actions {
+        display: none;
+    }
+    
+    .prompt-content {
+        font-size: 12px;
+        line-height: 1.3;
+    }
 }
