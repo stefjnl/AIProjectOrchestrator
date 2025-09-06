@@ -8,7 +8,9 @@ class WorkflowManager {
         } else {
             this.projectId = projectId;
         }
-        
+
+        this.isWorkflowPage = window.location.pathname.includes('workflow.html');
+
         this.state = {
             version: 1, // State version for validation
             apiFailures: 0, // Circuit breaker counter
@@ -465,58 +467,67 @@ class WorkflowManager {
     }
 
     updateWorkflowUI() {
-        const updateStageUI = (stageName, idKey, approvedKey, pendingKey, buttonId, statusId, prevStageApprovedKey = null) => {
-            const statusElement = document.getElementById(statusId);
-            const buttonElement = document.getElementById(buttonId);
+        if (this.isWorkflowPage) {
+            const updateStageUI = (stageName, idKey, approvedKey, pendingKey, buttonId, statusId, prevStageApprovedKey = null) => {
+                const statusElement = document.getElementById(statusId);
+                const buttonElement = document.getElementById(buttonId);
 
-            // Check if this stage is currently being generated
-            const generatingKey = `${stageName}Generating`;
-            if (this.state[generatingKey]) {
-                // Preserve the generating state
-                statusElement.textContent = 'Generating...';
-                statusElement.className = 'stage-status generating';
-                buttonElement.disabled = true;
-                return;
-            }
-
-            // Reset button state
-            buttonElement.disabled = true;
-            buttonElement.classList.remove('btn-primary', 'btn-success', 'btn-warning', 'btn-danger');
-
-            if (this.state[approvedKey]) {
-                statusElement.textContent = 'Approved';
-                statusElement.className = 'stage-status approved';
-                buttonElement.disabled = true;
-            } else if (this.state[pendingKey]) {
-                statusElement.textContent = 'Pending Review';
-                statusElement.className = 'stage-status pending-review';
-                buttonElement.disabled = true;
-            } else if (this.state[idKey]) {
-                statusElement.textContent = 'Generated, Awaiting Approval';
-                statusElement.className = 'stage-status generated';
-                buttonElement.disabled = true;
-            } else {
-                statusElement.textContent = 'Not Started';
-                statusElement.className = 'stage-status not-started';
-
-                // Enable button if prerequisites are met and not already approved/pending/generated
-                if (prevStageApprovedKey === null || this.state[prevStageApprovedKey]) {
-                    buttonElement.disabled = false;
-                    buttonElement.classList.add('btn-primary');
+                if (!statusElement || !buttonElement) {
+                    console.warn(`DOM elements for ${stageName} stage not found. This may be running on a non-workflow page.`);
+                    return;
                 }
-            }
-        };
 
-        updateStageUI('requirements', 'requirementsAnalysisId', 'requirementsApproved', 'requirementsPending', 'startRequirementsBtn', 'requirementsStatus');
-        updateStageUI('planning', 'projectPlanningId', 'planningApproved', 'planningPending', 'startPlanningBtn', 'planningStatus', 'requirementsApproved');
-        updateStageUI('stories', 'storyGenerationId', 'storiesApproved', 'storiesPending', 'startStoriesBtn', 'storiesStatus', 'planningApproved');
-        updateStageUI('code', 'codeGenerationId', null, null, 'startCodeBtn', 'codeStatus', 'storiesApproved');
+                // Check if this stage is currently being generated
+                const generatingKey = `${stageName}Generating`;
+                if (this.state[generatingKey]) {
+                    // Preserve the generating state
+                    statusElement.textContent = 'Generating...';
+                    statusElement.className = 'stage-status generating';
+                    buttonElement.disabled = true;
+                    return;
+                }
 
-        // Phase 4: Update story prompt interface
-        this.updateStoryPromptUI();
+                // Reset button state
+                buttonElement.disabled = true;
+                buttonElement.classList.remove('btn-primary', 'btn-success', 'btn-warning', 'btn-danger');
 
-        // Stage 4: Simplified prompt management
-        this.updateStage4UI();
+                if (this.state[approvedKey]) {
+                    statusElement.textContent = 'Approved';
+                    statusElement.className = 'stage-status approved';
+                    buttonElement.disabled = true;
+                } else if (this.state[pendingKey]) {
+                    statusElement.textContent = 'Pending Review';
+                    statusElement.className = 'stage-status pending-review';
+                    buttonElement.disabled = true;
+                } else if (this.state[idKey]) {
+                    statusElement.textContent = 'Generated, Awaiting Approval';
+                    statusElement.className = 'stage-status generated';
+                    buttonElement.disabled = true;
+                } else {
+                    statusElement.textContent = 'Not Started';
+                    statusElement.className = 'stage-status not-started';
+
+                    // Enable button if prerequisites are met and not already approved/pending/generated
+                    if (prevStageApprovedKey === null || this.state[prevStageApprovedKey]) {
+                        buttonElement.disabled = false;
+                        buttonElement.classList.add('btn-primary');
+                    }
+                }
+            };
+
+            updateStageUI('requirements', 'requirementsAnalysisId', 'requirementsApproved', 'requirementsPending', 'startRequirementsBtn', 'requirementsStatus');
+            updateStageUI('planning', 'projectPlanningId', 'planningApproved', 'planningPending', 'startPlanningBtn', 'planningStatus', 'requirementsApproved');
+            updateStageUI('stories', 'storyGenerationId', 'storiesApproved', 'storiesPending', 'startStoriesBtn', 'storiesStatus', 'planningApproved');
+            updateStageUI('code', 'codeGenerationId', null, null, 'startCodeBtn', 'codeStatus', 'storiesApproved');
+
+            // Phase 4: Update story prompt interface
+            this.updateStoryPromptUI();
+
+            // Stage 4: Simplified prompt management
+            this.updateStage4UI();
+        } else {
+            console.log('updateWorkflowUI called on non-workflow page. Skipping UI updates.');
+        }
     }
 
     updateStage4UI() {

@@ -554,7 +554,7 @@
 
         // Cleanup on page unload
         window.addEventListener('beforeunload', function() {
-            workflowManager.stopStatusPolling();
+            workflowManager.stopPolling();
         });
 
         // Stage 4: Initialize dynamic stats

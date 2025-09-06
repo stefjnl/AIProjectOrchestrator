@@ -138,16 +138,25 @@
                 const status = storyPrompt?.status || 'Not Started';
                 const statusClass = getStatusClass(status);
                 
+                // Debug logging for story object structure
+                console.log('Story object:', story);
+                console.log('Story properties:', Object.keys(story));
+
+                const title = story.Title || story.title || `Story ${index + 1}`;
+                const asA = story.AsA || story.asA || 'undefined';
+                const iWant = story.IWant || story.iWant || 'undefined';
+                const soThat = story.SoThat || story.soThat || 'undefined';
+
                 return `
                     <div class="story-card" data-story-index="${index}">
                         <div class="story-header">
-                            <h3>Story ${index + 1}: ${story.Title}</h3>
+                            <h3>Story ${index + 1}: ${title}</h3>
                             <span class="status-badge ${statusClass}">${status}</span>
                         </div>
                         <div class="story-content">
-                            <p><strong>As a</strong> ${story.AsA}</p>
-                            <p><strong>I want</strong> ${story.IWant}</p>
-                            <p><strong>So that</strong> ${story.SoThat}</p>
+                            <p><strong>As a</strong> ${asA}</p>
+                            <p><strong>I want</strong> ${iWant}</p>
+                            <p><strong>So that</strong> ${soThat}</p>
                         </div>
                         <div class="story-actions">
                             <button onclick="generatePrompt(${index})" 
@@ -193,6 +202,8 @@
             }
 
             try {
+                console.log('Generating prompt for story index:', storyIndex);
+                
                 const request = {
                     storyGenerationId: workflowManager.state.storyGenerationId,
                     storyIndex: storyIndex,
@@ -205,8 +216,10 @@
                 // Don't save state - will be updated by polling
                 alert('Prompt generation submitted for review. Please check the review queue.');
                 
-                // Refresh the view
-                await workflowManager.refreshState();
+                // Stories-specific refresh: load state without UI update
+                await workflowManager.loadStateFromAPI();
+                // Debug log after refresh
+                console.log('State refreshed after prompt generation:', workflowManager.state);
                 await loadAndRenderStories();
                 
             } catch (error) {
