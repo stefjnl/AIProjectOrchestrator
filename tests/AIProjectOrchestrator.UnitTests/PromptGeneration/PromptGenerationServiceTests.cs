@@ -2,6 +2,7 @@ using AIProjectOrchestrator.Application.Services;
 using AIProjectOrchestrator.Domain.Models.PromptGeneration;
 using AIProjectOrchestrator.Domain.Models.Stories;
 using AIProjectOrchestrator.Domain.Services;
+using AIProjectOrchestrator.Infrastructure.AI;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System;
@@ -22,12 +23,20 @@ namespace AIProjectOrchestrator.UnitTests.PromptGeneration
         public PromptGenerationServiceTests()
         {
             _mockStoryGenerationService = new Mock<IStoryGenerationService>();
+            var mockProjectPlanningService = new Mock<IProjectPlanningService>();
             _mockInstructionService = new Mock<IInstructionService>();
+            var mockAIClientFactory = new Mock<IAIClientFactory>();
+            var mockLazyReview = new Mock<Lazy<IReviewService>>();
             _mockLogger = new Mock<ILogger<PromptGenerationService>>();
+            var mockLoggerAssembler = new Mock<ILogger<PromptContextAssembler>>();
             _service = new PromptGenerationService(
                 _mockStoryGenerationService.Object,
+                mockProjectPlanningService.Object,
                 _mockInstructionService.Object,
-                _mockLogger.Object);
+                mockAIClientFactory.Object,
+                mockLazyReview.Object,
+                _mockLogger.Object,
+                mockLoggerAssembler.Object);
         }
 
         [Fact]

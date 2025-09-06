@@ -5,6 +5,8 @@ namespace AIProjectOrchestrator.Domain.Models.PromptGeneration
     public class PromptGenerationResponse
     {
         public Guid PromptId { get; set; }
+        public Guid StoryGenerationId { get; set; }
+        public int StoryIndex { get; set; }
         public string GeneratedPrompt { get; set; } = string.Empty;
         public Guid ReviewId { get; set; }
         public PromptGenerationStatus Status { get; set; }

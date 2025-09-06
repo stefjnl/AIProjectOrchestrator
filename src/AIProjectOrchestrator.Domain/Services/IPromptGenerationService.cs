@@ -24,5 +24,9 @@ namespace AIProjectOrchestrator.Domain.Services
         Task<bool> CanGeneratePromptAsync(
             Guid storyId,
             CancellationToken cancellationToken = default);
+
+        Task<PromptGenerationResponse?> GetPromptAsync(
+            Guid promptId,
+            CancellationToken cancellationToken = default);
     }
 }

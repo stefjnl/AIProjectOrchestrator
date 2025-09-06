@@ -1,11 +1,17 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using AIProjectOrchestrator.Domain.Services;
+using AIProjectOrchestrator.Domain.Models;
+using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Domain.Models.PromptGeneration;
+using AIProjectOrchestrator.Domain.Models.Review;
 using AIProjectOrchestrator.Domain.Models.Stories;
+using AIProjectOrchestrator.Infrastructure.AI;
 using AIProjectOrchestrator.Domain.Exceptions;
 
 namespace AIProjectOrchestrator.Application.Services
@@ -18,16 +24,33 @@ namespace AIProjectOrchestrator.Application.Services
         private readonly ConcurrentDictionary<Guid, PromptGenerationStatus> _promptStatuses;
         private readonly ConcurrentDictionary<Guid, PromptGenerationResponse> _promptResults;
 
+        private readonly IProjectPlanningService _projectPlanningService;
+        private readonly IAIClientFactory _aiClientFactory;
+        private readonly Lazy<IReviewService> _reviewService;
+        private readonly ILogger<PromptContextAssembler> _assemblerLogger;
+        private readonly PromptContextAssembler _assembler;
+        private readonly ContextOptimizer _optimizer;
+
         public PromptGenerationService(
             IStoryGenerationService storyGenerationService,
+            IProjectPlanningService projectPlanningService,
             IInstructionService instructionService,
-            ILogger<PromptGenerationService> logger)
+            IAIClientFactory aiClientFactory,
+            Lazy<IReviewService> reviewService,
+            ILogger<PromptGenerationService> logger,
+            ILogger<PromptContextAssembler> assemblerLogger)
         {
             _storyGenerationService = storyGenerationService;
+            _projectPlanningService = projectPlanningService;
             _instructionService = instructionService;
+            _aiClientFactory = aiClientFactory;
+            _reviewService = reviewService;
             _logger = logger;
+            _assemblerLogger = assemblerLogger;
             _promptStatuses = new ConcurrentDictionary<Guid, PromptGenerationStatus>();
             _promptResults = new ConcurrentDictionary<Guid, PromptGenerationResponse>();
+            _assembler = new PromptContextAssembler(projectPlanningService, storyGenerationService, _assemblerLogger);
+            _optimizer = new ContextOptimizer();
         }
 
         public async Task<PromptGenerationResponse> GeneratePromptAsync(
@@ -51,8 +74,15 @@ namespace AIProjectOrchestrator.Application.Services
                 }
 
                 // Retrieve the specific story
-                var story = await _storyGenerationService.GetIndividualStoryAsync(
+                var targetStory = await _storyGenerationService.GetIndividualStoryAsync(
                     request.StoryGenerationId, request.StoryIndex, cancellationToken);
+
+                // Get planning ID from story generation
+                var planningId = await _storyGenerationService.GetPlanningIdAsync(request.StoryGenerationId, cancellationToken);
+                if (!planningId.HasValue)
+                {
+                    throw new InvalidOperationException("Planning ID not found for story generation");
+                }
 
                 // Set status to processing
                 _promptStatuses[promptId] = PromptGenerationStatus.Processing;
@@ -60,13 +90,125 @@ namespace AIProjectOrchestrator.Application.Services
                 // Check for cancellation again
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // For now, return a placeholder response
-                // In future phases, we'll implement the actual prompt generation logic
+                // Assemble context
+                var context = await _assembler.AssembleContextAsync(request.StoryGenerationId, request.StoryIndex, cancellationToken);
+                var optimizedContext = _optimizer.OptimizeContext(context);
+
+                // Load instructions
+                var instructionContent = await _instructionService.GetInstructionAsync("PromptGenerator", cancellationToken);
+                if (!instructionContent.IsValid)
+                {
+                    throw new InvalidOperationException($"Invalid instruction content: {instructionContent.ValidationMessage}");
+                }
+
+                // Build prompt from optimized context
+                var promptBuilder = new StringBuilder();
+                promptBuilder.AppendLine("# Prompt Generation Request");
+                promptBuilder.AppendLine();
+                promptBuilder.AppendLine("## Target Story");
+                promptBuilder.AppendLine($"**Title:** {optimizedContext.TargetStory.Title}");
+                promptBuilder.AppendLine($"**Description:** {optimizedContext.TargetStory.Description}");
+                promptBuilder.AppendLine("**Acceptance Criteria:**");
+                foreach (var criterion in optimizedContext.TargetStory.AcceptanceCriteria)
+                {
+                    promptBuilder.AppendLine($"- {criterion}");
+                }
+                promptBuilder.AppendLine();
+
+                if (!string.IsNullOrEmpty(optimizedContext.ProjectArchitecture))
+                {
+                    promptBuilder.AppendLine("## Project Architecture");
+                    promptBuilder.AppendLine(optimizedContext.ProjectArchitecture);
+                    promptBuilder.AppendLine();
+                }
+
+                if (optimizedContext.RelatedStories.Any())
+                {
+                    promptBuilder.AppendLine("## Related Stories");
+                    foreach (var story in optimizedContext.RelatedStories)
+                    {
+                        promptBuilder.AppendLine($"**{story.Title}:** {story.Description}");
+                    }
+                    promptBuilder.AppendLine();
+                }
+
+                if (optimizedContext.TechnicalPreferences.Any())
+                {
+                    promptBuilder.AppendLine("## Technical Preferences");
+                    foreach (var pref in optimizedContext.TechnicalPreferences)
+                    {
+                        promptBuilder.AppendLine($"{pref.Key}: {pref.Value}");
+                    }
+                    promptBuilder.AppendLine();
+                }
+
+                if (!string.IsNullOrEmpty(optimizedContext.IntegrationGuidance))
+                {
+                    promptBuilder.AppendLine("## Integration Guidance");
+                    promptBuilder.AppendLine(optimizedContext.IntegrationGuidance);
+                    promptBuilder.AppendLine();
+                }
+
+                promptBuilder.AppendLine("## Instructions");
+                promptBuilder.AppendLine("Generate a comprehensive coding prompt for an AI assistant based on the target story and provided context. Include all relevant details for accurate implementation.");
+
+                // Create AI request
+                var aiRequest = new AIRequest
+                {
+                    SystemMessage = instructionContent.Content,
+                    Prompt = promptBuilder.ToString(),
+                    ModelName = "qwen/qwen3-coder",
+                    Temperature = 0.7,
+                    MaxTokens = 2000
+                };
+
+                // Log context size
+                var contextSize = Encoding.UTF8.GetByteCount(aiRequest.SystemMessage + aiRequest.Prompt);
+                _logger.LogInformation("Prompt generation {PromptId} context size: {ContextSize} bytes", promptId, contextSize);
+
+                // Get AI client
+                var aiClient = _aiClientFactory.GetClient("OpenRouter");
+                if (aiClient == null)
+                {
+                    throw new InvalidOperationException("OpenRouter AI client not available");
+                }
+
+                // Call AI
+                var aiResponse = await aiClient.CallAsync(aiRequest, cancellationToken);
+
+                if (!aiResponse.IsSuccess)
+                {
+                    throw new InvalidOperationException($"AI call failed: {aiResponse.ErrorMessage}");
+                }
+
+                // Submit for review
+                var correlationId = Guid.NewGuid().ToString();
+                var reviewRequest = new SubmitReviewRequest
+                {
+                    ServiceName = "PromptGeneration",
+                    Content = aiResponse.Content,
+                    CorrelationId = correlationId,
+                    PipelineStage = "Prompt",
+                    OriginalRequest = aiRequest,
+                    AIResponse = aiResponse,
+                    Metadata = new Dictionary<string, object>
+                    {
+                        { "PromptId", promptId },
+                        { "StoryGenerationId", request.StoryGenerationId },
+                        { "StoryIndex", request.StoryIndex }
+                    }
+                };
+
+                var reviewResponse = await _reviewService.Value.SubmitForReviewAsync(reviewRequest, cancellationToken);
+
+                // Create response
                 var response = new PromptGenerationResponse
                 {
                     PromptId = promptId,
-                    GeneratedPrompt = $"Generated prompt for story: {story.Title}",
-                    ReviewId = Guid.NewGuid(),
+                    StoryGenerationId = request.StoryGenerationId,
+                    StoryIndex = request.StoryIndex,
+                    GeneratedPrompt = aiResponse.Content,
+                    ReviewId = reviewResponse.ReviewId,
                     Status = PromptGenerationStatus.PendingReview,
                     CreatedAt = DateTime.UtcNow
                 };
@@ -81,7 +223,7 @@ namespace AIProjectOrchestrator.Application.Services
                 _promptResults[promptId] = response;
 
                 _logger.LogInformation("Prompt generation {PromptId} completed successfully. Review ID: {ReviewId}",
-                    promptId, response.ReviewId);
+                    promptId, reviewResponse.ReviewId);
 
                 return response;
             }
@@ -151,6 +293,22 @@ namespace AIProjectOrchestrator.Application.Services
             }
         }
         
+        public async Task<PromptGenerationResponse?> GetPromptAsync(
+            Guid promptId,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (_promptResults.TryGetValue(promptId, out var response))
+            {
+                return response;
+            }
+
+            // If we don't have the result in memory, it might have been cleaned up
+            // In a production system, we would check a persistent store
+            return null;
+        }
+
         // Overload for backward compatibility
         public Task<bool> CanGeneratePromptAsync(
             Guid storyId,
