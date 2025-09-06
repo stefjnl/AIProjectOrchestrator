@@ -116,5 +116,32 @@ window.APIClient = {
     },
     async rejectReview(reviewId, feedback) {
         return this.post(`/review/${reviewId}/reject`, { feedback });
+    },
+
+    // Phase 4: Prompt Generation API methods
+    async generatePrompt(storyGenerationId, storyIndex, preferences = {}) {
+        return await this.post('/PromptGeneration/generate', {
+            storyGenerationId,
+            storyIndex, 
+            technicalPreferences: preferences
+        });
+    },
+
+    async getPromptStatus(promptId) {
+        return await this.get(`/PromptGeneration/${promptId}/status`);
+    },
+
+    async canGeneratePrompt(storyGenerationId, storyIndex) {
+        return await this.get(`/PromptGeneration/can-generate/${storyGenerationId}/${storyIndex}`);
+    },
+
+    async getPrompt(promptId) {
+        return await this.get(`/PromptGeneration/${promptId}`);
+    },
+
+    // Helper method to retrieve approved stories
+    async getApprovedStories(storyGenerationId) {
+        // Note: This endpoint may need to be created or use existing story endpoints
+        return await this.get(`/stories/${storyGenerationId}/approved`);
     }
 };

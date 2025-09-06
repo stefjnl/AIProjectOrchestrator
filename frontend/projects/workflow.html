@@ -12,6 +12,7 @@
         <div class="header">
             <h1 id="projectTitle">Loading Project...</h1>
             <p id="projectDescription"></p>
+            <button id="resetWorkflowBtn" onclick="workflowManager.resetState()" style="float: right; margin-left: 10px;">Reset Workflow</button>
         </div>
 
         <div class="workflow-stages">
@@ -36,9 +37,25 @@
                 <button id="startStoriesBtn" onclick="startStoryGeneration()">Generate Stories</button>
             </div>
 
-            <!-- Stage 4: Code Generation -->
+            <!-- Add after existing Stage 3 section -->
+
+            <!-- Stage 4: Prompt Generation -->
+            <div class="workflow-stage" id="promptStage">
+                <h3>Prompt Generation</h3>
+                <div class="stage-status" id="promptStageStatus">Not Started</div>
+                
+                <!-- Stories Container for Individual Prompt Generation -->
+                <div id="storiesContainer" class="stories-container" style="display: none;">
+                    <h4>Generate Prompts for Individual Stories</h4>
+                    <div id="storiesList" class="stories-list">
+                        <!-- Story cards populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stage 5: Code Generation -->
             <div class="workflow-stage">
-                <h3>4. Code Generation</h3>
+                <h3>5. Code Generation</h3>
                 <div class="stage-status" id="codeStatus">Not Started</div>
                 <button id="startCodeBtn" onclick="startCodeGeneration()">Generate Code</button>
             </div>
@@ -62,7 +79,22 @@
 
             workflowManager = new WorkflowManager(projectId);
             workflowManager.loadState();
+
+            // Force initial state for new projects if stale pending without ID
+            if (workflowManager.state.requirementsPending && !workflowManager.state.requirementsAnalysisId) {
+                workflowManager.setRequirementsPending(false);
+                workflowManager.saveState();
+            }
+
             await workflowManager.checkApprovedStatus();
+
+            // Enhanced initialization to load approved stories
+            await workflowManager.checkStoryPromptApprovals();
+
+            // Load approved stories if available
+            if (workflowManager.state.storiesApproved && workflowManager.state.storyGenerationId) {
+                await loadApprovedStories();
+            }
 
             try {
                 const project = await window.APIClient.getProject(projectId);
@@ -236,6 +268,134 @@
                 alert('Code generation has been completed!');
                 // Optional: redirect or update UI to show completion
             });
+        }
+
+        // Add these functions to the existing script section:
+
+        // Enhanced initialization to load approved stories
+        async function loadApprovedStories() {
+            try {
+                // For now, simulate story data - replace with actual API call when available
+                const mockStories = [
+                    {
+                        title: "User Registration",
+                        userType: "new user",
+                        wantStatement: "create an account with email and password",
+                        soThatStatement: "I can access personalized features"
+                    },
+                    {
+                        title: "User Login",
+                        userType: "registered user", 
+                        wantStatement: "log into my account",
+                        soThatStatement: "I can access my personal dashboard"
+                    }
+                    // Add more mock stories or implement actual API call
+                ];
+                
+                workflowManager.state.approvedStories = mockStories;
+                workflowManager.saveState();
+                displayStoriesForPromptGeneration(mockStories);
+            } catch (error) {
+                console.error('Error loading approved stories:', error);
+            }
+        }
+
+        function displayStoriesForPromptGeneration(stories) {
+            const storiesContainer = document.getElementById('storiesContainer');
+            const storiesList = document.getElementById('storiesList');
+            
+            if (!storiesContainer || !storiesList) return;
+            
+            storiesContainer.style.display = 'block';
+            
+            storiesList.innerHTML = stories.map((story, index) => `
+                <div class="story-card" id="story-${index}">
+                    <div class="story-header">
+                        <h5>Story ${index + 1}: ${story.title}</h5>
+                        <div class="prompt-status" id="promptStatus-${index}">Not Started</div>
+                    </div>
+                    <div class="story-content">
+                        <p><strong>As a</strong> ${story.userType}</p>
+                        <p><strong>I want</strong> ${story.wantStatement}</p>
+                        <p><strong>So that</strong> ${story.soThatStatement}</p>
+                    </div>
+                    <div class="story-actions">
+                        <button id="generatePrompt-${index}" 
+                                onclick="generateStoryPrompt(${index})"
+                                class="generate-prompt-btn">
+                            Generate Prompt
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            
+            // Update UI states for existing prompts
+            workflowManager.updateStoryPromptUI();
+        }
+
+        async function generateStoryPrompt(storyIndex) {
+            try {
+                const canGenerate = await window.APIClient.canGeneratePrompt(
+                    workflowManager.state.storyGenerationId, 
+                    storyIndex
+                );
+                
+                if (!canGenerate) {
+                    alert('Cannot generate prompt. Stories must be approved first.');
+                    return;
+                }
+                
+                const preferences = {
+                    framework: 'ASP.NET Core',
+                    testingFramework: 'xUnit',
+                    architecture: 'Clean Architecture'
+                };
+                
+                const response = await window.APIClient.generatePrompt(
+                    workflowManager.state.storyGenerationId,
+                    storyIndex, 
+                    preferences
+                );
+                
+                workflowManager.setStoryPromptId(storyIndex, response.promptId);
+                workflowManager.updateStoryPromptUI();
+                
+                alert(`Prompt generation started for Story ${storyIndex + 1}. Check the review queue.`);
+                
+                // Optional: Redirect to review queue
+                // window.location.href = '../reviews/queue.html';
+                
+            } catch (error) {
+                alert('Error generating prompt: ' + error.message);
+                console.error('Prompt generation error:', error);
+            }
+        }
+
+        async function viewPrompt(storyIndex) {
+            const prompt = workflowManager.state.storyPrompts[storyIndex];
+            if (prompt && prompt.promptId) {
+                try {
+                    const promptData = await window.APIClient.getPrompt(prompt.promptId);
+                    
+                    // Simple prompt display - open in new window for now
+                    const promptWindow = window.open('', '_blank');
+                    promptWindow.document.write(`
+                        <html>
+                            <head><title>Generated Prompt - Story ${storyIndex + 1}</title></head>
+                            <body style="font-family: monospace; padding: 20px;">
+                                <h2>Generated Coding Prompt</h2>
+                                <button onclick="navigator.clipboard.writeText(document.getElementById('promptContent').textContent)">
+                                    Copy to Clipboard
+                                </button>
+                                <hr>
+                                <pre id="promptContent">${promptData.generatedPrompt}</pre>
+                            </body>
+                        </html>
+                    `);
+                } catch (error) {
+                    alert('Error loading prompt: ' + error.message);
+                }
+            }
         }
     </script>
 </body>
