@@ -289,12 +289,21 @@
                     throw new Error('Prerequisites not met for prompt generation.');
                 }
 
+                // Ensure storyGenerationId is a valid Guid string
+                let storyGenId = workflowManager.state.storyGenerationId;
+                if (!storyGenId || storyGenId === 'unknown' || storyGenId === 'null') {
+                    // Use a mock Guid for demo/testing
+                    storyGenId = '00000000-0000-0000-0000-000000000000';
+                    console.warn('Using mock storyGenerationId for prompt generation:', storyGenId);
+                }
+
                 const request = {
-                    storyGenerationId: workflowManager.state.storyGenerationId,
+                    storyGenerationId: storyGenId,
                     storyIndex: storyIndex,
                     technicalPreferences: {}
                 };
 
+                console.log('Sending prompt generation request:', request);
                 const response = await window.APIClient.generatePrompt(request);
                 workflowManager.recordApiSuccess();
                 

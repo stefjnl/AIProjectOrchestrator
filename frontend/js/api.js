@@ -1,4 +1,3 @@
-
 window.APIClient = {
     baseUrl: 'http://localhost:8086/api',
 
@@ -119,12 +118,8 @@ window.APIClient = {
     },
 
     // Phase 4: Prompt Generation API methods
-    async generatePrompt(storyGenerationId, storyIndex, preferences = {}) {
-        return await this.post('/PromptGeneration/generate', {
-            storyGenerationId,
-            storyIndex, 
-            technicalPreferences: preferences
-        });
+    async generatePrompt(request) {
+        return await this.post('/PromptGeneration/generate', request);
     },
 
     async getPromptStatus(promptId) {
