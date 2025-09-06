@@ -47,23 +47,28 @@ builder.Services.AddHealthChecks()
 
 // Add Entity Framework
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseInMemoryDatabase("AIProjectOrchestratorInMemoryDb"));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Add repositories
 builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
+builder.Services.AddScoped<IRequirementsAnalysisRepository, RequirementsAnalysisRepository>();
+builder.Services.AddScoped<IProjectPlanningRepository, ProjectPlanningRepository>();
+builder.Services.AddScoped<IStoryGenerationRepository, StoryGenerationRepository>();
+builder.Services.AddScoped<IPromptGenerationRepository, PromptGenerationRepository>();
+builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 
 // Add services
 builder.Services.AddScoped<IProjectService, ProjectService>();
 
 // Add requirements analysis service
-builder.Services.AddSingleton<IRequirementsAnalysisService, RequirementsAnalysisService>();
-builder.Services.AddSingleton<IProjectPlanningService, ProjectPlanningService>();
-builder.Services.AddSingleton<IStoryGenerationService, StoryGenerationService>();
-builder.Services.AddSingleton<ICodeGenerationService, CodeGenerationService>();
+builder.Services.AddScoped<IRequirementsAnalysisService, RequirementsAnalysisService>();
+builder.Services.AddScoped<IProjectPlanningService, ProjectPlanningService>();
+builder.Services.AddScoped<IStoryGenerationService, StoryGenerationService>();
+builder.Services.AddScoped<ICodeGenerationService, CodeGenerationService>();
 builder.Services.AddScoped<IPromptGenerationService, PromptGenerationService>();
 builder.Services.AddScoped<PromptContextAssembler>();
 builder.Services.AddScoped<ContextOptimizer>();
-builder.Services.AddSingleton<IReviewService, ReviewService>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
 
 // Add instruction service configuration
 builder.Services.Configure<InstructionSettings>(
@@ -120,8 +125,7 @@ builder.Services.AddSingleton<IAIClient, LMStudioClient>();
 // Register factory for accessing specific clients
 builder.Services.AddSingleton<IAIClientFactory, AIClientFactory>();
 
-// Register Review service as singleton (for in-memory storage consistency)
-builder.Services.AddSingleton<IReviewService, ReviewService>();
+// Register Lazy<IReviewService> for services that need it
 builder.Services.AddSingleton<Lazy<IReviewService>>(serviceProvider => new Lazy<IReviewService>(() => serviceProvider.GetRequiredService<IReviewService>()));
 
 // Register background cleanup service
@@ -135,7 +139,11 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
     
     // Apply migrations on startup in development
-    
+    using (var scope = app.Services.CreateScope())
+    {
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        context.Database.Migrate();
+    }
 }
 
 app.UseHttpsRedirection();

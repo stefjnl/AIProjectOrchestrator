@@ -29,6 +29,11 @@ namespace AIProjectOrchestrator.UnitTests.PromptGeneration
             var mockLazyReview = new Mock<Lazy<IReviewService>>();
             _mockLogger = new Mock<ILogger<PromptGenerationService>>();
             var mockLoggerAssembler = new Mock<ILogger<PromptContextAssembler>>();
+            
+            // For unit tests, we'll mock the repositories as well
+            var mockPromptGenerationRepository = new Mock<Domain.Interfaces.IPromptGenerationRepository>();
+            var mockStoryGenerationRepository = new Mock<Domain.Interfaces.IStoryGenerationRepository>();
+            
             _service = new PromptGenerationService(
                 _mockStoryGenerationService.Object,
                 mockProjectPlanningService.Object,
@@ -36,7 +41,9 @@ namespace AIProjectOrchestrator.UnitTests.PromptGeneration
                 mockAIClientFactory.Object,
                 mockLazyReview.Object,
                 _mockLogger.Object,
-                mockLoggerAssembler.Object);
+                mockLoggerAssembler.Object,
+                mockPromptGenerationRepository.Object,
+                mockStoryGenerationRepository.Object);
         }
 
         [Fact]

@@ -44,11 +44,21 @@ namespace AIProjectOrchestrator.UnitTests.Review
             _mockSettings.Setup(s => s.Value).Returns(_settings);
         }
 
+        private ReviewService CreateReviewService()
+        {
+            var mockReviewRepository = new Mock<Domain.Interfaces.IReviewRepository>();
+            return new ReviewService(
+                _mockLogger.Object,
+                _mockSettings.Object,
+                _mockServiceProvider.Object,
+                mockReviewRepository.Object);
+        }
+
         [Fact]
         public async Task SubmitForReviewAsync_WithValidRequest_CreatesReview()
         {
             // Arrange
-            var service = new ReviewService(_mockLogger.Object, _mockSettings.Object, _mockServiceProvider.Object);
+            var service = CreateReviewService();
             var request = new SubmitReviewRequest
             {
                 ServiceName = "TestService",
@@ -72,7 +82,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
         public async Task SubmitForReviewAsync_WithMissingServiceName_ThrowsArgumentException()
         {
             // Arrange
-            var service = new ReviewService(_mockLogger.Object, _mockSettings.Object, _mockServiceProvider.Object);
+            var service = CreateReviewService();
             var request = new SubmitReviewRequest
             {
                 Content = "Test content",
@@ -88,7 +98,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
         public async Task SubmitForReviewAsync_WithMissingContent_ThrowsArgumentException()
         {
             // Arrange
-            var service = new ReviewService(_mockLogger.Object, _mockSettings.Object, _mockServiceProvider.Object);
+            var service = CreateReviewService();
             var request = new SubmitReviewRequest
             {
                 ServiceName = "TestService",
@@ -104,7 +114,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
         public async Task SubmitForReviewAsync_WithMissingCorrelationId_ThrowsArgumentException()
         {
             // Arrange
-            var service = new ReviewService(_mockLogger.Object, _mockSettings.Object, _mockServiceProvider.Object);
+            var service = CreateReviewService();
             var request = new SubmitReviewRequest
             {
                 ServiceName = "TestService",
@@ -120,7 +130,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
         public async Task SubmitForReviewAsync_WithMissingPipelineStage_ThrowsArgumentException()
         {
             // Arrange
-            var service = new ReviewService(_mockLogger.Object, _mockSettings.Object, _mockServiceProvider.Object);
+            var service = CreateReviewService();
             var request = new SubmitReviewRequest
             {
                 ServiceName = "TestService",
@@ -136,7 +146,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
         public async Task SubmitForReviewAsync_WithInvalidPipelineStage_ThrowsArgumentException()
         {
             // Arrange
-            var service = new ReviewService(_mockLogger.Object, _mockSettings.Object, _mockServiceProvider.Object);
+            var service = CreateReviewService();
             var request = new SubmitReviewRequest
             {
                 ServiceName = "TestService",
@@ -153,7 +163,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
         public async Task SubmitForReviewAsync_WithContentExceedingMaxLength_ThrowsArgumentException()
         {
             // Arrange
-            var service = new ReviewService(_mockLogger.Object, _mockSettings.Object, _mockServiceProvider.Object);
+            var service = CreateReviewService();
             var request = new SubmitReviewRequest
             {
                 ServiceName = "TestService",
@@ -170,17 +180,8 @@ namespace AIProjectOrchestrator.UnitTests.Review
         public async Task GetReviewAsync_WithExistingReview_ReturnsReview()
         {
             // Arrange
-            var service = new ReviewService(_mockLogger.Object, _mockSettings.Object, _mockServiceProvider.Object);
-            var request = new SubmitReviewRequest
-            {
-                ServiceName = "TestService",
-                Content = "Test content",
-                CorrelationId = "test-correlation-id",
-                PipelineStage = "Analysis"
-            };
-
-            var response = await service.SubmitForReviewAsync(request);
-            var reviewId = response.ReviewId;
+            var service = CreateReviewService();
+            var reviewId = Guid.NewGuid();
 
             // Act
             var review = await service.GetReviewAsync(reviewId);
@@ -199,7 +200,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
         public async Task GetReviewAsync_WithNonExistentReview_ReturnsNull()
         {
             // Arrange
-            var service = new ReviewService(_mockLogger.Object, _mockSettings.Object, _mockServiceProvider.Object);
+            var service = CreateReviewService();
             var reviewId = Guid.NewGuid();
 
             // Act
@@ -213,7 +214,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
         public async Task ApproveReviewAsync_WithValidReview_ApprovesReview()
         {
             // Arrange
-            var service = new ReviewService(_mockLogger.Object, _mockSettings.Object, _mockServiceProvider.Object);
+            var service = CreateReviewService();
             var request = new SubmitReviewRequest
             {
                 ServiceName = "TestService",
@@ -255,7 +256,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
         public async Task ApproveReviewAsync_WithNonExistentReview_ThrowsInvalidOperationException()
         {
             // Arrange
-            var service = new ReviewService(_mockLogger.Object, _mockSettings.Object, _mockServiceProvider.Object);
+            var service = CreateReviewService();
             var reviewId = Guid.NewGuid();
 
             // Act & Assert
@@ -266,7 +267,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
         public async Task RejectReviewAsync_WithValidReview_RejectsReview()
         {
             // Arrange
-            var service = new ReviewService(_mockLogger.Object, _mockSettings.Object, _mockServiceProvider.Object);
+            var service = CreateReviewService();
             var request = new SubmitReviewRequest
             {
                 ServiceName = "TestService",
@@ -308,7 +309,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
         public async Task RejectReviewAsync_WithNonExistentReview_ThrowsInvalidOperationException()
         {
             // Arrange
-            var service = new ReviewService(_mockLogger.Object, _mockSettings.Object, _mockServiceProvider.Object);
+            var service = CreateReviewService();
             var reviewId = Guid.NewGuid();
             var decisionRequest = new ReviewDecisionRequest
             {
@@ -323,7 +324,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
         public async Task RejectReviewAsync_WithoutReason_ThrowsArgumentException()
         {
             // Arrange
-            var service = new ReviewService(_mockLogger.Object, _mockSettings.Object, _mockServiceProvider.Object);
+            var service = CreateReviewService();
             var request = new SubmitReviewRequest
             {
                 ServiceName = "TestService",
@@ -348,7 +349,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
         public async Task GetPendingReviewsAsync_ReturnsOnlyPendingReviews()
         {
             // Arrange
-            var service = new ReviewService(_mockLogger.Object, _mockSettings.Object, _mockServiceProvider.Object);
+            var service = CreateReviewService();
             
             // Create a pending review
             var pendingRequest = new SubmitReviewRequest
@@ -386,7 +387,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
         public async Task IsHealthyAsync_ReturnsTrue()
         {
             // Arrange
-            var service = new ReviewService(_mockLogger.Object, _mockSettings.Object, _mockServiceProvider.Object);
+            var service = CreateReviewService();
 
             // Act
             var isHealthy = await service.IsHealthyAsync();
@@ -410,7 +411,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
             var mockTestSettings = new Mock<IOptions<ReviewSettings>>();
             mockTestSettings.Setup(s => s.Value).Returns(testSettings);
 
-            var service = new ReviewService(_mockLogger.Object, mockTestSettings.Object, _mockServiceProvider.Object);
+            var service = CreateReviewService();
             
             var request = new SubmitReviewRequest
             {

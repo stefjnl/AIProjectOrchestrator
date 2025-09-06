@@ -10,6 +10,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using AIProjectOrchestrator.Domain.Interfaces;
 
 namespace AIProjectOrchestrator.UnitTests.RequirementsAnalysis
 {
@@ -19,6 +20,7 @@ namespace AIProjectOrchestrator.UnitTests.RequirementsAnalysis
         private readonly Mock<IAIClientFactory> _mockAIClientFactory;
         private readonly Mock<IReviewService> _mockReviewService;
         private readonly Mock<ILogger<RequirementsAnalysisService>> _mockLogger;
+        private readonly Mock<IRequirementsAnalysisRepository> _mockRequirementsAnalysisRepository;
         private readonly RequirementsAnalysisService _service;
 
         public ExtendedRequirementsAnalysisServiceTests()
@@ -27,12 +29,14 @@ namespace AIProjectOrchestrator.UnitTests.RequirementsAnalysis
             _mockAIClientFactory = new Mock<IAIClientFactory>();
             _mockReviewService = new Mock<IReviewService>();
             _mockLogger = new Mock<ILogger<RequirementsAnalysisService>>();
+            _mockRequirementsAnalysisRepository = new Mock<IRequirementsAnalysisRepository>();
             
             _service = new RequirementsAnalysisService(
                 _mockInstructionService.Object,
                 _mockAIClientFactory.Object,
                 new Lazy<IReviewService>(() => _mockReviewService.Object),
-                _mockLogger.Object);
+                _mockLogger.Object,
+                _mockRequirementsAnalysisRepository.Object);
         }
 
         [Fact]
