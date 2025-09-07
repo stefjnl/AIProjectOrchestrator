@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stories & Prompts Management - AI Orchestrator</title>
     <link rel="stylesheet" href="/css/styles.css">
 </head>
+
 <body>
     <div class="container">
         <!-- Header Section -->
@@ -30,10 +32,10 @@
     <script>
         let workflowManager;
 
-        window.addEventListener('DOMContentLoaded', async function() {
+        window.addEventListener('DOMContentLoaded', async function () {
             const urlParams = new URLSearchParams(window.location.search);
             const projectId = urlParams.get('projectId');
-            
+
             if (!projectId) {
                 alert('Project ID is required');
                 window.location.href = '/projects/list.html';
@@ -44,11 +46,11 @@
 
             // Show loading state
             document.body.classList.add('loading');
-            
+
             try {
                 // Load state from API instead of localStorage
                 await workflowManager.loadStateFromAPI();
-                
+
                 // Load project info
                 const project = await window.APIClient.getProject(projectId);
                 workflowManager.recordApiSuccess();
@@ -60,10 +62,10 @@
 
                 // Start polling for updates
                 workflowManager.startPolling();
-                
+
                 // Hide loading state
                 document.body.classList.remove('loading');
-                
+
             } catch (error) {
                 console.error('Failed to initialize stories overview:', error);
                 showError('Failed to load stories. Please try again.');
@@ -71,7 +73,7 @@
             }
 
             // Set up back button - redirect to workflow page
-            document.getElementById('backToWorkflow').addEventListener('click', function() {
+            document.getElementById('backToWorkflow').addEventListener('click', function () {
                 window.location.href = `/projects/workflow.html?projectId=${encodeURIComponent(workflowManager.projectId)}`;
             });
 
@@ -81,14 +83,14 @@
             }
 
             // Page visibility refresh
-            document.addEventListener('visibilitychange', function() {
+            document.addEventListener('visibilitychange', function () {
                 if (!document.hidden && workflowManager.state.enableStoriesMVP) {
                     workflowManager.refreshState().then(loadAndRenderStories).catch(console.error);
                 }
             });
-            
+
             // Cleanup on page unload
-            window.addEventListener('beforeunload', function() {
+            window.addEventListener('beforeunload', function () {
                 workflowManager.stopPolling();
             });
         });
@@ -96,51 +98,62 @@
         async function loadAndRenderStories() {
             const urlParams = new URLSearchParams(window.location.search);
             const projectId = urlParams.get('projectId');
-            
+
             if (!workflowManager.state.storiesApproved || !workflowManager.state.storyGenerationId) {
+                console.warn('Stories not approved or no storyGenerationId:', {
+                    storiesApproved: workflowManager.state.storiesApproved,
+                    storyGenerationId: workflowManager.state.storyGenerationId
+                });
                 showError('No stories available. Please complete the story generation stage first.', projectId);
                 return;
             }
 
+            const generationId = workflowManager.state.storyGenerationId;
+            console.log('Loading stories for generationId:', generationId, 'Type:', typeof generationId);
+
             try {
-                // Fetch stories from API
-                const stories = await window.APIClient.getStories(workflowManager.state.storyGenerationId);
+                const response = await window.APIClient.getStories(generationId);
+                console.log('Raw API response:', response);
                 workflowManager.recordApiSuccess();
-                
-                if (!stories || stories.length === 0) {
+
+                if (!response || response.length === 0) {
+                    console.warn('No stories returned from API for generationId:', generationId);
                     showError('No stories found for this project.', projectId);
                     return;
                 }
-                
-                // Get prompt statuses for each story
+
                 const storyPrompts = workflowManager.state.storyPrompts || [];
-                
-                renderStoriesGrid(stories, storyPrompts);
-                updateSummaryStats(stories, storyPrompts);
-                
+                renderStoriesGrid(response, storyPrompts);
+                updateSummaryStats(response, storyPrompts);
+
             } catch (error) {
-                console.error('Error loading stories:', error);
+                console.error('Detailed error loading stories:', {
+                    generationId: generationId,
+                    error: error,
+                    message: error.message,
+                    status: error.status || 'unknown'
+                });
                 workflowManager.recordApiFailure();
-                
+
                 if (workflowManager.isApiDisabled()) {
                     showMaintenanceBanner();
                 }
-                
+
                 if (error.message.includes('404')) {
                     showError('Stories data not found. The stories may not be approved yet.', projectId);
                 } else {
-                    showError('Failed to load stories from the server.', projectId);
+                    showError(`Failed to load stories from the server: ${error.message}`, projectId);
                 }
             }
         }
 
         function renderStoriesGrid(stories, storyPrompts) {
             const container = document.getElementById('storiesContainer');
-            
+
             container.innerHTML = stories.map((story, index) => {
                 // Find the story prompt for this story
                 const storyPrompt = storyPrompts.find(sp => sp.storyIndex === index);
-                
+
                 // Check for stored approval status in localStorage
                 let status = storyPrompt?.status || 'Draft';
                 const projectId = workflowManager.projectId;
@@ -152,31 +165,31 @@
                         status = 'Approved';
                     }
                 }
-                
+
                 const statusClass = getStatusClass(status);
-                
+
                 // Extract story details
                 const title = story.Title || story.title || `Story ${index + 1}`;
                 let description = story.Description || story.description || '';
                 let acceptanceCriteria = story.AcceptanceCriteria || story.acceptanceCriteria || [];
-                
+
                 // Handle case where description is in AcceptanceCriteria field instead of Description field
                 if (!description && Array.isArray(acceptanceCriteria) && acceptanceCriteria.length === 1 && typeof acceptanceCriteria[0] === 'string') {
                     description = acceptanceCriteria[0];
                     acceptanceCriteria = [];
                 }
-                
+
                 // Create preview text (first 100 chars of description)
                 const previewText = description.length > 100 ? description.substring(0, 100) + '...' : description;
-                
+
                 // Format acceptance criteria for display
                 const criteriaHtml = acceptanceCriteria.map(criteria => `<li>${criteria}</li>`).join('');
-                
+
                 // Determine if the story is approved
                 const isApproved = status === 'Approved';
-                
+
                 return `
-                    <div class="story-card" data-story-index="${index}" data-story-id="${story.Id || index}">
+                    <div class="story-card" data-story-index="${index}" data-story-id="${story.id || story.Id}">
                         <div class="story-header">
                             <h3>${title}</h3>
                             <span class="status-badge ${statusClass}">${status}</span>
@@ -215,26 +228,26 @@
 
             // Attach event listeners for the new UI elements
             attachStoryEventListeners();
-            
+
             updateSummaryStats(stories, storyPrompts);
         }
-        
+
         function getStatusClass(status) {
             if (!status || typeof status !== 'string') {
                 console.warn('Invalid status value in getStatusClass:', status, 'type:', typeof status);
                 return 'draft';
             }
-            
+
             const lowerStatus = status.toLowerCase();
-            switch(lowerStatus) {
+            switch (lowerStatus) {
                 case 'approved': return 'approved';
-                case 'pending': 
+                case 'pending':
                 case 'pending review': return 'pending';
-                case 'not started': 
+                case 'not started':
                 case 'notstarted': return 'draft';
                 case 'rejected': return 'rejected';
                 case 'draft': return 'draft';
-                default: 
+                default:
                     console.warn('Unknown status value:', lowerStatus);
                     return 'draft';
             }
@@ -279,26 +292,26 @@
                     </div>
                 </div>
                 <div style="margin-top: 15px; font-size: 0.9em; color: #6c757d;">
-                    Progress: ${approvedStories} of ${totalStories} stories approved (${totalStories > 0 ? Math.round((approvedStories/totalStories)*100) : 0}%)
+                    Progress: ${approvedStories} of ${totalStories} stories approved (${totalStories > 0 ? Math.round((approvedStories / totalStories) * 100) : 0}%)
                 </div>
             `;
         }
 
         function attachStoryEventListeners() {
             const container = document.getElementById('storiesContainer');
-            
+
             // Remove any existing event listener to prevent duplicates
             if (container.storyEventListener) {
                 container.removeEventListener('click', container.storyEventListener);
             }
-            
+
             // Define the event listener function
-            const eventListener = function(e) {
+            const eventListener = function (e) {
                 if (e.target.classList.contains('read-more-btn')) {
                     const storyCard = e.target.closest('.story-card');
                     const fullContent = storyCard.querySelector('.full-content');
                     const preview = storyCard.querySelector('.preview');
-                    
+
                     fullContent.classList.remove('hidden');
                     fullContent.classList.add('show');
                     preview.style.display = 'none';
@@ -309,7 +322,7 @@
                     const storyCard = e.target.closest('.story-card');
                     const fullContent = storyCard.querySelector('.full-content');
                     const preview = storyCard.querySelector('.preview');
-                    
+
                     fullContent.classList.remove('show');
                     fullContent.classList.add('hidden');
                     preview.style.display = 'block';
@@ -317,14 +330,14 @@
                     e.target.classList.remove('read-less-btn');
                     e.target.classList.add('read-more-btn');
                 }
-                
+
                 // Handle edit button
                 if (e.target.classList.contains('edit-btn')) {
                     const storyCard = e.target.closest('.story-card');
                     const editMode = storyCard.querySelector('.story-edit-mode');
                     const storyContent = storyCard.querySelector('.story-content');
                     const storyActions = storyCard.querySelector('.story-actions');
-                    
+
                     // Toggle edit mode
                     if (editMode.classList.contains('active')) {
                         // Exit edit mode
@@ -340,48 +353,48 @@
                         e.target.textContent = 'Cancel';
                     }
                 }
-                
+
                 // Handle approve button
                 if (e.target.classList.contains('approve-btn')) {
                     const storyCard = e.target.closest('.story-card');
                     const storyIndex = storyCard.dataset.storyIndex;
                     const statusBadge = storyCard.querySelector('.status-badge');
-                    
+
                     // Show loading state
                     e.target.innerHTML = '<span class="loading"></span>Approving...';
                     e.target.disabled = true;
-                    
+
                     // Call API to approve story
                     approveStory(storyIndex, storyCard);
                 }
-                
+
                 // Handle reject button
                 if (e.target.classList.contains('reject-btn')) {
                     const storyCard = e.target.closest('.story-card');
                     const storyIndex = storyCard.dataset.storyIndex;
                     const statusBadge = storyCard.querySelector('.status-badge');
-                    
+
                     // Show loading state
                     e.target.innerHTML = '<span class="loading"></span>Rejecting...';
                     e.target.disabled = true;
-                    
+
                     // Call API to reject story
                     rejectStory(storyIndex, storyCard);
                 }
-                
+
                 // Handle save changes button
                 if (e.target.classList.contains('save-btn')) {
                     const storyCard = e.target.closest('.story-card');
                     const storyIndex = storyCard.dataset.storyIndex;
-                    
+
                     // Show loading
                     e.target.innerHTML = '<span class="loading"></span>Saving...';
                     e.target.disabled = true;
-                    
+
                     // Call API to update story
                     updateStory(storyIndex, storyCard);
                 }
-                
+
                 // Handle cancel button
                 if (e.target.classList.contains('cancel-btn')) {
                     const storyCard = e.target.closest('.story-card');
@@ -389,26 +402,26 @@
                     const storyContent = storyCard.querySelector('.story-content');
                     const storyActions = storyCard.querySelector('.story-actions');
                     const editBtn = storyCard.querySelector('.edit-btn');
-                    
+
                     // Properly exit edit mode
                     editMode.classList.remove('active');
                     storyContent.style.display = 'block';
                     storyActions.style.display = 'flex';
                     editBtn.textContent = 'Edit';
                 }
-                
+
                 // Handle generate prompt button
                 if (e.target.classList.contains('generate-prompt-btn')) {
                     const storyCard = e.target.closest('.story-card');
                     const storyIndex = storyCard.dataset.storyIndex;
-                    
+
                     generatePrompt(storyIndex);
                 }
             };
-            
+
             // Attach the event listener
             container.addEventListener('click', eventListener);
-            
+
             // Store the event listener on the container to allow removal later
             container.storyEventListener = eventListener;
         }
@@ -417,50 +430,60 @@
             try {
                 // Get the story ID from the story card data attributes
                 const storyId = storyCard.dataset.storyId;
-                
+                console.log('Approving story with ID:', storyId);
+
+                // Validate that we have a story ID
+                if (!storyId) {
+                    throw new Error('Story ID is missing');
+                }
+
                 // Call the API to approve the individual story
                 if (storyId) {
                     await window.APIClient.approveStory(storyId);
                 }
-                
+
                 // Update UI immediately for better UX
                 const statusBadge = storyCard.querySelector('.status-badge');
                 statusBadge.textContent = 'Approved';
                 statusBadge.className = 'status-badge approved';
-                
+
                 const approveBtn = storyCard.querySelector('.approve-btn');
                 approveBtn.classList.add('hidden');
-                
+
                 const rejectBtn = storyCard.querySelector('.reject-btn');
                 rejectBtn.classList.remove('hidden');
-                
+
                 const generateBtn = storyCard.querySelector('.generate-prompt-btn');
                 generateBtn.disabled = false;
-                
+
                 // Reset button text
                 approveBtn.innerHTML = 'Approve';
                 approveBtn.disabled = false;
-                
+
                 // Update workflow manager state
                 if (workflowManager && typeof workflowManager.setStoriesApproved === 'function') {
                     // Mark the overall stories as approved if this is the first approved story
                     // In a real implementation, we would check if all stories are approved
                     workflowManager.setStoriesApproved(true);
                 }
-                
+
                 // Show success message
                 showNotification('Story approved successfully!', 'success');
-                
+
             } catch (error) {
                 console.error('Failed to approve story:', error);
-                
+
                 // Reset button text
                 const approveBtn = storyCard.querySelector('.approve-btn');
                 approveBtn.innerHTML = 'Approve';
                 approveBtn.disabled = false;
-                
+
                 // Show error message
-                showNotification('Failed to approve story. Please try again.', 'error');
+                let errorMessage = 'Failed to approve story. Please try again.';
+                if (error.message) {
+                    errorMessage = `Failed to approve story: ${error.message}`;
+                }
+                showNotification(errorMessage, 'error');
             }
         }
 
@@ -468,47 +491,57 @@
             try {
                 // Get the story ID from the story card data attributes
                 const storyId = storyCard.dataset.storyId;
-                
+                console.log('Rejecting story with ID:', storyId);
+
+                // Validate that we have a story ID
+                if (!storyId) {
+                    throw new Error('Story ID is missing');
+                }
+
                 // Get feedback from user
                 const feedback = prompt('Please provide feedback for rejection:');
                 if (feedback === null) return; // User cancelled prompt
-                
+
                 // Call the API to reject the individual story
                 if (storyId) {
                     await window.APIClient.rejectStory(storyId, feedback);
                 }
-                
+
                 // Update UI immediately for better UX
                 const statusBadge = storyCard.querySelector('.status-badge');
                 statusBadge.textContent = 'Rejected';
                 statusBadge.className = 'status-badge rejected';
-                
+
                 const rejectBtn = storyCard.querySelector('.reject-btn');
                 rejectBtn.classList.add('hidden');
-                
+
                 const approveBtn = storyCard.querySelector('.approve-btn');
                 approveBtn.classList.remove('hidden');
-                
+
                 const generateBtn = storyCard.querySelector('.generate-prompt-btn');
                 generateBtn.disabled = true;
-                
+
                 // Reset button text
                 rejectBtn.innerHTML = 'Reject';
                 rejectBtn.disabled = false;
-                
+
                 // Show success message
                 showNotification('Story rejected successfully!', 'success');
-                
+
             } catch (error) {
                 console.error('Failed to reject story:', error);
-                
+
                 // Reset button text
                 const rejectBtn = storyCard.querySelector('.reject-btn');
                 rejectBtn.innerHTML = 'Reject';
                 rejectBtn.disabled = false;
-                
+
                 // Show error message
-                showNotification('Failed to reject story. Please try again.', 'error');
+                let errorMessage = 'Failed to reject story. Please try again.';
+                if (error.message) {
+                    errorMessage = `Failed to reject story: ${error.message}`;
+                }
+                showNotification(errorMessage, 'error');
             }
         }
 
@@ -521,57 +554,69 @@
                 const storyContent = storyCard.querySelector('.story-content');
                 const storyActions = storyCard.querySelector('.story-actions');
                 const editBtn = storyCard.querySelector('.edit-btn');
-                
+
                 // Get the story ID from the story card data attributes
                 const storyId = storyCard.dataset.storyId;
-                
+                console.log('Updating story with ID:', storyId);
+
+                // Validate that we have a story ID
+                if (!storyId) {
+                    throw new Error('Story ID is missing');
+                }
+
                 // Prepare updated story data
                 const updatedStory = {
-                    Id: storyId,
                     Title: titleInput.value,
                     Description: descriptionInput.value,
-                    AcceptanceCriteria: criteriaInput.value.split('\n').filter(c => c.trim())
+                    AcceptanceCriteria: criteriaInput.value.split('\n').filter(c => c.trim()),
+                    Priority: "", // Default values for required fields
+                    Tags: [],
+                    Status: "Draft"
                 };
-                
+
                 // Call the API to update the story
                 if (storyId) {
                     await window.APIClient.editStory(storyId, updatedStory);
                 }
-                
+
                 // Update story header with new title
                 const storyHeader = storyCard.querySelector('.story-header h3');
                 storyHeader.textContent = updatedStory.Title;
-                
+
                 // Update preview text
                 const preview = storyCard.querySelector('.preview p');
                 const newPreview = updatedStory.Description.length > 100 ?
                     updatedStory.Description.substring(0, 100) + '...' : updatedStory.Description;
                 preview.textContent = newPreview;
-                
+
                 // Hide edit mode
                 editMode.classList.remove('active');
                 storyContent.style.display = 'block';
                 storyActions.style.display = 'flex';
                 editBtn.textContent = 'Edit';
-                
+
                 // Reset button text
                 const saveBtn = storyCard.querySelector('.save-btn');
                 saveBtn.innerHTML = 'Save Changes';
                 saveBtn.disabled = false;
-                
+
                 // Show success notification
                 showNotification('Story updated successfully!', 'success');
-                
+
             } catch (error) {
                 console.error('Failed to update story:', error);
-                
+
                 // Reset button text
                 const saveBtn = storyCard.querySelector('.save-btn');
                 saveBtn.innerHTML = 'Save Changes';
                 saveBtn.disabled = false;
-                
+
                 // Show error toast
-                showNotification('Failed to update story. Please try again.', 'error');
+                let errorMessage = 'Failed to update story. Please try again.';
+                if (error.message) {
+                    errorMessage = `Failed to update story: ${error.message}`;
+                }
+                showNotification(errorMessage, 'error');
             }
         }
 
@@ -583,19 +628,19 @@
 
             try {
                 console.log('Generating prompt for story index:', storyIndex);
-                
+
                 const request = {
                     storyGenerationId: workflowManager.state.storyGenerationId,
                     storyIndex: storyIndex,
                     technicalPreferences: {}
                 };
-                
+
                 const response = await window.APIClient.generatePrompt(request);
                 workflowManager.recordApiSuccess();
-                
+
                 // Don't save state - will be updated by polling
                 alert('Prompt generation submitted for review. Please check the review queue.');
-                
+
             } catch (error) {
                 console.error('Error generating prompt:', error);
                 workflowManager.recordApiFailure();
@@ -605,17 +650,17 @@
                 alert('Error generating prompt: ' + error.message);
             }
         }
-        
+
         async function viewPrompt(promptId) {
             try {
                 const prompt = await window.APIClient.getPrompt(promptId);
                 workflowManager.recordApiSuccess();
-                
+
                 // Simple inline view for MVP
                 const viewDiv = document.createElement('div');
                 viewDiv.id = 'tempPromptView';
                 viewDiv.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center;';
-                
+
                 viewDiv.innerHTML = `
                     <div style="background: white; padding: 20px; max-width: 80%; max-height: 80%; overflow: auto; border-radius: 8px;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
@@ -629,15 +674,15 @@
                         </div>
                     </div>
                 `;
-                
+
                 document.body.appendChild(viewDiv);
-                
+
             } catch (error) {
                 workflowManager.recordApiFailure();
                 alert(`Failed to load prompt: ${error.message}`);
             }
         }
-        
+
         function closeTempView() {
             const view = document.getElementById('tempPromptView');
             if (view) view.remove();
@@ -659,7 +704,7 @@
             try {
                 const prompt = await window.APIClient.getPrompt(promptId);
                 workflowManager.recordApiSuccess();
-                
+
                 const blob = new Blob([prompt.generatedPrompt], { type: 'text/markdown' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -687,10 +732,10 @@
             const notification = document.createElement('div');
             notification.className = `notification-toast ${type}`;
             notification.textContent = message;
-            
+
             // Add to document
             document.body.appendChild(notification);
-            
+
             // Remove after 3 seconds
             setTimeout(() => {
                 if (notification.parentNode) {
@@ -746,4 +791,5 @@
         }
     </script>
 </body>
+
 </html>

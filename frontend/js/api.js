@@ -172,15 +172,15 @@ window.APIClient = {
 
     // Story management methods
     async approveStory(storyId) {
-        return await this.post(`/stories/${storyId}/approve`, {});
+        return await this._request('PUT', `/stories/${storyId}/approve`, {});
     },
 
     async rejectStory(storyId, feedback) {
-        return await this.post(`/stories/${storyId}/reject`, { feedback });
+        return await this._request('PUT', `/stories/${storyId}/reject`, { feedback });
     },
 
     async editStory(storyId, updatedStory) {
-        return await this.post(`/stories/${storyId}/edit`, updatedStory);
+        return await this._request('PUT', `/stories/${storyId}/edit`, updatedStory);
     },
 
     async approveStories(storyGenerationId) {

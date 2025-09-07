@@ -1,21 +1,12 @@
+using System;
 using System.Collections.Generic;
-using AIProjectOrchestrator.Domain.Models.Stories;
 
-namespace AIProjectOrchestrator.Domain.Models
+namespace AIProjectOrchestrator.Domain.Models.Stories
 {
     public class UserStoryDto
     {
-        public int Index { get; set; }
-        public string Title { get; set; } = string.Empty;
-        public string AsA { get; set; } = string.Empty;
-        public string IWant { get; set; } = string.Empty;
-        public string SoThat { get; set; } = string.Empty;
-        public List<string> AcceptanceCriteria { get; set; } = new();
-        public int? StoryPoints { get; set; }
-    }
-
-    public class UpdateStoryDto
-    {
+        public Guid Id { get; set; }
+        public int Index { get; set; } // For frontend ordering
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public List<string> AcceptanceCriteria { get; set; } = new();
