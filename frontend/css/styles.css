@@ -1503,6 +1503,26 @@ textarea {
     letter-spacing: 0.5px;
 }
 
+/* Override existing workflow-stages styles to work with new container */
+.workflow-stages {
+    display: contents; /* Let the parent grid handle layout */
+}
+
+/* Ensure existing status classes map to new badges for backward compatibility */
+.stage-status {
+    /* This will be replaced by .status-badge in HTML, but keep for any legacy */
+    composes: status-badge;
+}
+
+/* Legacy status class overrides for backward compatibility with existing CSS */
+.stage-status.approved { composes: status-approved; }
+.stage-status.pending-review { composes: status-pending-review; }
+.stage-status.not-started { composes: status-not-started; }
+.stage-status.generating { composes: status-generating; }
+.stage-status.ready { composes: status-ready; }
+.stage-status.waiting { composes: status-waiting; }
+.stage-status.complete { composes: status-complete; }
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .story-header {
@@ -1572,4 +1592,315 @@ textarea {
     gap: 15px;
     margin-top: 20px;
     flex-wrap: wrap;
+}
+
+/* ===== ENTERPRISE UI REDESIGN FOR WORKFLOW - Phase 1 ===== */
+/*
+ * Implementation of modern enterprise-grade UI for the AI Project Orchestrator workflow interface.
+ * This redesign transforms the basic Bootstrap-style layout into a professional, card-based interface
+ * inspired by Microsoft Azure DevOps and Atlassian products. Key features include:
+ * - CSS Grid responsive layout with auto-fit columns
+ * - Card-based design with subtle shadows and hover animations
+ * - Color-coded status badges with icons and pulse animations
+ * - Gradient buttons with shine effects and smooth transitions
+ * - 8px spacing grid for consistent typography and layout
+ * - Mobile-first responsive design with proper breakpoints
+ *
+ * All existing functionality is preserved - this is purely a visual enhancement.
+ * Status classes map to workflow states: not-started, in-progress, pending-review, approved, etc.
+ * Backward compatibility maintained with existing .workflow-stages override.
+ */
+
+/* Modern CSS Grid Layout for Workflow */
+.workflow-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 24px;
+    padding: 32px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+    margin: 0 auto;
+    max-width: 1400px;
+}
+
+/* Card-Based Styling with Modern Effects */
+.stage-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    padding: 24px;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(0,0,0,0.05);
+    position: relative;
+    overflow: hidden;
+}
+
+.stage-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.stage-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+}
+
+.stage-card:hover::before {
+    opacity: 1;
+}
+
+.stage-card.completed::before {
+    background: linear-gradient(90deg, #4CAF50, #45a049);
+    opacity: 1;
+}
+
+.stage-card.in-progress::before {
+    background: linear-gradient(90deg, #2196F3, #1976D2);
+    opacity: 1;
+}
+
+.stage-card.pending::before {
+    background: linear-gradient(90deg, #FF9800, #F57C00);
+    opacity: 1;
+}
+
+/* Color-Coded Status Badges with Icons */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+}
+
+.status-not-started {
+    background: #f8f9fa;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+}
+
+.status-in-progress {
+    background: rgba(33, 150, 243, 0.1);
+    color: #1976D2;
+    border: 1px solid rgba(33, 150, 243, 0.3);
+}
+
+.status-pending-review {
+    background: rgba(255, 152, 0, 0.1);
+    color: #F57C00;
+    border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+.status-approved {
+    background: rgba(76, 175, 80, 0.1);
+    color: #388e3c;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.status-rejected {
+    background: rgba(244, 67, 54, 0.1);
+    color: #d32f2f;
+    border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.status-ready {
+    background: rgba(76, 175, 80, 0.1);
+    color: #388e3c;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.status-waiting {
+    background: rgba(255, 152, 0, 0.1);
+    color: #F57C00;
+    border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+.status-complete {
+    background: rgba(76, 175, 80, 0.1);
+    color: #388e3c;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.status-generating {
+    background: rgba(33, 150, 243, 0.1);
+    color: #1976D2;
+    border: 1px solid rgba(33, 150, 243, 0.3);
+}
+
+/* Status icons using CSS pseudo-elements */
+.status-badge::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.status-approved::before,
+.status-ready::before,
+.status-complete::before {
+    content: '✓';
+    width: auto;
+    height: auto;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.status-in-progress::before,
+.status-generating::before {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Modern Button Styling with Gradients */
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    text-transform: none;
+    letter-spacing: 0.3px;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn-primary:hover::before {
+    left: 100%;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-primary:disabled {
+    background: #e9ecef;
+    color: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-secondary {
+    background: white;
+    border: 2px solid #667eea;
+    border-radius: 8px;
+    padding: 10px 22px;
+    color: #667eea;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background: #667eea;
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.btn-secondary:disabled {
+    background: #e9ecef;
+    border-color: #dee2e6;
+    color: #6c757d;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Typography and Spacing Improvements */
+.stage-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 8px;
+    line-height: 1.3;
+}
+
+.stage-description {
+    font-size: 14px;
+    color: #64748b;
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+/* Consistent spacing using 8px grid */
+.workflow-container > * + * {
+    margin-top: 0;
+}
+
+.stage-card > * + * {
+    margin-top: 16px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .workflow-container {
+        grid-template-columns: 1fr;
+        padding: 16px;
+        gap: 16px;
+    }
+    
+    .stage-card {
+        padding: 20px;
+    }
+    
+    .btn-primary,
+    .btn-secondary {
+        width: 100%;
+        padding: 14px;
+    }
+}
+
+@media (min-width: 1200px) {
+    .workflow-container {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+}
+
+/* Override existing workflow-stages styles to work with new container */
+.workflow-stages {
+    display: contents; /* Let the parent grid handle layout */
+}
+
+/* Ensure existing status classes map to new badges for backward compatibility */
+.stage-status {
+    /* This will be replaced by .status-badge in HTML, but keep for any legacy */
+    composes: status-badge;
 }
