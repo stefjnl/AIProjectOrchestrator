@@ -449,6 +449,22 @@
         }
 
         function mapToUpdateStoryDto(editedStory) {
+            // Map status string to enum value
+            let statusValue;
+            switch (editedStory.status) {
+                case 'Draft':
+                    statusValue = 0;
+                    break;
+                case 'Approved':
+                    statusValue = 1;
+                    break;
+                case 'Rejected':
+                    statusValue = 2;
+                    break;
+                default:
+                    statusValue = 0; // Default to Draft
+            }
+            
             return {
                 Title: editedStory.title || '',
                 Description: editedStory.description || '',
@@ -457,7 +473,7 @@
                 StoryPoints: editedStory.storyPoints || null,
                 Tags: editedStory.tags || [],
                 EstimatedComplexity: editedStory.estimatedComplexity || null,
-                Status: editedStory.status || 'Draft'
+                Status: statusValue
             };
         }
 
@@ -614,7 +630,7 @@
 
                 // Call the API to update the story, wrapping the DTO
                 if (storyId) {
-                    await window.APIClient.editStory(storyId, { updatedStory: dto });
+                    await window.APIClient.editStory(storyId, { UpdatedStory: dto });
                 }
 
                 // Update story header with new title
