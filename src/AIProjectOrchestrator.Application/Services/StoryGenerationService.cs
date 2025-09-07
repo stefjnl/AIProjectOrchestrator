@@ -158,10 +158,8 @@ namespace AIProjectOrchestrator.Application.Services
                     GenerationId = generationId.ToString(),
                     ProjectPlanningId = projectPlanning.Id,
                     Status = StoryGenerationStatus.PendingReview,
-                    Content = aiResponse.Content,
                     ReviewId = string.Empty, // Will be updated after review submission
                     CreatedDate = DateTime.UtcNow,
-                    StoriesJson = JsonSerializer.Serialize(stories),
                     Stories = stories
                 };
 
@@ -186,7 +184,7 @@ namespace AIProjectOrchestrator.Application.Services
                 var reviewRequest = new SubmitReviewRequest
                 {
                     ServiceName = "StoryGeneration",
-                    Content = aiResponse.Content,
+                    Content = aiResponse.Content, // We can still send the full content for review purposes
                     CorrelationId = correlationId,
                     PipelineStage = "Stories",
                     OriginalRequest = aiRequest,
@@ -246,25 +244,39 @@ namespace AIProjectOrchestrator.Application.Services
             Guid generationId,
             CancellationToken cancellationToken = default)
         {
-            var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(generationId.ToString(), cancellationToken);
-            if (storyGeneration != null)
+            try
             {
-                if (!string.IsNullOrEmpty(storyGeneration.StoriesJson))
-                {
-                    try
-                    {
-                        return JsonSerializer.Deserialize<List<UserStory>>(storyGeneration.StoriesJson) ?? new List<UserStory>();
-                    }
-                    catch (JsonException ex)
-                    {
-                        _logger.LogError(ex, "Failed to deserialize stories JSON for generation {GenerationId}", generationId);
-                        return new List<UserStory>();
-                    }
-                }
-                return storyGeneration.Stories.ToList();
-            }
+                _logger.LogDebug("Service: Getting generation results for {GenerationId}", generationId);
 
-            return null;
+                var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(generationId.ToString(), cancellationToken);
+                if (storyGeneration == null)
+                {
+                    _logger.LogWarning("Service: No StoryGeneration entity found for {GenerationId}", generationId);
+                    return null; // Will trigger 404 in controller
+                }
+
+                _logger.LogDebug("Service: Found StoryGeneration with DB ID {StoryGenDbId} for {GenerationId}",
+                    storyGeneration.Id, generationId);
+
+                var stories = await _storyGenerationRepository.GetStoriesByGenerationIdAsync(generationId, cancellationToken);
+
+                if (stories == null)
+                {
+                    _logger.LogWarning("Service: Repository returned null stories for {GenerationId}", generationId);
+                    return new List<UserStory>();
+                }
+
+                _logger.LogInformation("Service: Successfully retrieved {StoryCount} stories for generation {GenerationId}",
+                    stories.Count, generationId);
+
+                return stories;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Service: Failed to get generation results for {GenerationId}. Exception: {ExceptionType} - {Message}",
+                    generationId, ex.GetType().Name, ex.Message);
+                throw; // Let controller handle HTTP response with detailed logging
+            }
         }
 
         public async Task<bool> CanGenerateStoriesAsync(
@@ -292,7 +304,7 @@ namespace AIProjectOrchestrator.Application.Services
             {
                 return null;
             }
-            
+
             // Return the stories if they are approved
             return await GetGenerationResultsAsync(storyGenerationId, cancellationToken);
         }
@@ -308,7 +320,7 @@ namespace AIProjectOrchestrator.Application.Services
                     return Guid.Parse(projectPlanning.PlanningId);
                 }
             }
-            
+
             return null;
         }
 
@@ -480,7 +492,7 @@ namespace AIProjectOrchestrator.Application.Services
 
             return prompt.ToString();
         }
-        
+
         public async Task UpdateGenerationStatusAsync(
             Guid generationId,
             StoryGenerationStatus status,
@@ -491,50 +503,28 @@ namespace AIProjectOrchestrator.Application.Services
             {
                 storyGeneration.Status = status;
                 await _storyGenerationRepository.UpdateAsync(storyGeneration, cancellationToken);
-                
+
                 _logger.LogInformation("Updated story generation {GenerationId} status to {Status}", generationId, status);
             }
         }
-        
+
         public async Task<UserStory> GetIndividualStoryAsync(
-            Guid storyGenerationId, 
-            int storyIndex, 
+            Guid storyGenerationId,
+            int storyIndex,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            
-            var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(storyGenerationId.ToString(), cancellationToken);
-            if (storyGeneration != null)
+
+            var stories = await GetAllStoriesAsync(storyGenerationId, cancellationToken);
+
+            if (storyIndex >= 0 && storyIndex < stories.Count)
             {
-                List<UserStory> stories;
-                if (!string.IsNullOrEmpty(storyGeneration.StoriesJson))
-                {
-                    try
-                    {
-                        stories = JsonSerializer.Deserialize<List<UserStory>>(storyGeneration.StoriesJson) ?? new List<UserStory>();
-                    }
-                    catch (JsonException ex)
-                    {
-                        _logger.LogError(ex, "Failed to deserialize stories JSON for generation {GenerationId}", storyGenerationId);
-                        stories = new List<UserStory>();
-                    }
-                }
-                else
-                {
-                    stories = storyGeneration.Stories.ToList();
-                }
-                
-                if (storyIndex >= 0 && storyIndex < stories.Count)
-                {
-                    return stories[storyIndex];
-                }
-                else
-                {
-                    throw new ArgumentOutOfRangeException(nameof(storyIndex), $"Story index {storyIndex} is out of range. Total stories: {stories.Count}");
-                }
+                return stories[storyIndex];
             }
-            
-            throw new InvalidOperationException($"Story generation with ID {storyGenerationId} not found");
+            else
+            {
+                throw new ArgumentOutOfRangeException(nameof(storyIndex), $"Story index {storyIndex} is out of range. Total stories: {stories.Count}");
+            }
         }
 
         public async Task<StoryGeneration?> GetGenerationByProjectAsync(int projectId, CancellationToken cancellationToken = default)
@@ -543,38 +533,15 @@ namespace AIProjectOrchestrator.Application.Services
             // Return the latest/most recent generation (assuming one active per project for workflow state)
             return generations.OrderByDescending(g => g.CreatedDate).FirstOrDefault();
         }
-        
+
         public async Task<List<UserStory>> GetAllStoriesAsync(
             Guid storyGenerationId,
             CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            
-            var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(storyGenerationId.ToString(), cancellationToken);
-            if (storyGeneration != null)
-            {
-                List<UserStory> stories;
-                if (!string.IsNullOrEmpty(storyGeneration.StoriesJson))
-                {
-                    try
-                    {
-                        stories = JsonSerializer.Deserialize<List<UserStory>>(storyGeneration.StoriesJson) ?? new List<UserStory>();
-                    }
-                    catch (JsonException ex)
-                    {
-                        _logger.LogError(ex, "Failed to deserialize stories JSON for generation {GenerationId}", storyGenerationId);
-                        stories = new List<UserStory>();
-                    }
-                }
-                else
-                {
-                    stories = storyGeneration.Stories.ToList();
-                }
-                
-                return stories;
-            }
-            
-            return new List<UserStory>();
+
+            // Always retrieve stories from the database to ensure we have the latest data
+            return await _storyGenerationRepository.GetStoriesByGenerationIdAsync(storyGenerationId, cancellationToken);
         }
 
         public async Task<int> GetStoryCountAsync(
@@ -583,6 +550,103 @@ namespace AIProjectOrchestrator.Application.Services
         {
             var stories = await GetAllStoriesAsync(storyGenerationId, cancellationToken);
             return stories.Count;
+        }
+
+        public async Task<StoryStatus> GetStoryStatusAsync(
+            Guid storyId,
+            CancellationToken cancellationToken = default)
+        {
+            var story = await _storyGenerationRepository.GetStoryByIdAsync(storyId, cancellationToken);
+            if (story == null)
+            {
+                _logger.LogWarning("Story with ID {StoryId} not found", storyId);
+                throw new KeyNotFoundException($"Story with ID {storyId} not found");
+            }
+            return story.Status;
+        }
+
+        public async Task UpdateStoryStatusAsync(
+            Guid storyId,
+            StoryStatus status,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var story = await _storyGenerationRepository.GetStoryByIdAsync(storyId, cancellationToken);
+                if (story == null)
+                {
+                    _logger.LogWarning("Story with ID {StoryId} not found for status update", storyId);
+                    throw new KeyNotFoundException($"Story with ID {storyId} not found");
+                }
+
+                story.Status = status;
+                await _storyGenerationRepository.UpdateStoryAsync(story, cancellationToken);
+
+                _logger.LogInformation("Updated story {StoryId} status to {Status}", storyId, status);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to update story status for {StoryId} to {Status}", storyId, status);
+                throw;
+            }
+        }
+
+        public async Task UpdateStoryAsync(
+            Guid storyId,
+            UserStory updatedStory,
+            CancellationToken cancellationToken = default)
+        {
+            _logger.LogInformation("UpdateStoryAsync called for storyId: {StoryId}", storyId);
+
+            try
+            {
+                if (updatedStory == null)
+                {
+                    _logger.LogError("UpdatedStory parameter is null for story {StoryId}", storyId);
+                    throw new ArgumentNullException(nameof(updatedStory));
+                }
+
+                _logger.LogInformation("UpdatedStory data: Title='{Title}', Description='{Description}', Status={Status}",
+                    updatedStory.Title, updatedStory.Description, updatedStory.Status);
+
+                var existingStory = await _storyGenerationRepository.GetStoryByIdAsync(storyId, cancellationToken);
+                if (existingStory == null)
+                {
+                    _logger.LogWarning("Story with ID {StoryId} not found for update", storyId);
+                    throw new KeyNotFoundException($"Story with ID {storyId} not found");
+                }
+
+                _logger.LogInformation("Found existing story: Id={Id}, Title='{Title}'", existingStory.Id, existingStory.Title);
+
+                // Update properties without validation
+                existingStory.Title = updatedStory.Title ?? string.Empty;
+                existingStory.Description = updatedStory.Description ?? string.Empty;
+                existingStory.AcceptanceCriteria = updatedStory.AcceptanceCriteria ?? new List<string>();
+                existingStory.Priority = updatedStory.Priority ?? string.Empty;
+                existingStory.StoryPoints = updatedStory.StoryPoints;
+                existingStory.Tags = updatedStory.Tags ?? new List<string>();
+                existingStory.EstimatedComplexity = updatedStory.EstimatedComplexity;
+                existingStory.Status = updatedStory.Status;
+
+                _logger.LogInformation("About to call repository UpdateStoryAsync for story {StoryId}", storyId);
+                await _storyGenerationRepository.UpdateStoryAsync(existingStory, cancellationToken);
+                _logger.LogInformation("Repository UpdateStoryAsync completed successfully for story {StoryId}", storyId);
+
+                _logger.LogInformation("Updated story {StoryId}", storyId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to update story {StoryId}", storyId);
+                throw;
+            }
+        }
+
+        public async Task<int> GetApprovedStoryCountAsync(
+            Guid storyGenerationId,
+            CancellationToken cancellationToken = default)
+        {
+            var stories = await GetAllStoriesAsync(storyGenerationId, cancellationToken);
+            return stories.Count(s => s.Status == StoryStatus.Approved);
         }
 
     }

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using AIProjectOrchestrator.Application.Interfaces;
 using AIProjectOrchestrator.Domain.Models.Stories;
 using AIProjectOrchestrator.Domain.Services;
+using AIProjectOrchestrator.Domain.Entities;
 
 namespace AIProjectOrchestrator.Application.Services;
 

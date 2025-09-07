@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using AIProjectOrchestrator.Domain.Models.Stories;
+using AIProjectOrchestrator.Domain.Entities;
 
 namespace AIProjectOrchestrator.Application.Services;
 

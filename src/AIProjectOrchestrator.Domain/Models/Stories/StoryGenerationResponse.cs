@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AIProjectOrchestrator.Domain.Entities;
 
 namespace AIProjectOrchestrator.Domain.Models.Stories
 {

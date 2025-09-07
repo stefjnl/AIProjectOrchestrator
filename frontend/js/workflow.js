@@ -97,11 +97,13 @@ class WorkflowManager {
         const totalStories = this.state.approvedStories?.length || 0;
         const storyPrompts = this.state.storyPrompts || [];
         
-        const completed = storyPrompts.filter(sp => sp.isApproved).length;
+        const approved = storyPrompts.filter(sp => sp.isApproved).length;
+        const pending = storyPrompts.filter(sp => sp.isPending).length;
         const total = storyPrompts.length;
-        const percentage = total > 0 ? (completed / total) * 100 : 0;
+        const generated = storyPrompts.filter(sp => sp.promptId).length;
+        const percentage = total > 0 ? (approved / total) * 100 : 0;
         
-        return { completed, total, percentage };
+        return { approved, pending, total, generated, percentage };
     }
     
     // API-driven state loading
@@ -403,7 +405,7 @@ class WorkflowManager {
     // Get overall completion status for Stage 4
     getStage4CompletionStatus() {
         if (!this.state.storyGenerationId || !this.state.storiesApproved) {
-            return 'Not Available';
+            return 'Not Started';
         }
         
         const storyPrompts = this.state.storyPrompts || [];
@@ -435,19 +437,47 @@ class WorkflowManager {
         
         if (!stage4Status) return;
         
-        const status = this.getStage4CompletionStatus();
-        stage4Status.textContent = status;
-        
-        // Enable/disable buttons based on status
-        const canViewPrompts = this.state.storiesApproved && this.state.storyGenerationId;
-        const hasApprovedPrompts = status.includes('Complete') || status.includes('In Progress');
-        
-        if (viewPromptsBtn) {
-            viewPromptsBtn.disabled = !canViewPrompts;
+        // Update status logic: "Not Started" when stories not individually approved
+        if (!this.state.storiesApproved) {
+            stage4Status.textContent = "Not Started";
+            stage4Status.className = "stage-status not-started";
+            
+            if (viewPromptsBtn) {
+                viewPromptsBtn.disabled = true;
+            }
+            
+            if (downloadBtn) {
+                downloadBtn.disabled = true;
+            }
+            return;
         }
         
-        if (downloadBtn) {
-            downloadBtn.disabled = !hasApprovedPrompts;
+        // Check if individual stories are approved
+        const storyPrompts = this.state.storyPrompts || [];
+        const individualStoriesApproved = storyPrompts.filter(sp => sp.isApproved).length;
+        
+        if (individualStoriesApproved > 0) {
+            stage4Status.textContent = "Ready";
+            stage4Status.className = "stage-status ready";
+            
+            if (viewPromptsBtn) {
+                viewPromptsBtn.disabled = false;
+            }
+            
+            if (downloadBtn) {
+                downloadBtn.disabled = false;
+            }
+        } else {
+            stage4Status.textContent = "Waiting";
+            stage4Status.className = "stage-status waiting";
+            
+            if (viewPromptsBtn) {
+                viewPromptsBtn.disabled = false;
+            }
+            
+            if (downloadBtn) {
+                downloadBtn.disabled = true;
+            }
         }
     }
 

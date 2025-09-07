@@ -1,16 +1,16 @@
-# AI Project Orchestrator - System Analysis
+# AI Project Orchestrator - System Analysis (Updated)
 
 ## Overview
-The AI Project Orchestrator is a sophisticated system designed to automate software project planning and development using AI assistance. It follows a multi-stage workflow that transforms high-level project descriptions into executable code through AI-generated artifacts, with human review checkpoints at each stage.
+The AI Project Orchestrator automates software project planning and development using AI, following a multi-stage workflow that transforms high-level project descriptions into code artifacts. Human review checkpoints occur at each AI generation stage. The system uses ASP.NET Core backend with Clean Architecture and a static HTML/JS/CSS frontend, persisting data in PostgreSQL via Entity Framework Core.
 
 ## System Architecture
 
 ```mermaid
 graph TD
     A[Frontend - HTML/CSS/JS] -->|REST API Calls| B[Backend - ASP.NET Core API]
-    B -->|Entity Framework| C[Database - PostgreSQL]
-    B -->|AI Services| D[Claude/LMStudio/OpenRouter]
-    B --> E[Review Queue - In-Memory]
+    B -->|Entity Framework Core| C[Database - PostgreSQL]
+    B -->|AI Services| D[OpenRouter (qwen/qwen3-coder)]
+    B --> E[Review Service - In-Memory Queue with Metadata]
     
     subgraph "Frontend"
         A
@@ -33,157 +33,205 @@ graph TD
 ## Detailed Component Analysis
 
 ### 1. Frontend (Client-Side)
-The frontend is a client-side web application built with HTML, CSS, and JavaScript that provides the user interface for interacting with the system.
+Static web application with HTML, CSS, JavaScript for user interaction.
 
 **Key Components:**
-- Static HTML pages for different views (dashboard, project list, workflow, etc.)
-- JavaScript API client for communicating with the backend
-- Workflow management system with Postgres persistence via EF Core
-- Responsive design for various screen sizes
+- Static pages for workflow management and review queue
+- APIClient in api.js for REST calls to backend
+- WorkflowManager in workflow.js for state polling and UI updates (every 10s via getWorkflowStatus)
+- Responsive design with status indicators and button state management
 
 **Main Pages:**
-- `index.html` - Dashboard with project overview and navigation
-- `projects/list.html` - List of all projects with status information
-- `projects/create.html` - Form for creating new projects
-- `projects/workflow.html` - Main workflow interface for managing project stages
-- `projects/stories-overview.html` - Interface for managing user stories and prompts
-- `reviews/queue.html` - Review queue for approving AI-generated artifacts
+- `projects/workflow.html` - Workflow stages with buttons to initiate generation (e.g., startRequirementsAnalysis calls POST /api/requirements/analyze, redirects to queue on pending)
+- `reviews/queue.html` - Loads pending reviews via GET /api/review/pending, approve/reject via POST /api/review/{id}/approve/reject, pipeline-aware redirects (e.g., stories → stories-overview.html)
+- `projects/create.html` - Project creation form (POST /api/projects)
+- `projects/list.html` - Project listing (GET /api/projects)
+- `projects/stories-overview.html` - Story and prompt management (Phase 4)
 
 ### 2. Backend (Server-Side)
-The backend is built with ASP.NET Core and follows a clean architecture pattern with separate layers for API, Application, Domain, and Infrastructure.
+ASP.NET Core Web API with Clean Architecture: Domain (entities/interfaces), Application (services), Infrastructure (repositories/AI clients), API (controllers).
 
 **Key Components:**
-- RESTful API controllers for each domain entity
-- Application services implementing business logic
-- Domain entities and interfaces defining the core model
-- Infrastructure layer with database repositories and AI client implementations
-- Dependency injection for loose coupling between components
-- Health checks for monitoring service status
+- Controllers route HTTP requests to application services
+- Services orchestrate AI calls, validation, review submission, and status updates
+- Domain entities represent workflow artifacts with statuses (e.g., PendingReview, Approved)
+- Infrastructure handles PostgreSQL via repositories and OpenRouter AI client
+- Dependency injection with ILogger, IOptions, and lazy services (e.g., Lazy<IReviewService>)
+- Health checks in HealthChecks/
 
 **Main API Controllers:**
-- `ProjectsController` - CRUD operations for projects
-- `RequirementsController` - Requirements analysis generation and management
-- `ProjectPlanningController` - Project planning document generation
-- `StoriesController` - User story generation
-- `PromptGenerationController` - AI coding prompt generation
-- `ReviewController` - Review queue management
-- `CodeController` - Code generation (final stage)
+- `ProjectsController` - CRUD for projects (e.g., POST /api/projects)
+- `RequirementsController` - Analyze requirements (POST /api/requirements/analyze), status/retrieval (GET /api/requirements/{id}), direct approval (POST /api/requirements/{id}/approve)
+- `ProjectPlanningController` - Create plan (POST /api/projectplanning/create), status updates
+- `StoriesController` - Generate stories (POST /api/stories/generate)
+- `PromptGenerationController` - Generate prompts (POST /api/PromptGeneration/generate)
+- `ReviewController` - Submit review (POST /api/review/submit), pending list (GET /api/review/pending), approve/reject (POST /api/review/{id}/approve/reject), workflow status (GET /api/review/workflow-status/{projectId})
+- `CodeController` - Generate code (POST /api/code/generate)
+- `AITestController` - Testing endpoints
 
 ### 3. Database (PostgreSQL)
-The system uses PostgreSQL for persistent data storage with Entity Framework Core as the ORM.
+Persistent storage via Entity Framework Core with AppDbContext.
 
 **Key Entities:**
-- `Project` - Core entity representing a software project
-- `RequirementsAnalysis` - AI-generated requirements document
-- `ProjectPlanning` - AI-generated project planning document
-- `StoryGeneration` - Collection of AI-generated user stories
-- `PromptGeneration` - AI-generated coding prompts for user stories
-- `Review` - Review queue items for human approval
+- `Project` - Core project with Id (int), Name, Description
+- `RequirementsAnalysis` - AI-generated analysis with AnalysisId (string/GUID), ProjectId (int FK), Status (PendingReview/Approved), Content, ReviewId (string)
+- `ProjectPlanning` - Plan with PlanningId, Status, ReviewId
+- `StoryGeneration` - Stories collection with GenerationId, Status, ReviewId, StoryCount
+- `PromptGeneration` - Per-story prompts with PromptId, StoryIndex, Status, ReviewId
+- `Review` - Review submissions (likely metadata-linked, not fully persistent)
 
 **Relationships:**
-- One-to-Many: Project → RequirementsAnalysis
-- One-to-Many: RequirementsAnalysis → ProjectPlanning
-- One-to-Many: ProjectPlanning → StoryGeneration
-- One-to-Many: StoryGeneration → PromptGeneration
-- One-to-One: Each artifact entity → Review (for approval workflow)
+- Project (1) → RequirementsAnalysis/ProjectPlanning/StoryGeneration/PromptGeneration (Many)
+- Each artifact (1) → ReviewId (for approval linkage via metadata)
+- Migrations in Infrastructure/Migrations/
 
 ## User Workflow
 
-The user workflow follows a linear, multi-stage process with review checkpoints:
+Linear multi-stage process with prerequisites and review checkpoints. Frontend polls backend for status changes.
 
 ### Stage 1: Project Creation
-1. User creates a new project via the frontend form
-2. Project data is sent to the backend API
-3. Backend creates a new Project entity in the database
-4. User is redirected to the project workflow page
+1. User submits form on create.html → POST /api/projects via APIClient.createProject()
+2. Backend creates Project entity in DB
+3. Redirect to workflow.html?projectId={id}
 
 ### Stage 2: Requirements Analysis
-1. User initiates requirements analysis from the workflow page
-2. Frontend sends project description to the Requirements API
-3. Backend service generates requirements using AI providers
-4. Generated requirements are stored in the database
-5. A review item is created in the review queue
-6. User is redirected to the review queue to approve the requirements
+1. On workflow.html, click "Start Analysis" → startRequirementsAnalysis() sets generating state, fetches project description, calls APIClient.analyzeRequirements({ProjectDescription, ProjectId})
+2. RequirementsController.AnalyzeRequirements() → RequirementsAnalysisService.AnalyzeRequirementsAsync(): Validates input, loads RequirementsAnalyst.md instructions via IInstructionService, creates AIRequest (system message + prompt), calls OpenRouter IAIClient (qwen/qwen3-coder, temp=0.7, maxTokens=2000), stores RequirementsAnalysis entity (Status=PendingReview), submits to IReviewService.SubmitForReviewAsync() with metadata {AnalysisId, EntityId, ProjectId}, updates entity with ReviewId
+3. Returns RequirementsAnalysisResponse with analysisId, reviewId, status=PendingReview
+4. Frontend alerts and redirects to queue.html?projectId={id}
+5. On queue.html, loadPendingReviews() → APIClient.getPendingReviews() → GET /api/review/pending → ReviewController.GetPendingReviews() → IReviewService.GetPendingReviewsAsync()
+6. User clicks "Approve" → approveReview(reviewId) → APIClient.approveReview(reviewId) → POST /api/review/{id}/approve → ReviewController.ApproveReview() extracts AnalysisId from metadata, calls _requirementsAnalysisService.UpdateAnalysisStatusAsync(analysisId, Approved), returns ReviewResponse
+7. Workflow polling (getWorkflowStatus) detects status change, enables "Start Planning" button
 
 ### Stage 3: Project Planning
-1. After requirements approval, user can initiate project planning
-2. Frontend requests planning generation via the ProjectPlanning API
-3. Backend generates project plan based on approved requirements
-4. Plan is stored in the database with a new review queue item
-5. User reviews and approves the plan in the review queue
+Similar to Stage 2: Button calls APIClient.createProjectPlan({requirementsAnalysisId}) → checks prerequisites (canCreateProjectPlan), generates via IProjectPlanningService using ProjectPlanner.md, submits to review, approval updates status.
 
 ### Stage 4: User Story Generation
-1. After planning approval, user can generate user stories
-2. Frontend requests story generation via the Stories API
-3. Backend creates user stories based on the approved plan
-4. Stories are stored in the database with a review item
-5. User reviews and approves the stories in the review queue
+Button calls APIClient.generateStories({planningId}) → IStoryGenerationService using StoryGenerator.md, generates collection, submits for review. On approval, auto-redirects to stories-overview.html for Phase 4 prompt management (per-story prompts via PromptGenerationController).
 
-### Stage 5: Prompt Generation
-1. After story approval, user manages individual story prompts
-2. Frontend navigates to stories overview page
-3. For each story, user can generate coding prompts
-4. Prompts are generated via the PromptGeneration API
-5. Each prompt goes through the review process
+### Stage 5: Prompt Generation (Phase 4)
+Individual prompts per story: stories-overview.html generates via APIClient.generatePrompt({storyGenerationId, storyIndex}), submits to review. Completion tracked in workflow.html dashboard (progress bar, stats). All prompts approved enables code generation.
 
 ### Stage 6: Code Generation
-1. After prompt approval, user can generate code
-2. Frontend requests code generation via the Code API
-3. Backend generates code based on approved prompts
-4. Code is delivered to the user (final output)
+Button calls APIClient.generateCode({storyGenerationId}) → ICodeGenerationService, final output without review (or optional).
 
 ## Component Interactions
 
 ### Frontend ↔ Backend
-- Communication occurs via RESTful API calls using JSON
-- Frontend uses a custom API client (`api.js`) for all backend interactions
-- All API calls include proper error handling and user feedback
-- Authentication is handled via CORS configuration (no explicit auth in current implementation)
+- JSON REST via fetch in api.js (baseUrl: http://localhost:8086/api)
+- Error handling with circuit breaker (3 failures → maintenance mode)
+- WorkflowManager polls /api/review/workflow-status/{projectId} for state sync
+- No authentication (CORS-enabled)
 
 ### Backend ↔ Database
-- Entity Framework Core is used for all database operations
-- Repositories implement the repository pattern for data access
-- Database context (`AppDbContext`) defines entity relationships
-- Migrations are applied automatically in development environments
+- EF Core repositories (e.g., IRequirementsAnalysisRepository.AddAsync/UpdateAsync/GetByAnalysisIdAsync)
+- Status enums (RequirementsAnalysisStatus.NotStarted/PendingReview/Approved/Failed)
+- Automatic migrations in development
 
 ### Backend ↔ AI Services
-- HTTP clients are configured for different AI providers (Claude, LMStudio, OpenRouter)
-- AI client factory allows for dynamic provider selection
-- Requests are sent with appropriate timeouts and error handling
-- Responses are processed and stored as domain entities
+- IAIClientFactory creates OpenRouter client for requirements (qwen/qwen3-coder)
+- IInstructionService loads .md files (Instructions/RequirementsAnalyst.md) as system messages
+- AIRequest: SystemMessage (instructions), Prompt (project description + context), Temperature=0.7, MaxTokens=2000
+- Responses parsed as Content, validated for success
 
 ### Review Process
-- When any AI-generated artifact is created, a review item is automatically added to the queue
-- Review items are stored in-memory (not in the database) for temporary storage
-- Users can approve or reject items in the review queue
-- Upon approval, the corresponding entity status is updated in the database
-- Background service periodically cleans up old review items
+- Services submit via IReviewService.SubmitForReviewAsync(SubmitReviewRequest {ServiceName="RequirementsAnalysis", Content=AI output, Metadata={AnalysisId, ProjectId}})
+- Reviews stored in-memory, fetched via GetPendingReviewsAsync()
+- Approval: ReviewController.ApproveReview() → IReviewService.ApproveReviewAsync() + service-specific UpdateStatusAsync(AnalysisId, Approved) via metadata extraction
+- Rejection requires feedback, reloads queue
+- Cleanup via ReviewCleanupService (background)
 
 ## Key Features
 
-1. **Multi-Stage Workflow**: Linear process with clear stages and dependencies
-2. **Human-in-the-Loop**: Review queue ensures human approval at each stage
-3. **AI Integration**: Multiple AI providers supported for redundancy
-4. **Persistent Storage**: PostgreSQL database stores all project artifacts
-5. **State Management**: Frontend maintains workflow state in Postgres via EF Core
-6. **Responsive UI**: Clean, modern interface that works on different devices
-7. **Error Handling**: Comprehensive error handling throughout the application
-8. **Health Monitoring**: Built-in health checks for system components
+1. **Multi-Stage Workflow**: Prerequisite-checked stages with polling-based progression
+2. **Human-in-the-Loop**: Central review queue with approve/reject, metadata-linked status updates
+3. **AI Integration**: OpenRouter with instruction-based prompts (.md files), specific model for requirements
+4. **Persistent Storage**: PostgreSQL for artifacts, in-memory for transient reviews
+5. **State Management**: Frontend polling syncs with backend statuses, no localStorage
+6. **Responsive UI**: Dynamic buttons/statuses, progress dashboards (Phase 4), temporary notifications
+7. **Error Handling**: Try-catch in services/controllers, circuit breaker in frontend, validation (e.g., description length >=10)
+8. **Health Monitoring**: HealthChecks/ endpoints, logging via ILogger
+
+## Running the Application with Docker / docker-compose
+
+The application can be deployed using Docker and docker-compose for easy setup of the full stack (backend API, frontend, PostgreSQL database).
+
+### Prerequisites
+- Docker and Docker Compose installed
+- OpenRouter API key (set as environment variable: `OPENROUTER_API_KEY=your_api_key_here`)
+- Optional: .NET SDK for local development
+
+### Files
+- `docker-compose.yml`: Orchestrates services (api, frontend, postgres)
+- `Dockerfile` (root): Builds the ASP.NET Core backend API
+- `frontend/Dockerfile`: Builds nginx container for static frontend files
+- `frontend/nginx.conf`: Nginx configuration for serving frontend assets
+
+### Commands
+1. **Start the full stack** (development mode with hot reload):
+   ```
+   docker-compose up -d
+   ```
+   - Backend API: http://localhost:8086
+   - Frontend: http://localhost:80 (served via nginx)
+   - Database: PostgreSQL on internal network (auto-migrated by backend)
+
+2. **View logs**:
+   ```
+   docker-compose logs -f api
+   docker-compose logs -f frontend
+   docker-compose logs -f postgres
+   ```
+
+3. **Stop services**:
+   ```
+   docker-compose down
+   ```
+   - Add `-v` to remove volumes (clears database): `docker-compose down -v`
+
+4. **Rebuild after code changes**:
+   ```
+   docker-compose up --build -d
+   ```
+
+5. **Run database migrations manually** (if needed):
+   ```
+   docker-compose exec api dotnet ef database update
+   ```
+
+### Environment Configuration
+- Set `OPENROUTER_API_KEY` in `.env` file or export before running
+- Database connection string auto-configured in docker-compose.yml (points to postgres service)
+- Frontend API base URL set to backend service (http://api:8086 in container network)
+- Ports: Backend exposed on 8086, Frontend on 80
+
+### Troubleshooting
+- **Backend fails to start**: Check logs for EF migrations or missing API key
+- **Frontend 404 errors**: Ensure nginx.conf serves /js/* and /css/* correctly
+- **Database connection issues**: Verify postgres service healthy (`docker-compose ps`)
+- **AI calls fail**: Validate OPENROUTER_API_KEY and network access
+
+### Production Deployment
+For production:
+1. Use multi-stage Dockerfiles for optimized images
+2. Set environment to Production in appsettings.json
+3. Configure HTTPS and proper CORS
+4. Use persistent volumes for postgres data
+5. Scale services if needed (e.g., multiple API instances)
 
 ## Data Flow
 
 ```mermaid
 graph LR
-    A[User Input] --> B[Frontend]
-    B --> C[API Request]
-    C --> D[Backend Service]
-    D --> E[AI Provider]
-    E --> F[Generated Content]
-    F --> G[Database Storage]
-    G --> H[Review Queue]
-    H --> I[User Approval]
-    I --> J[Status Update]
-    J --> K[Next Stage Enabled]
+    A[User clicks Start Analysis] --> B[Frontend: POST /api/requirements/analyze]
+    B --> C[RequirementsController → Service]
+    C --> D[Load Instructions + AI Call (OpenRouter)]
+    D --> E[Store Entity (PendingReview) + Submit Review]
+    E --> F[User: GET /api/review/pending on queue.html]
+    F --> G[Click Approve → POST /api/review/{id}/approve]
+    G --> H[ReviewController → Update Entity Status to Approved]
+    H --> I[Workflow polls GET /api/review/workflow-status/{projectId}]
+    I --> J[UI enables next stage]
 ```
 
-This system provides a complete workflow for transforming project ideas into AI-assisted software development, with appropriate checkpoints for human oversight and quality control.
+This updated analysis reflects the current codebase structure, with emphasis on the requirements generation/approval workflow and code relations.

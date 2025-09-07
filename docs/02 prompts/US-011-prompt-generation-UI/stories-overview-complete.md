@@ -41,7 +41,7 @@ You are implementing **Option B: Dedicated Stories Overview Page** for the AI Pr
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stories & Prompt Management - AI Project Orchestrator</title>
-    <link rel="stylesheet" href="../css/styles.css">
+    <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
     <div class="container">

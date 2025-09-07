@@ -15,6 +15,7 @@ using AIProjectOrchestrator.Domain.Models.Stories;
 using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Domain.Models.Review;
 using AIProjectOrchestrator.Infrastructure.AI;
+using AIProjectOrchestrator.Domain.Entities;
 
 namespace AIProjectOrchestrator.Application.Services
 {

@@ -84,21 +84,39 @@ window.APIClient = {
     async analyzeRequirements(request) {
         return this.post('/requirements/analyze', request);
     },
+    
+    async getRequirements(analysisId) {
+        return this.get(`/requirements/${analysisId}`);
+    },
+    
     async canCreateProjectPlan(analysisId) {
         return this.get(`/projectplanning/can-create/${analysisId}`);
     },
+    
     async createProjectPlan(request) {
         return this.post('/projectplanning/create', request);
     },
+    
+    async getProjectPlan(planningId) {
+        return this.get(`/projectplanning/${planningId}`);
+    },
+    
     async canGenerateStories(planningId) {
         return this.get(`/stories/can-generate/${planningId}`);
     },
+    
     async generateStories(request) {
         return this.post('/stories/generate', request);
     },
+    
+    async getStories(storyGenerationId) {
+        return this.get(`/stories/generations/${storyGenerationId}/results`);
+    },
+    
     async canGenerateCode(storyGenId) {
         return this.get(`/code/can-generate/${storyGenId}`);
     },
+    
     async generateCode(request) {
         return this.post('/code/generate', request);
     },
@@ -138,8 +156,8 @@ window.APIClient = {
         return await this.get(`/review/workflow-status/${projectId}`);
     },
 
-    async getStories(storyGenerationId) {
-        return await this.get(`/stories/${storyGenerationId}/approved`);
+    async getApprovedStories(storyGenerationId) {
+        return await this.get(`/stories/generations/${storyGenerationId}/approved`);
     },
 
     async deleteProject(id) {
@@ -149,6 +167,23 @@ window.APIClient = {
     // Helper method to retrieve approved stories
     async getApprovedStories(storyGenerationId) {
         // Note: This endpoint may need to be created or use existing story endpoints
-        return await this.get(`/stories/${storyGenerationId}/approved`);
+        return await this.get(`/stories/generations/${storyGenerationId}/approved`);
+    },
+
+    // Story management methods
+    async approveStory(storyId) {
+        return await this._request('PUT', `/stories/${storyId}/approve`, {});
+    },
+
+    async rejectStory(storyId, feedback) {
+        return await this._request('PUT', `/stories/${storyId}/reject`, { feedback });
+    },
+
+    async editStory(storyId, updatedStory) {
+        return await this._request('PUT', `/stories/${storyId}/edit`, updatedStory);
+    },
+
+    async approveStories(storyGenerationId) {
+        return await this.post(`/stories/generations/${storyGenerationId}/approve`, {});
     }
 };
