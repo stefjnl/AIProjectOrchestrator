@@ -10,7 +10,7 @@
     <div class="container">
         <!-- Header Section -->
         <div class="header">
-            <a href="/index.html">Home</a> > <a href="/projects/list.html">Projects</a> > <a href="/projects/workflow.html">Workflow</a> > <strong>Stories & Prompts</strong>
+            <a href="/index.html">Home</a> > <a href="/projects/list.html">Projects</a> > <a href="#" id="workflowBreadcrumb">Workflow</a> > <strong>Stories & Prompts</strong>
             <h1 id="projectTitle">Stories Management</h1>
             <p id="projectDescription">Stories management workspace for prompt generation.</p>
         </div>
@@ -37,7 +37,13 @@
             }
 
             workflowManager = new WorkflowManager(projectId);
-            
+
+            // Update breadcrumb with projectId
+            const workflowBreadcrumb = document.getElementById('workflowBreadcrumb');
+            if (workflowBreadcrumb) {
+                workflowBreadcrumb.href = `/projects/workflow.html?projectId=${encodeURIComponent(projectId)}`;
+            }
+
             // Show loading state
             document.body.classList.add('loading');
             
@@ -66,9 +72,9 @@
                 document.body.classList.remove('loading');
             }
 
-            // Set up back button - redirect to unified overview
+            // Set up back button - redirect to workflow page
             document.getElementById('backToWorkflow').addEventListener('click', function() {
-                window.location.href = `overview.html?projectId=${workflowManager.projectId}#pipeline`;
+                window.location.href = `/projects/workflow.html?projectId=${encodeURIComponent(workflowManager.projectId)}`;
             });
 
             // Trigger sync with workflow page

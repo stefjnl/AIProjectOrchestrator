@@ -426,21 +426,30 @@
             }
 
             // Check if Stage 3 was just approved and should redirect to stories
-            if (workflowManager.state.storiesApproved && !workflowManager.getHasVisitedStoriesPage()) {
-                // Check if we have story generation ID (prerequisite)
-                if (!workflowManager.state.storyGenerationId) {
-                    console.warn('Stories approved but no generation ID - cannot proceed to prompt management');
-                    return;
-                }
+            // Only redirect if stories are approved AND we haven't visited the stories page yet
+            // AND we have a valid story generation ID
+            if (workflowManager.state.storiesApproved &&
+                !workflowManager.getHasVisitedStoriesPage() &&
+                workflowManager.state.storyGenerationId) {
 
-                // Auto-redirect without confirm for better UX
-                workflowManager.showTemporaryMessage(
-                    'User stories approved! Redirecting to Stories Management for prompt generation...',
-                    'info'
-                );
-                
-                workflowManager.setHasVisitedStoriesPage(true);
-                window.location.href = `stories-overview.html?projectId=${workflowManager.projectId}`;
+                // Check if this is a fresh approval (not just a page refresh)
+                // We can determine this by checking if we came from the review queue
+                const urlParams = new URLSearchParams(window.location.search);
+                const fromReview = urlParams.get('fromReview') === 'true';
+
+                if (fromReview) {
+                    // Auto-redirect without confirm for better UX
+                    workflowManager.showTemporaryMessage(
+                        'User stories approved! Redirecting to Stories Management for prompt generation...',
+                        'info'
+                    );
+
+                    workflowManager.setHasVisitedStoriesPage(true);
+                    window.location.href = `stories-overview.html?projectId=${workflowManager.projectId}&source=workflow`;
+                } else {
+                    // Don't auto-redirect on regular page visits - let user navigate manually
+                    console.log('Stories approved but not redirecting - user can navigate manually');
+                }
             }
         }
 
