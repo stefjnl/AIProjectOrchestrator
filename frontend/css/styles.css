@@ -1533,6 +1533,11 @@ textarea {
     to { opacity: 1; transform: translateY(0); }
 }
 
+/* Hidden class for toggling visibility */
+.hidden {
+    display: none !important;
+}
+
 .story-card .loading {
     display: inline-block;
     width: 16px;

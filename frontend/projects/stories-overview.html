@@ -305,14 +305,16 @@
                     
                     // Toggle edit mode
                     if (editMode.classList.contains('active')) {
+                        // Exit edit mode
                         editMode.classList.remove('active');
                         storyContent.style.display = 'block';
                         storyActions.style.display = 'flex';
                         e.target.textContent = 'Edit';
                     } else {
-                        editMode.classList.add('active');
+                        // Enter edit mode
                         storyContent.style.display = 'none';
                         storyActions.style.display = 'none';
+                        editMode.classList.add('active');
                         e.target.textContent = 'Cancel';
                     }
                 }
@@ -366,6 +368,7 @@
                     const storyActions = storyCard.querySelector('.story-actions');
                     const editBtn = storyCard.querySelector('.edit-btn');
                     
+                    // Properly exit edit mode
                     editMode.classList.remove('active');
                     storyContent.style.display = 'block';
                     storyActions.style.display = 'flex';
@@ -405,10 +408,6 @@
                 approveBtn.innerHTML = 'Approve';
                 approveBtn.disabled = false;
                 
-                // Refresh stats
-                await workflowManager.loadStateFromAPI();
-                await loadAndRenderStories();
-                
                 // Show success message
                 showNotification('Story approved successfully!', 'success');
                 
@@ -447,10 +446,6 @@
                 // Reset button text
                 rejectBtn.innerHTML = 'Reject';
                 rejectBtn.disabled = false;
-                
-                // Refresh stats
-                await workflowManager.loadStateFromAPI();
-                await loadAndRenderStories();
                 
                 // Show success message
                 showNotification('Story rejected successfully!', 'success');
@@ -509,10 +504,6 @@
                 saveBtn.innerHTML = 'Save Changes';
                 saveBtn.disabled = false;
                 
-                // Refresh stats
-                await workflowManager.loadStateFromAPI();
-                await loadAndRenderStories();
-                
                 // Show success notification
                 showNotification('Story updated successfully!', 'success');
                 
@@ -549,12 +540,6 @@
                 
                 // Don't save state - will be updated by polling
                 alert('Prompt generation submitted for review. Please check the review queue.');
-                
-                // Stories-specific refresh: load state without UI update
-                await workflowManager.loadStateFromAPI();
-                // Debug log after refresh
-                console.log('State refreshed after prompt generation:', workflowManager.state);
-                await loadAndRenderStories();
                 
             } catch (error) {
                 console.error('Error generating prompt:', error);
