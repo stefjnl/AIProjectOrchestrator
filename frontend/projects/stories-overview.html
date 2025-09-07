@@ -156,9 +156,9 @@
 
                 // Use the actual database status if available, otherwise fall back to prompt status or localStorage
                 let status = 'Draft';
-                if (story.Status !== undefined) {
+                if (story.status !== undefined) {
                     // Convert enum value to string representation
-                    switch (story.Status) {
+                    switch (story.status) {
                         case 0:
                             status = 'Draft';
                             break;
@@ -171,26 +171,14 @@
                         default:
                             status = 'Draft';
                     }
-                } else {
-                    // Fallback to original logic
-                    status = storyPrompt?.status || 'Draft';
-                    const projectId = workflowManager.projectId;
-                    const storyGenerationId = workflowManager.state.storyGenerationId;
-                    if (projectId && storyGenerationId) {
-                        const storageKey = `storyApproval_${projectId}_${storyGenerationId}_${index}`;
-                        const storedStatus = localStorage.getItem(storageKey);
-                        if (storedStatus === 'approved') {
-                            status = 'Approved';
-                        }
-                    }
                 }
 
                 const statusClass = getStatusClass(status);
 
                 // Extract story details
-                const title = story.Title || story.title || `Story ${index + 1}`;
-                let description = story.Description || story.description || '';
-                let acceptanceCriteria = story.AcceptanceCriteria || story.acceptanceCriteria || [];
+                const title = story.title || `Story ${index + 1}`;
+                let description = story.description || '';
+                let acceptanceCriteria = story.acceptanceCriteria || [];
 
                 // Handle case where description is in AcceptanceCriteria field instead of Description field
                 if (!description && Array.isArray(acceptanceCriteria) && acceptanceCriteria.length === 1 && typeof acceptanceCriteria[0] === 'string') {
@@ -208,7 +196,7 @@
                 const isApproved = status === 'Approved';
 
                 return `
-                    <div class="story-card" data-story-index="${index}" data-story-id="${story.id || story.Id}" data-priority="${story.Priority || ''}" data-story-points="${story.StoryPoints || ''}" data-tags='${JSON.stringify(story.Tags || [])}' data-estimated-complexity="${story.EstimatedComplexity || ''}">
+                    <div class="story-card" data-story-index="${index}" data-story-id="${story.id}" data-priority="${story.priority || ''}" data-story-points="${story.storyPoints || ''}" data-tags='${JSON.stringify(story.tags || [])}' data-estimated-complexity="${story.estimatedComplexity || ''}">
                         <div class="story-header">
                             <h3>${title}</h3>
                             <span class="status-badge ${statusClass}">${status}</span>
@@ -280,8 +268,8 @@
             const totalStories = stories.length;
             const approvedStories = stories.filter(story => {
                 // Use actual database status if available
-                if (story.Status !== undefined) {
-                    return story.Status === 1; // 1 = Approved
+                if (story.status !== undefined) {
+                    return story.status === 1; // 1 = Approved
                 }
                 // Fallback to original logic
                 const storyPrompt = storyPrompts.find(sp => sp.storyIndex === stories.indexOf(story));
@@ -289,8 +277,8 @@
             }).length;
             const draftStories = stories.filter(story => {
                 // Use actual database status if available
-                if (story.Status !== undefined) {
-                    return story.Status === 0; // 0 = Draft
+                if (story.status !== undefined) {
+                    return story.status === 0; // 0 = Draft
                 }
                 // Fallback to original logic
                 const storyPrompt = storyPrompts.find(sp => sp.storyIndex === stories.indexOf(story));
@@ -298,8 +286,8 @@
             }).length;
             const rejectedStories = stories.filter(story => {
                 // Use actual database status if available
-                if (story.Status !== undefined) {
-                    return story.Status === 2; // 2 = Rejected
+                if (story.status !== undefined) {
+                    return story.status === 2; // 2 = Rejected
                 }
                 // Fallback to original logic
                 const storyPrompt = storyPrompts.find(sp => sp.storyIndex === stories.indexOf(story));
@@ -462,14 +450,14 @@
 
         function mapToUpdateStoryDto(editedStory) {
             return {
-                Title: editedStory.Title || '',
-                Description: editedStory.Description || '',
-                AcceptanceCriteria: editedStory.AcceptanceCriteria || [],
-                Priority: editedStory.Priority || '',
-                StoryPoints: editedStory.StoryPoints || null,
-                Tags: editedStory.Tags || [],
-                EstimatedComplexity: editedStory.EstimatedComplexity || null,
-                Status: editedStory.Status || 'Draft'
+                title: editedStory.title || '',
+                description: editedStory.description || '',
+                acceptanceCriteria: editedStory.acceptanceCriteria || [],
+                priority: editedStory.priority || '',
+                storyPoints: editedStory.storyPoints || null,
+                tags: editedStory.tags || [],
+                estimatedComplexity: editedStory.estimatedComplexity || null,
+                status: editedStory.status || 'Draft'
             };
         }
 
@@ -611,14 +599,14 @@
 
                 // Prepare edited story data, preserving originals where not edited
                 const editedStory = {
-                    Title: titleInput.value,
-                    Description: descriptionInput.value,
-                    AcceptanceCriteria: criteriaInput.value.split('\n').filter(c => c.trim()),
-                    Priority: storyCard.dataset.priority || '',
-                    StoryPoints: parseInt(storyCard.dataset.storyPoints) || null,
-                    Tags: JSON.parse(storyCard.dataset.tags || '[]'),
-                    EstimatedComplexity: storyCard.dataset.estimatedComplexity || null,
-                    Status: 'Draft'
+                    title: titleInput.value,
+                    description: descriptionInput.value,
+                    acceptanceCriteria: criteriaInput.value.split('\n').filter(c => c.trim()),
+                    priority: storyCard.dataset.priority || '',
+                    storyPoints: parseInt(storyCard.dataset.storyPoints) || null,
+                    tags: JSON.parse(storyCard.dataset.tags || '[]'),
+                    estimatedComplexity: storyCard.dataset.estimatedComplexity || null,
+                    status: 'Draft'
                 };
 
                 // Map to UpdateStoryDto
@@ -631,12 +619,12 @@
 
                 // Update story header with new title
                 const storyHeader = storyCard.querySelector('.story-header h3');
-                storyHeader.textContent = editedStory.Title;
+                storyHeader.textContent = editedStory.title;
 
                 // Update preview text
                 const preview = storyCard.querySelector('.preview p');
-                const newPreview = editedStory.Description.length > 100 ?
-                    editedStory.Description.substring(0, 100) + '...' : editedStory.Description;
+                const newPreview = editedStory.description.length > 100 ?
+                    editedStory.description.substring(0, 100) + '...' : editedStory.description;
                 preview.textContent = newPreview;
 
                 // Hide edit mode
