@@ -31,6 +31,8 @@
     <script src="/js/workflow.js"></script>
     <script>
         let workflowManager;
+        let isEditing = false;
+        let editTimeout = null;
 
         window.addEventListener('DOMContentLoaded', async function () {
             const urlParams = new URLSearchParams(window.location.search);
@@ -115,6 +117,11 @@
                 const response = await window.APIClient.getStories(generationId);
                 console.log('Raw API response:', response);
                 workflowManager.recordApiSuccess();
+
+                if (isEditing) {
+                    console.log('Skipping render during editing to avoid disrupting edits');
+                    return;
+                }
 
                 if (!response || response.length === 0) {
                     console.warn('No stories returned from API for generationId:', generationId);
@@ -367,12 +374,23 @@
                         storyContent.style.display = 'block';
                         storyActions.style.display = 'flex';
                         e.target.textContent = 'Edit';
+                        isEditing = false;
+                        if (editTimeout) {
+                            clearTimeout(editTimeout);
+                            editTimeout = null;
+                        }
                     } else {
                         // Enter edit mode
                         storyContent.style.display = 'none';
                         storyActions.style.display = 'none';
                         editMode.classList.add('active');
                         e.target.textContent = 'Cancel';
+                        isEditing = true;
+                        if (editTimeout) clearTimeout(editTimeout);
+                        editTimeout = setTimeout(() => {
+                            isEditing = false;
+                            console.log('Edit mode timed out after 5 minutes');
+                        }, 300000);
                     }
                 }
 
@@ -430,6 +448,12 @@
                     storyContent.style.display = 'block';
                     storyActions.style.display = 'flex';
                     editBtn.textContent = 'Edit';
+                    isEditing = false;
+                    if (editTimeout) {
+                        clearTimeout(editTimeout);
+                        editTimeout = null;
+                    }
+                    loadAndRenderStories();
                 }
 
                 // Handle generate prompt button
@@ -464,7 +488,7 @@
                 default:
                     statusValue = 0; // Default to Draft
             }
-            
+
             return {
                 Title: editedStory.title || '',
                 Description: editedStory.description || '',
@@ -633,6 +657,12 @@
                     await window.APIClient.editStory(storyId, { UpdatedStory: dto });
                 }
 
+                isEditing = false;
+                if (editTimeout) {
+                    clearTimeout(editTimeout);
+                    editTimeout = null;
+                }
+
                 // Update story header with new title
                 const storyHeader = storyCard.querySelector('.story-header h3');
                 storyHeader.textContent = editedStory.title;
@@ -665,6 +695,17 @@
                 saveBtn.innerHTML = 'Save Changes';
                 saveBtn.disabled = false;
 
+                // Exit edit mode on error
+                isEditing = false;
+                if (editTimeout) {
+                    clearTimeout(editTimeout);
+                    editTimeout = null;
+                }
+                editMode.classList.remove('active');
+                storyContent.style.display = 'block';
+                storyActions.style.display = 'flex';
+                editBtn.textContent = 'Edit';
+
                 // Show error toast
                 let errorMessage = 'Failed to update story. Please try again.';
                 if (error.message) {
@@ -675,10 +716,24 @@
         }
 
         async function generatePrompt(storyIndex) {
+            // Get the specific button for this story
+            const storyCard = document.querySelector(`[data-story-index="${storyIndex}"]`);
+            const button = storyCard ? storyCard.querySelector('.generate-prompt-btn') : null;
+
+            if (!button) {
+                console.error('Generate prompt button not found for story index:', storyIndex);
+                return;
+            }
+
             if (!workflowManager.state.storiesApproved) {
                 alert('Stories must be approved before generating prompts.');
                 return;
             }
+
+            // Immediately disable and update button text
+            button.disabled = true;
+            const originalText = button.innerHTML;
+            button.innerHTML = '<span class="loading"></span>Generating...';
 
             try {
                 console.log('Generating prompt for story index:', storyIndex);
@@ -702,6 +757,10 @@
                     showMaintenanceBanner();
                 }
                 alert('Error generating prompt: ' + error.message);
+            } finally {
+                // Always re-enable and reset button text
+                button.disabled = false;
+                button.innerHTML = originalText;
             }
         }
 
