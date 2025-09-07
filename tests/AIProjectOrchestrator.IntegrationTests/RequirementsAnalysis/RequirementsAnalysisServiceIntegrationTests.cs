@@ -18,7 +18,7 @@ namespace AIProjectOrchestrator.IntegrationTests.RequirementsAnalysis
         }
 
         [Fact]
-        public async Task RequirementsAnalysisService_CanBeResolvedFromDIContainer()
+        public void RequirementsAnalysisService_CanBeResolvedFromDIContainer()
         {
             // Arrange
             var scope = _factory.Services.CreateScope();
@@ -42,11 +42,11 @@ namespace AIProjectOrchestrator.IntegrationTests.RequirementsAnalysis
             var instructionService = serviceProvider.GetService<IInstructionService>();
 
             // Act
-            var instructionResult = await instructionService!.GetInstructionAsync("RequirementsAnalysisService");
+            var instructionResult = await instructionService!.GetInstructionAsync("RequirementsAnalyst");
 
             // Assert
             Assert.NotNull(instructionResult);
-            Assert.Equal("RequirementsAnalysisService", instructionResult.ServiceName);
+            Assert.Equal("RequirementsAnalyst", instructionResult.ServiceName);
             Assert.True(instructionResult.IsValid, $"Instruction should be valid. Validation message: {instructionResult.ValidationMessage}");
             Assert.NotNull(instructionResult.Content);
             Assert.NotEmpty(instructionResult.Content);

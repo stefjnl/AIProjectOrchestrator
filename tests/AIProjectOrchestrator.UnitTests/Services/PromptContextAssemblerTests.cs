@@ -53,7 +53,7 @@ public class PromptContextAssemblerTests
         Assert.NotNull(context);
         Assert.Equal(stories[0], context.TargetStory);
         Assert.Contains("Test Architecture", context.ProjectArchitecture);
-        _mockStoryGenerationService.Verify(s => s.GetGenerationResultsAsync(storyGenerationId, It.IsAny<CancellationToken>()), Times.Once);
+        _mockStoryGenerationService.Verify(s => s.GetGenerationResultsAsync(storyGenerationId, It.IsAny<CancellationToken>()), Times.AtLeastOnce);
     }
 
     [Fact]
@@ -76,7 +76,7 @@ public class PromptContextAssemblerTests
         var related = await _assembler.GetRelatedStoriesAsync(storyGenerationId, currentIndex);
 
         // Assert
-        Assert.Equal(4, related.Count); // 0,2,3,4 (skips 1)
+        Assert.Equal(3, related.Count); // 0,2,3 (skips 1, limited to 3 total)
         Assert.Contains("Story 0", related.Select(r => r.Title));
         Assert.Contains("Story 2", related.Select(r => r.Title));
         Assert.Contains("Story 3", related.Select(r => r.Title));

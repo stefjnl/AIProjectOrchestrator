@@ -41,11 +41,11 @@ namespace AIProjectOrchestrator.IntegrationTests.Services
             var instructionService = serviceProvider.GetService<IInstructionService>();
 
             // Act
-            var result = await instructionService!.GetInstructionAsync("RequirementsAnalysisService");
+            var result = await instructionService!.GetInstructionAsync("RequirementsAnalyst");
 
             // Assert
             Assert.NotNull(result);
-            Assert.Equal("RequirementsAnalysisService", result.ServiceName);
+            Assert.Equal("RequirementsAnalyst", result.ServiceName);
             // Instead of asserting that content is not empty, we'll check that it's valid
             // This is more robust in CI environments where file paths might differ
             Assert.True(result.IsValid, $"Instruction should be valid. Validation message: {result.ValidationMessage}");

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using AIProjectOrchestrator.Domain.Interfaces;
 using AIProjectOrchestrator.Domain.Entities;
+using AIProjectOrchestrator.Domain.Models;
 using AIProjectOrchestrator.Domain.Models.Stories;
 using AIProjectOrchestrator.Domain.Models.PromptGeneration;
 using AIProjectOrchestrator.Domain.Models.Review;
@@ -26,6 +27,35 @@ namespace AIProjectOrchestrator.IntegrationTests.Database
         public async Task StoryGeneration_WhenSavedToDatabase_CanBeRetrieved()
         {
             // Arrange
+            var scope = _factory.Services.CreateScope();
+            var projectPlanningRepository = scope.ServiceProvider.GetRequiredService<IProjectPlanningRepository>();
+            var storyGenerationRepository = scope.ServiceProvider.GetRequiredService<IStoryGenerationRepository>();
+
+            var project = new Project
+            {
+                Name = "Test Project",
+                Description = "Test project for persistence testing",
+                CreatedDate = DateTime.UtcNow
+            };
+
+            var requirementsAnalysis = new AIProjectOrchestrator.Domain.Entities.RequirementsAnalysis
+            {
+                AnalysisId = Guid.NewGuid().ToString(),
+                Status = RequirementsAnalysisStatus.Approved,
+                Content = "Test requirements content",
+                ReviewId = Guid.NewGuid().ToString(),
+                CreatedDate = DateTime.UtcNow
+            };
+
+            var projectPlanning = new AIProjectOrchestrator.Domain.Entities.ProjectPlanning
+            {
+                PlanningId = Guid.NewGuid().ToString(),
+                Status = ProjectPlanningStatus.Approved,
+                Content = "Test planning content",
+                ReviewId = Guid.NewGuid().ToString(),
+                CreatedDate = DateTime.UtcNow
+            };
+
             var generationId = Guid.NewGuid().ToString();
             var stories = new List<UserStory>
             {
@@ -41,7 +71,6 @@ namespace AIProjectOrchestrator.IntegrationTests.Database
             var storyGeneration = new StoryGeneration
             {
                 GenerationId = generationId,
-                ProjectPlanningId = 1, // This would need to be a valid ID in a real test
                 Status = Domain.Models.Stories.StoryGenerationStatus.Approved,
                 Content = "Test content",
                 ReviewId = Guid.NewGuid().ToString(),
@@ -50,12 +79,18 @@ namespace AIProjectOrchestrator.IntegrationTests.Database
             };
 
             // Act
-            var scope = _factory.Services.CreateScope();
-            var storyGenerationRepository = scope.ServiceProvider.GetRequiredService<IStoryGenerationRepository>();
-            
-            // Save the story generation
+            var projectRepository = scope.ServiceProvider.GetRequiredService<IProjectRepository>();
+            var requirementsAnalysisRepository = scope.ServiceProvider.GetRequiredService<IRequirementsAnalysisRepository>();
+            // Reuse projectPlanningRepository from Arrange
+            // Reuse storyGenerationRepository from Arrange
+            await projectRepository.AddAsync(project);
+            requirementsAnalysis.ProjectId = project.Id;
+            await requirementsAnalysisRepository.AddAsync(requirementsAnalysis);
+            projectPlanning.RequirementsAnalysisId = requirementsAnalysis.Id;
+            await projectPlanningRepository.AddAsync(projectPlanning);
+            storyGeneration.ProjectPlanningId = projectPlanning.Id;
             await storyGenerationRepository.AddAsync(storyGeneration);
-            
+
             // Retrieve the story generation
             var retrievedStoryGeneration = await storyGenerationRepository.GetByGenerationIdAsync(generationId);
 
@@ -73,11 +108,62 @@ namespace AIProjectOrchestrator.IntegrationTests.Database
         public async Task PromptGeneration_WhenSavedToDatabase_CanBeRetrieved()
         {
             // Arrange
+            var scope = _factory.Services.CreateScope();
+            var projectPlanningRepository = scope.ServiceProvider.GetRequiredService<IProjectPlanningRepository>();
+            var storyGenerationRepository = scope.ServiceProvider.GetRequiredService<IStoryGenerationRepository>();
+            var promptGenerationRepository = scope.ServiceProvider.GetRequiredService<IPromptGenerationRepository>();
+
+            var project = new Project
+            {
+                Name = "Test Project",
+                Description = "Test project for persistence testing",
+                CreatedDate = DateTime.UtcNow
+            };
+
+            var requirementsAnalysis = new AIProjectOrchestrator.Domain.Entities.RequirementsAnalysis
+            {
+                AnalysisId = Guid.NewGuid().ToString(),
+                Status = RequirementsAnalysisStatus.Approved,
+                Content = "Test requirements content",
+                ReviewId = Guid.NewGuid().ToString(),
+                CreatedDate = DateTime.UtcNow
+            };
+
+            var projectPlanning = new AIProjectOrchestrator.Domain.Entities.ProjectPlanning
+            {
+                PlanningId = Guid.NewGuid().ToString(),
+                Status = ProjectPlanningStatus.Approved,
+                Content = "Test planning content",
+                ReviewId = Guid.NewGuid().ToString(),
+                CreatedDate = DateTime.UtcNow
+            };
+
+            var generationId = Guid.NewGuid().ToString();
+            var stories = new List<UserStory>
+            {
+                new UserStory
+                {
+                    Title = "Test Story",
+                    Description = "Test Description",
+                    AcceptanceCriteria = new List<string> { "Criteria 1", "Criteria 2" },
+                    Priority = "High"
+                }
+            };
+
+            var storyGeneration = new StoryGeneration
+            {
+                GenerationId = generationId,
+                Status = Domain.Models.Stories.StoryGenerationStatus.Approved,
+                Content = "Test content",
+                ReviewId = Guid.NewGuid().ToString(),
+                CreatedDate = DateTime.UtcNow,
+                Stories = stories
+            };
+
             var promptId = Guid.NewGuid().ToString();
             var promptGeneration = new PromptGeneration
             {
                 PromptId = promptId,
-                StoryGenerationId = 1, // This would need to be a valid ID in a real test
                 StoryIndex = 0,
                 Status = Domain.Models.PromptGeneration.PromptGenerationStatus.Approved,
                 Content = "Test prompt content",
@@ -86,12 +172,21 @@ namespace AIProjectOrchestrator.IntegrationTests.Database
             };
 
             // Act
-            var scope = _factory.Services.CreateScope();
-            var promptGenerationRepository = scope.ServiceProvider.GetRequiredService<IPromptGenerationRepository>();
-            
-            // Save the prompt generation
+            var projectRepository = scope.ServiceProvider.GetRequiredService<IProjectRepository>();
+            var requirementsAnalysisRepository = scope.ServiceProvider.GetRequiredService<IRequirementsAnalysisRepository>();
+            // Reuse projectPlanningRepository from Arrange
+            // Reuse storyGenerationRepository from Arrange
+            // Reuse promptGenerationRepository from Arrange
+            await projectRepository.AddAsync(project);
+            requirementsAnalysis.ProjectId = project.Id;
+            await requirementsAnalysisRepository.AddAsync(requirementsAnalysis);
+            projectPlanning.RequirementsAnalysisId = requirementsAnalysis.Id;
+            await projectPlanningRepository.AddAsync(projectPlanning);
+            storyGeneration.ProjectPlanningId = projectPlanning.Id;
+            await storyGenerationRepository.AddAsync(storyGeneration);
+            promptGeneration.StoryGenerationId = storyGeneration.Id;
             await promptGenerationRepository.AddAsync(promptGeneration);
-            
+
             // Retrieve the prompt generation
             var retrievedPromptGeneration = await promptGenerationRepository.GetByPromptIdAsync(promptId);
 
@@ -124,10 +219,10 @@ namespace AIProjectOrchestrator.IntegrationTests.Database
             // Act
             var scope = _factory.Services.CreateScope();
             var reviewRepository = scope.ServiceProvider.GetRequiredService<IReviewRepository>();
-            
+
             // Save the review
             await reviewRepository.AddAsync(review);
-            
+
             // Retrieve the review
             var retrievedReview = await reviewRepository.GetByReviewIdAsync(reviewId);
 

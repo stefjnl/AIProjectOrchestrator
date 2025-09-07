@@ -35,7 +35,7 @@ namespace AIProjectOrchestrator.IntegrationTests.Review
             // Assert
             // Note: This will pass now that we've set up static file serving
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            var contentType = response.Content.Headers.ContentType?.MediaType;
+            var contentType = response.Content.Headers.ContentType?.MediaType ?? "unknown";
             Assert.Equal("text/html", contentType);
         }
 
@@ -112,7 +112,7 @@ namespace AIProjectOrchestrator.IntegrationTests.Review
         }
 
         [Fact]
-        public async Task EndToEnd_CompleteWorkflow_ProcessesSuccessfully()
+        public void EndToEnd_CompleteWorkflow_ProcessesSuccessfully()
         {
             // This is a placeholder test that will be implemented later
             Assert.True(true); // Placeholder
