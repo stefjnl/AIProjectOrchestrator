@@ -33,7 +33,7 @@ class WorkflowManager {
             storiesGenerating: false,
             codeGenerating: false,
             // Phase 4: Story-level prompt tracking
-            storyPrompts: {}, // { storyIndex: { promptId, status, pending, approved } }
+            storyPrompts: [], // Array of { storyIndex, promptId, status, pending, approved }
             approvedStories: [] // Cache of approved story data
         };
         this.isUpdating = false; // Lock for async state updates
@@ -64,7 +64,7 @@ class WorkflowManager {
     }
     
     showReturnMessage() {
-        const approvedPrompts = this.state.storyPrompts?.filter(sp => sp.isApproved).length || 0;
+        const approvedPrompts = this.state.storyPrompts?.filter(sp => sp.approved).length || 0;
         const totalStories = this.state.approvedStories?.length || 0;
         
         if (approvedPrompts > 0) {
@@ -97,8 +97,8 @@ class WorkflowManager {
         const totalStories = this.state.approvedStories?.length || 0;
         const storyPrompts = this.state.storyPrompts || [];
         
-        const approved = storyPrompts.filter(sp => sp.isApproved).length;
-        const pending = storyPrompts.filter(sp => sp.isPending).length;
+        const approved = storyPrompts.filter(sp => sp.approved).length;
+        const pending = storyPrompts.filter(sp => sp.pending).length;
         const total = storyPrompts.length;
         const generated = storyPrompts.filter(sp => sp.promptId).length;
         const percentage = total > 0 ? (approved / total) * 100 : 0;
@@ -287,13 +287,16 @@ class WorkflowManager {
     setStoryPromptId(storyIndex, promptId, reviewId = null) {
         // Remove localStorage.setItem calls
         // State will be updated on next API refresh
-        if (!this.state.storyPrompts[storyIndex]) {
-            this.state.storyPrompts[storyIndex] = {};
+        let storyPrompt = this.state.storyPrompts.find(sp => sp.storyIndex === storyIndex);
+        if (!storyPrompt) {
+            storyPrompt = { storyIndex, promptId, reviewId, pending: true, approved: false };
+            this.state.storyPrompts.push(storyPrompt);
+        } else {
+            storyPrompt.promptId = promptId;
+            storyPrompt.reviewId = reviewId;
+            storyPrompt.pending = true;
+            storyPrompt.approved = false;
         }
-        this.state.storyPrompts[storyIndex].promptId = promptId;
-        this.state.storyPrompts[storyIndex].reviewId = reviewId;
-        this.state.storyPrompts[storyIndex].pending = true;
-        this.state.storyPrompts[storyIndex].approved = false;
     }
 
     // Removed: No longer needed for simplified navigation
@@ -303,18 +306,19 @@ class WorkflowManager {
     // }
 
     setStoryPromptApproved(storyIndex, approved) {
-        if (this.state.storyPrompts[storyIndex]) {
-            this.state.storyPrompts[storyIndex].approved = approved;
-            this.state.storyPrompts[storyIndex].pending = false;
+        const storyPrompt = this.state.storyPrompts.find(sp => sp.storyIndex === storyIndex);
+        if (storyPrompt) {
+            storyPrompt.approved = approved;
+            storyPrompt.pending = false;
             // No saveState - updated on next refresh
         }
     }
 
     getStoryPromptStatus(storyIndex) {
-        const prompt = this.state.storyPrompts[storyIndex];
-        if (!prompt) return 'Not Started';
-        if (prompt.pending) return 'Pending Review';
-        if (prompt.approved) return 'Approved';
+        const storyPrompt = this.state.storyPrompts.find(sp => sp.storyIndex === storyIndex);
+        if (!storyPrompt) return 'Not Started';
+        if (storyPrompt.pending) return 'Pending Review';
+        if (storyPrompt.approved) return 'Approved';
         return 'Rejected';
     }
 
@@ -335,7 +339,7 @@ class WorkflowManager {
 
             if (promptBtn && statusDiv) {
                 const storyPrompt = this.state.storyPrompts.find(sp => sp.storyIndex === index);
-                const status = storyPrompt ? (storyPrompt.isApproved ? 'Approved' : storyPrompt.isPending ? 'Pending Review' : 'Not Started') : 'Not Started';
+                const status = storyPrompt ? (storyPrompt.approved ? 'Approved' : storyPrompt.pending ? 'Pending Review' : 'Not Started') : 'Not Started';
                 statusDiv.textContent = status;
                 statusDiv.className = `prompt-status ${status.toLowerCase().replace(' ', '-')}`;
 
@@ -415,8 +419,8 @@ class WorkflowManager {
             return 'Ready'; // Can start generating prompts
         }
         
-        const approvedCount = storyPrompts.filter(sp => sp.isApproved).length;
-        const pendingCount = storyPrompts.filter(sp => sp.isPending).length;
+        const approvedCount = storyPrompts.filter(sp => sp.approved).length;
+        const pendingCount = storyPrompts.filter(sp => sp.pending).length;
         
         if (pendingCount > 0) {
             return `Pending Review (${pendingCount})`;
@@ -454,7 +458,7 @@ class WorkflowManager {
         
         // Check if individual stories are approved
         const storyPrompts = this.state.storyPrompts || [];
-        const individualStoriesApproved = storyPrompts.filter(sp => sp.isApproved).length;
+        const individualStoriesApproved = storyPrompts.filter(sp => sp.approved).length;
         
         if (individualStoriesApproved > 0) {
             stage4Status.textContent = "Ready";
@@ -485,15 +489,6 @@ class WorkflowManager {
     getStoryPromptId(storyIndex) {
         const storyPrompt = this.state.storyPrompts.find(sp => sp.storyIndex === storyIndex);
         return storyPrompt ? storyPrompt.promptId : null;
-    }
-
-    // Get story prompt status by index
-    getStoryPromptStatus(storyIndex) {
-        const storyPrompt = this.state.storyPrompts.find(sp => sp.storyIndex === storyIndex);
-        if (!storyPrompt) return 'Not Started';
-        if (storyPrompt.isPending) return 'Pending Review';
-        if (storyPrompt.isApproved) return 'Approved';
-        return 'Rejected';
     }
 
     updateWorkflowUI() {
@@ -560,36 +555,29 @@ class WorkflowManager {
         }
     }
 
-    updateStage4UI() {
-        // Call the updateStage4UI function if it exists
-        if (typeof updateStage4UI === 'function') {
-            updateStage4UI();
-        }
-    }
-
         async checkApprovedStatus() {
-            // Now handled via polling and API refresh - no individual checks needed
-            await this.refreshState();
-        }
-
-        // Show notification and redirect to stories management
-        async showStoriesRedirectNotification() {
-            // Show notification
-            const notification = document.createElement('div');
-            notification.className = 'notification-toast';
-            notification.textContent = 'Stories approved! Redirecting to prompt management...';
-            document.body.appendChild(notification);
-            
-            // Auto-remove after 2 seconds
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.parentNode.removeChild(notification);
-                }
-            }, 2000);
-            
-            // Redirect with source parameter
-            setTimeout(() => {
-                window.location.href = `stories-overview.html?projectId=${this.projectId}&source=workflow`;
-            }, 2000);
-        }
+        // Now handled via polling and API refresh - no individual checks needed
+        await this.refreshState();
     }
+
+    // Show notification and redirect to stories management
+    async showStoriesRedirectNotification() {
+        // Show notification
+        const notification = document.createElement('div');
+        notification.className = 'notification-toast';
+        notification.textContent = 'Stories approved! Redirecting to prompt management...';
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 2 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 2000);
+        
+        // Redirect with source parameter
+        setTimeout(() => {
+            window.location.href = `stories-overview.html?projectId=${this.projectId}&source=workflow`;
+        }, 2000);
+    }
+}
