@@ -46,7 +46,7 @@ namespace AIProjectOrchestrator.IntegrationTests.RequirementsAnalysis
 
             // Assert
             Assert.NotNull(instructionResult);
-            Assert.Equal("RequirementsAnalysisService", instructionResult.ServiceName);
+            Assert.Equal("RequirementsAnalyst", instructionResult.ServiceName);
             Assert.True(instructionResult.IsValid, $"Instruction should be valid. Validation message: {instructionResult.ValidationMessage}");
             Assert.NotNull(instructionResult.Content);
             Assert.NotEmpty(instructionResult.Content);

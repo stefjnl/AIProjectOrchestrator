@@ -796,12 +796,40 @@
                 const response = await window.APIClient.generatePrompt(request);
                 workflowManager.recordApiSuccess();
 
-                // Update button to show that generation is in progress
-                generateButton.innerHTML = '<span class="loading"></span>Generating...';
-                generateButton.disabled = true;
-
-                // Don't save state - will be updated by polling
+                // Show success message
                 alert('Prompt generation submitted for review. Please check the review queue.');
+
+                // Start a faster polling mechanism to update the UI more quickly
+                // This will run for 30 seconds or until the prompt is detected
+                let fastPollCount = 0;
+                const maxFastPolls = 6; // 6 polls at 5-second intervals = 30 seconds
+                const fastPollInterval = setInterval(async () => {
+                    fastPollCount++;
+                    
+                    try {
+                        // Refresh the workflow manager state
+                        await workflowManager.refreshState();
+                        
+                        // Check if the prompt for this story index has been generated
+                        const storyPrompts = workflowManager.state.storyPrompts || [];
+                        const storyPrompt = storyPrompts.find(sp => sp.storyIndex === storyIndex);
+                        
+                        // If we found a prompt ID for this story, update the UI
+                        if (storyPrompt && storyPrompt.promptId) {
+                            clearInterval(fastPollInterval);
+                            // Reload the stories to update the UI
+                            await loadAndRenderStories();
+                        }
+                        
+                        // Stop fast polling after max attempts or if we've detected the prompt
+                        if (fastPollCount >= maxFastPolls || (storyPrompt && storyPrompt.promptId)) {
+                            clearInterval(fastPollInterval);
+                        }
+                    } catch (error) {
+                        console.error('Error during fast polling:', error);
+                        clearInterval(fastPollInterval);
+                    }
+                }, 5000); // Poll every 5 seconds for faster updates
 
             } catch (error) {
                 console.error('Error generating prompt:', error);
