@@ -156,7 +156,7 @@ window.APIClient = {
         return await this.get(`/review/workflow-status/${projectId}`);
     },
 
-    async getStories(storyGenerationId) {
+    async getApprovedStories(storyGenerationId) {
         return await this.get(`/stories/${storyGenerationId}/approved`);
     },
 
@@ -168,5 +168,22 @@ window.APIClient = {
     async getApprovedStories(storyGenerationId) {
         // Note: This endpoint may need to be created or use existing story endpoints
         return await this.get(`/stories/${storyGenerationId}/approved`);
+    },
+
+    // Story management methods
+    async approveStory(storyId) {
+        return await this.post(`/stories/${storyId}/approve`, {});
+    },
+
+    async rejectStory(storyId, feedback) {
+        return await this.post(`/stories/${storyId}/reject`, { feedback });
+    },
+
+    async editStory(storyId, updatedStory) {
+        return await this.post(`/stories/${storyId}/edit`, updatedStory);
+    },
+
+    async approveStories(storyGenerationId) {
+        return await this.post(`/stories/${storyGenerationId}/approve`, {});
     }
 };

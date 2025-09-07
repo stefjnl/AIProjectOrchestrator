@@ -140,14 +140,31 @@
             container.innerHTML = stories.map((story, index) => {
                 // Find the story prompt for this story
                 const storyPrompt = storyPrompts.find(sp => sp.storyIndex === index);
-                const status = storyPrompt?.status || 'Draft';
+                
+                // Check for stored approval status in localStorage
+                let status = storyPrompt?.status || 'Draft';
+                const projectId = workflowManager.projectId;
+                const storyGenerationId = workflowManager.state.storyGenerationId;
+                if (projectId && storyGenerationId) {
+                    const storageKey = `storyApproval_${projectId}_${storyGenerationId}_${index}`;
+                    const storedStatus = localStorage.getItem(storageKey);
+                    if (storedStatus === 'approved') {
+                        status = 'Approved';
+                    }
+                }
                 
                 const statusClass = getStatusClass(status);
                 
                 // Extract story details
                 const title = story.Title || story.title || `Story ${index + 1}`;
-                const description = story.Description || story.description || '';
-                const acceptanceCriteria = story.AcceptanceCriteria || story.acceptanceCriteria || [];
+                let description = story.Description || story.description || '';
+                let acceptanceCriteria = story.AcceptanceCriteria || story.acceptanceCriteria || [];
+                
+                // Handle case where description is in AcceptanceCriteria field instead of Description field
+                if (!description && Array.isArray(acceptanceCriteria) && acceptanceCriteria.length === 1 && typeof acceptanceCriteria[0] === 'string') {
+                    description = acceptanceCriteria[0];
+                    acceptanceCriteria = [];
+                }
                 
                 // Create preview text (first 100 chars of description)
                 const previewText = description.length > 100 ? description.substring(0, 100) + '...' : description;
@@ -270,8 +287,13 @@
         function attachStoryEventListeners() {
             const container = document.getElementById('storiesContainer');
             
-            // Handle read more/less buttons
-            container.addEventListener('click', function(e) {
+            // Remove any existing event listener to prevent duplicates
+            if (container.storyEventListener) {
+                container.removeEventListener('click', container.storyEventListener);
+            }
+            
+            // Define the event listener function
+            const eventListener = function(e) {
                 if (e.target.classList.contains('read-more-btn')) {
                     const storyCard = e.target.closest('.story-card');
                     const fullContent = storyCard.querySelector('.full-content');
@@ -382,13 +404,24 @@
                     
                     generatePrompt(storyIndex);
                 }
-            });
+            };
+            
+            // Attach the event listener
+            container.addEventListener('click', eventListener);
+            
+            // Store the event listener on the container to allow removal later
+            container.storyEventListener = eventListener;
         }
 
         async function approveStory(storyIndex, storyCard) {
             try {
-                // In a real implementation, we would call the API to approve the individual story
-                // For now, we'll simulate the approval and update the UI
+                // Get the story ID from the story card data attributes
+                const storyId = storyCard.dataset.storyId;
+                
+                // Call the API to approve the individual story
+                if (storyId) {
+                    await window.APIClient.approveStory(storyId);
+                }
                 
                 // Update UI immediately for better UX
                 const statusBadge = storyCard.querySelector('.status-badge');
@@ -408,6 +441,13 @@
                 approveBtn.innerHTML = 'Approve';
                 approveBtn.disabled = false;
                 
+                // Update workflow manager state
+                if (workflowManager && typeof workflowManager.setStoriesApproved === 'function') {
+                    // Mark the overall stories as approved if this is the first approved story
+                    // In a real implementation, we would check if all stories are approved
+                    workflowManager.setStoriesApproved(true);
+                }
+                
                 // Show success message
                 showNotification('Story approved successfully!', 'success');
                 
@@ -426,8 +466,17 @@
 
         async function rejectStory(storyIndex, storyCard) {
             try {
-                // In a real implementation, we would call the API to reject the individual story
-                // For now, we'll simulate the rejection and update the UI
+                // Get the story ID from the story card data attributes
+                const storyId = storyCard.dataset.storyId;
+                
+                // Get feedback from user
+                const feedback = prompt('Please provide feedback for rejection:');
+                if (feedback === null) return; // User cancelled prompt
+                
+                // Call the API to reject the individual story
+                if (storyId) {
+                    await window.APIClient.rejectStory(storyId, feedback);
+                }
                 
                 // Update UI immediately for better UX
                 const statusBadge = storyCard.querySelector('.status-badge');
@@ -473,15 +522,21 @@
                 const storyActions = storyCard.querySelector('.story-actions');
                 const editBtn = storyCard.querySelector('.edit-btn');
                 
+                // Get the story ID from the story card data attributes
+                const storyId = storyCard.dataset.storyId;
+                
                 // Prepare updated story data
                 const updatedStory = {
+                    Id: storyId,
                     Title: titleInput.value,
                     Description: descriptionInput.value,
                     AcceptanceCriteria: criteriaInput.value.split('\n').filter(c => c.trim())
                 };
                 
-                // In a real implementation, we would call the API to update the story
-                // For now, we'll simulate the update and update the UI
+                // Call the API to update the story
+                if (storyId) {
+                    await window.APIClient.editStory(storyId, updatedStory);
+                }
                 
                 // Update story header with new title
                 const storyHeader = storyCard.querySelector('.story-header h3');
