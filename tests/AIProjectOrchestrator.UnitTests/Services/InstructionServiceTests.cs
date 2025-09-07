@@ -39,9 +39,9 @@ namespace AIProjectOrchestrator.UnitTests.Services
             var serviceName = "RequirementsAnalyst";
             var fileName = "RequirementsAnalyst.md";
             var filePath = Path.Combine(_testInstructionsPath, fileName);
-            
+
             var content = "# Role\nThis is a test role\n# Task\nThis is a test task\n# Constraints\nThese are test constraints\nMore content to meet minimum length requirement";
-            
+
             await File.WriteAllTextAsync(filePath, content);
 
             var customSettings = Options.Create(new InstructionSettings
@@ -96,10 +96,10 @@ namespace AIProjectOrchestrator.UnitTests.Services
             var serviceName = "RequirementsAnalyst";
             var fileName = "RequirementsAnalyst.md";
             var filePath = Path.Combine(_testInstructionsPath, fileName);
-            
+
             // Content too short
             var content = "Too short";
-            
+
             await File.WriteAllTextAsync(filePath, content);
 
             var customSettings = Options.Create(new InstructionSettings
@@ -129,9 +129,9 @@ namespace AIProjectOrchestrator.UnitTests.Services
             var serviceName = "RequirementsAnalyst";
             var fileName = "RequirementsAnalyst.md";
             var filePath = Path.Combine(_testInstructionsPath, fileName);
-            
+
             var content = "# Role\nThis is a test role\n# Task\nThis is a test task\n# Constraints\nThese are test constraints\nMore content to meet minimum length requirement";
-            
+
             await File.WriteAllTextAsync(filePath, content);
 
             var customSettings = Options.Create(new InstructionSettings
@@ -157,10 +157,10 @@ namespace AIProjectOrchestrator.UnitTests.Services
             var serviceName = "RequirementsAnalyst";
             var fileName = "RequirementsAnalyst.md";
             var filePath = Path.Combine(_testInstructionsPath, fileName);
-            
+
             // Content too short
             var content = "Too short";
-            
+
             await File.WriteAllTextAsync(filePath, content);
 
             var customSettings = Options.Create(new InstructionSettings
@@ -179,11 +179,38 @@ namespace AIProjectOrchestrator.UnitTests.Services
             Assert.False(result);
         }
 
-        [Fact]
-        public void GetInstructionFileName_MapsServiceNamesCorrectly()
+        [Theory]
+        [InlineData("RequirementsAnalysisService", "RequirementsAnalyst.md")]
+        [InlineData("ProjectPlanningService", "ProjectPlanner.md")]
+        [InlineData("StoryGenerationService", "StoryGenerator.md")]
+        [InlineData("CodeReviewService", "CodeReviewService.md")] // No replacement, just adds .md
+        [InlineData("RequirementsAnalyst", "RequirementsAnalyst.md")] // Already correct format
+        public async Task GetInstructionFileName_MapsServiceNamesCorrectly(string serviceName, string expectedFileName)
         {
-            // This test would require accessing a private method, which is not ideal
-            // We'll test this behavior indirectly through other tests
+            // Arrange
+            var content = "# Role\nTest role\n# Task\nTest task\n# Constraints\nTest constraints\nAdditional content to meet minimum length requirement of 100 characters";
+            var expectedFilePath = Path.Combine(_testInstructionsPath, expectedFileName);
+
+            await File.WriteAllTextAsync(expectedFilePath, content);
+
+            var customSettings = Options.Create(new InstructionSettings
+            {
+                InstructionsPath = _testInstructionsPath,
+                MinimumContentLength = 100,
+                RequiredSections = new[] { "Role", "Task", "Constraints" }
+            });
+
+            var service = new InstructionService(customSettings, _mockLogger.Object);
+
+            // Act
+            var result = await service.GetInstructionAsync(serviceName);
+
+            // Assert
+            Assert.NotNull(result);
+            Assert.Equal(serviceName, result.ServiceName);
+            Assert.Equal(content, result.Content);
+            Assert.True(result.IsValid);
+            Assert.Equal(string.Empty, result.ValidationMessage);
         }
     }
 }

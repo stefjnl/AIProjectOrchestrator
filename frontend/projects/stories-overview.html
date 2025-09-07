@@ -6,6 +6,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stories & Prompts Management - AI Orchestrator</title>
     <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .prompt-status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7em;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .prompt-status-badge.generated {
+            background-color: #cce7ff;
+            color: #004085;
+            border: 1px solid #b8daff;
+        }
+        
+        .prompt-status-badge.approved {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .prompt-status-badge.pending-review {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .prompt-status-badge.not-generated {
+            background-color: #e9ecef;
+            color: #6c757d;
+            border: 1px solid #dee2e6;
+        }
+    </style>
 </head>
 
 <body>
@@ -158,9 +191,6 @@
             const container = document.getElementById('storiesContainer');
 
             container.innerHTML = stories.map((story, index) => {
-                // Find the story prompt for this story
-                const storyPrompt = storyPrompts.find(sp => sp.storyIndex === index);
-
                 // Use the actual database status if available, otherwise fall back to prompt status or localStorage
                 let status = 'Draft';
                 if (story.status !== undefined) {
@@ -201,12 +231,21 @@
 
                 // Determine if the story is approved
                 const isApproved = status === 'Approved';
+                
+                // Check if there's a generated prompt for this story
+                const storyPrompt = storyPrompts.find(sp => sp.storyIndex === index);
+                const hasPrompt = storyPrompt && storyPrompt.promptId;
+                const promptStatus = storyPrompt ? 
+                    (storyPrompt.approved ? 'Approved' : 
+                     storyPrompt.pending ? 'Pending Review' : 'Generated') : 
+                    'Not Generated';
 
                 return `
                     <div class="story-card" data-story-index="${index}" data-story-id="${story.id}" data-priority="${story.priority || ''}" data-story-points="${story.storyPoints || ''}" data-tags='${JSON.stringify(story.tags || [])}' data-estimated-complexity="${story.estimatedComplexity || ''}">
                         <div class="story-header">
                             <h3>${title}</h3>
                             <span class="status-badge ${statusClass}">${status}</span>
+                            ${hasPrompt ? `<span class="prompt-status-badge ${promptStatus.toLowerCase().replace(' ', '-')}" style="margin-left: 5px;">${promptStatus}</span>` : ''}
                         </div>
                         
                         <div class="story-content expandable">
@@ -234,7 +273,8 @@
                             <button class="edit-btn">Edit</button>
                             <button class="approve-btn ${isApproved ? 'hidden' : ''}">Approve</button>
                             <button class="reject-btn ${status === 'Rejected' ? 'hidden' : ''}">Reject</button>
-                            <button class="generate-prompt-btn" ${isApproved ? '' : 'disabled'}>Generate Prompt</button>
+                            <button class="generate-prompt-btn" ${isApproved ? '' : 'disabled'} ${hasPrompt ? 'disabled' : ''}>Generate Prompt</button>
+                            <button class="view-prompt-btn ${hasPrompt ? '' : 'hidden'}" data-prompt-id="${storyPrompt?.promptId || ''}">View Prompt</button>
                         </div>
                     </div>
                 `;
@@ -462,6 +502,14 @@
                     const storyIndex = storyCard.dataset.storyIndex;
 
                     generatePrompt(storyIndex);
+                }
+
+                // Handle view prompt button
+                if (e.target.classList.contains('view-prompt-btn')) {
+                    const promptId = e.target.dataset.promptId;
+                    if (promptId) {
+                        viewPrompt(promptId);
+                    }
                 }
             };
 
@@ -718,9 +766,10 @@
         async function generatePrompt(storyIndex) {
             // Get the specific button for this story
             const storyCard = document.querySelector(`[data-story-index="${storyIndex}"]`);
-            const button = storyCard ? storyCard.querySelector('.generate-prompt-btn') : null;
+            const generateButton = storyCard ? storyCard.querySelector('.generate-prompt-btn') : null;
+            const viewButton = storyCard ? storyCard.querySelector('.view-prompt-btn') : null;
 
-            if (!button) {
+            if (!generateButton) {
                 console.error('Generate prompt button not found for story index:', storyIndex);
                 return;
             }
@@ -731,9 +780,9 @@
             }
 
             // Immediately disable and update button text
-            button.disabled = true;
-            const originalText = button.innerHTML;
-            button.innerHTML = '<span class="loading"></span>Generating...';
+            generateButton.disabled = true;
+            const originalText = generateButton.innerHTML;
+            generateButton.innerHTML = '<span class="loading"></span>Generating...';
 
             try {
                 console.log('Generating prompt for story index:', storyIndex);
@@ -747,6 +796,10 @@
                 const response = await window.APIClient.generatePrompt(request);
                 workflowManager.recordApiSuccess();
 
+                // Update button to show that generation is in progress
+                generateButton.innerHTML = '<span class="loading"></span>Generating...';
+                generateButton.disabled = true;
+
                 // Don't save state - will be updated by polling
                 alert('Prompt generation submitted for review. Please check the review queue.');
 
@@ -757,10 +810,10 @@
                     showMaintenanceBanner();
                 }
                 alert('Error generating prompt: ' + error.message);
-            } finally {
-                // Always re-enable and reset button text
-                button.disabled = false;
-                button.innerHTML = originalText;
+                
+                // Reset button state on error
+                generateButton.disabled = false;
+                generateButton.innerHTML = originalText;
             }
         }
 

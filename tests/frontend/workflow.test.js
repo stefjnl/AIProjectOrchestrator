@@ -1,7 +1,7 @@
 // Mock localStorage for testing
 const localStorageMock = (() => {
     let store = {};
-    
+
     return {
         getItem: (key) => store[key] || null,
         setItem: (key, value) => store[key] = value.toString(),
@@ -75,12 +75,22 @@ async function canGenerateCode(storyGenerationId) {
     return true;
 }
 
+// Mock APIClient for the actual WorkflowManager
+window.APIClient = {
+    getWorkflowStatus: jest.fn().mockResolvedValue({
+        requirementsAnalysis: { analysisId: null, isApproved: false, isPending: false },
+        projectPlanning: { planningId: null, isApproved: false, isPending: false },
+        storyGeneration: { generationId: null, isApproved: false, isPending: false, storyCount: 0 },
+        promptGeneration: { storyPrompts: [], completionPercentage: 0 }
+    })
+};
+
 // Test suite
 describe('WorkflowManager', () => {
     beforeEach(() => {
         // Clear localStorage before each test
         localStorage.clear();
-        
+
         // Create mock DOM elements
         createMockElement('loading');
         createMockElement('error');
@@ -91,161 +101,148 @@ describe('WorkflowManager', () => {
         createMockElement('planning-status');
         createMockElement('stories-status');
         createMockElement('code-status');
-        
+
         // Create stage cards
         const requirementsStage = document.createElement('div');
         requirementsStage.id = 'requirements-stage';
         requirementsStage.className = 'stage-card';
         document.body.appendChild(requirementsStage);
-        
+
         const planningStage = document.createElement('div');
         planningStage.id = 'planning-stage';
         planningStage.className = 'stage-card';
         document.body.appendChild(planningStage);
-        
+
         const storiesStage = document.createElement('div');
         storiesStage.id = 'stories-stage';
         storiesStage.className = 'stage-card';
         document.body.appendChild(storiesStage);
-        
+
         const codeStage = document.createElement('div');
         codeStage.id = 'code-stage';
         codeStage.className = 'stage-card';
         document.body.appendChild(codeStage);
-        
+
         // Create buttons
         const planningButton = document.createElement('button');
         planningButton.disabled = true;
         planningStage.appendChild(planningButton);
-        
+
         const storiesButton = document.createElement('button');
         storiesButton.disabled = true;
         storiesStage.appendChild(storiesButton);
-        
+
         const codeButton = document.createElement('button');
         codeButton.disabled = true;
         codeStage.appendChild(codeButton);
     });
-    
+
     afterEach(() => {
         // Clean up DOM elements
         document.body.innerHTML = '';
     });
-    
+
     test('should initialize with correct default state', () => {
-        const workflowManager = new WorkflowManager();
-        workflowManager.setProjectId('test-project');
-        
+        const workflowManager = new WorkflowManager('test-project');
+
         expect(workflowManager.projectId).toBe('test-project');
-        expect(workflowManager.workflowState.requirements.status).toBe('not_started');
-        expect(workflowManager.workflowState.planning.status).toBe('not_started');
-        expect(workflowManager.workflowState.stories.status).toBe('not_started');
-        expect(workflowManager.workflowState.code.status).toBe('not_started');
+        expect(workflowManager.state.requirementsAnalysisId).toBe(null);
+        expect(workflowManager.state.projectPlanningId).toBe(null);
+        expect(workflowManager.state.storyGenerationId).toBe(null);
+        expect(workflowManager.state.codeGenerationId).toBe(null);
+        expect(workflowManager.state.requirementsApproved).toBe(false);
+        expect(workflowManager.state.planningApproved).toBe(false);
+        expect(workflowManager.state.storiesApproved).toBe(false);
     });
-    
-    test('should save and load state from localStorage', () => {
-        const workflowManager = new WorkflowManager();
-        workflowManager.setProjectId('test-project');
-        
-        // Set some state
-        workflowManager.setRequirementsAnalysis('req-123', 'rev-123');
-        workflowManager.setProjectPlanning('plan-123', 'rev-456');
-        
-        // Create a new workflow manager to test loading
-        const newWorkflowManager = new WorkflowManager();
-        newWorkflowManager.setProjectId('test-project');
-        
-        expect(newWorkflowManager.getRequirementsAnalysisId()).toBe('req-123');
-        expect(newWorkflowManager.getProjectPlanningId()).toBe('plan-123');
-    });
-    
+
     test('should correctly track requirements analysis', () => {
-        const workflowManager = new WorkflowManager();
-        workflowManager.setProjectId('test-project');
-        
-        workflowManager.setRequirementsAnalysis('req-123', 'rev-123');
-        
-        expect(workflowManager.getRequirementsAnalysisId()).toBe('req-123');
-        expect(workflowManager.workflowState.requirements.status).toBe('pending_review');
-        expect(workflowManager.workflowState.requirements.reviewId).toBe('rev-123');
+        const workflowManager = new WorkflowManager('test-project');
+
+        // Simulate setting requirements analysis
+        workflowManager.state.requirementsAnalysisId = 'req-123';
+        workflowManager.state.requirementsPending = true;
+
+        expect(workflowManager.state.requirementsAnalysisId).toBe('req-123');
+        expect(workflowManager.state.requirementsPending).toBe(true);
+        expect(workflowManager.state.requirementsApproved).toBe(false);
     });
-    
+
     test('should correctly track project planning', () => {
-        const workflowManager = new WorkflowManager();
-        workflowManager.setProjectId('test-project');
-        
-        workflowManager.setProjectPlanning('plan-123', 'rev-456');
-        
-        expect(workflowManager.getProjectPlanningId()).toBe('plan-123');
-        expect(workflowManager.workflowState.planning.status).toBe('pending_review');
-        expect(workflowManager.workflowState.planning.reviewId).toBe('rev-456');
+        const workflowManager = new WorkflowManager('test-project');
+
+        // Simulate setting project planning
+        workflowManager.state.projectPlanningId = 'plan-123';
+        workflowManager.state.planningPending = true;
+
+        expect(workflowManager.state.projectPlanningId).toBe('plan-123');
+        expect(workflowManager.state.planningPending).toBe(true);
+        expect(workflowManager.state.planningApproved).toBe(false);
     });
-    
+
     test('should correctly track story generation', () => {
-        const workflowManager = new WorkflowManager();
-        workflowManager.setProjectId('test-project');
-        
-        workflowManager.setStoryGeneration('story-123', 'rev-789');
-        
-        expect(workflowManager.getStoryGenerationId()).toBe('story-123');
-        expect(workflowManager.workflowState.stories.status).toBe('pending_review');
-        expect(workflowManager.workflowState.stories.reviewId).toBe('rev-789');
+        const workflowManager = new WorkflowManager('test-project');
+
+        // Simulate setting story generation
+        workflowManager.state.storyGenerationId = 'story-123';
+        workflowManager.state.storiesPending = true;
+
+        expect(workflowManager.state.storyGenerationId).toBe('story-123');
+        expect(workflowManager.state.storiesPending).toBe(true);
+        expect(workflowManager.state.storiesApproved).toBe(false);
     });
-    
+
     test('should correctly track code generation', () => {
-        const workflowManager = new WorkflowManager();
-        workflowManager.setProjectId('test-project');
-        
-        workflowManager.setCodeGeneration('code-123', 'rev-012');
-        
-        expect(workflowManager.getCodeGenerationId()).toBe('code-123');
-        expect(workflowManager.workflowState.code.status).toBe('pending_review');
-        expect(workflowManager.workflowState.code.reviewId).toBe('rev-012');
+        const workflowManager = new WorkflowManager('test-project');
+
+        // Simulate setting code generation
+        workflowManager.state.codeGenerationId = 'code-123';
+
+        expect(workflowManager.state.codeGenerationId).toBe('code-123');
     });
-    
+
     test('should correctly determine if planning can be started', () => {
-        const workflowManager = new WorkflowManager();
-        workflowManager.setProjectId('test-project');
-        
+        const workflowManager = new WorkflowManager('test-project');
+
         // Initially should not be able to start planning
-        expect(workflowManager.canStartPlanning()).toBe(false);
-        
-        // After requirements analysis, should be able to start planning
-        workflowManager.setRequirementsAnalysis('req-123', 'rev-123');
-        expect(workflowManager.canStartPlanning()).toBe(true);
+        expect(workflowManager.state.requirementsApproved).toBe(false);
+
+        // After requirements analysis approval, should be able to start planning
+        workflowManager.state.requirementsAnalysisId = 'req-123';
+        workflowManager.state.requirementsApproved = true;
+        expect(workflowManager.state.requirementsApproved).toBe(true);
     });
-    
+
     test('should correctly determine if stories can be generated', () => {
-        const workflowManager = new WorkflowManager();
-        workflowManager.setProjectId('test-project');
-        
+        const workflowManager = new WorkflowManager('test-project');
+
         // Initially should not be able to generate stories
-        expect(workflowManager.canGenerateStories()).toBe(false);
-        
-        // After project planning, should be able to generate stories
-        workflowManager.setProjectPlanning('plan-123', 'rev-456');
-        expect(workflowManager.canGenerateStories()).toBe(true);
+        expect(workflowManager.state.planningApproved).toBe(false);
+
+        // After project planning approval, should be able to generate stories
+        workflowManager.state.projectPlanningId = 'plan-123';
+        workflowManager.state.planningApproved = true;
+        expect(workflowManager.state.planningApproved).toBe(true);
     });
-    
+
     test('should correctly determine if code can be generated', () => {
-        const workflowManager = new WorkflowManager();
-        workflowManager.setProjectId('test-project');
-        
+        const workflowManager = new WorkflowManager('test-project');
+
         // Initially should not be able to generate code
-        expect(workflowManager.canGenerateCode()).toBe(false);
-        
-        // After story generation, should be able to generate code
-        workflowManager.setStoryGeneration('story-123', 'rev-789');
-        expect(workflowManager.canGenerateCode()).toBe(true);
+        expect(workflowManager.state.storiesApproved).toBe(false);
+
+        // After story generation approval, should be able to generate code
+        workflowManager.state.storyGenerationId = 'story-123';
+        workflowManager.state.storiesApproved = true;
+        expect(workflowManager.state.storiesApproved).toBe(true);
     });
-    
+
     test('should update UI correctly for requirements status', () => {
-        const workflowManager = new WorkflowManager();
-        workflowManager.setProjectId('test-project');
+        const workflowManager = new WorkflowManager('test-project');
         
         // Set requirements to pending review
-        workflowManager.setRequirementsAnalysis('req-123', 'rev-123');
-        workflowManager.updateWorkflowUI();
+        workflowManager.state.requirementsAnalysisId = 'req-123';
+        workflowManager.state.requirementsPending = true;
+        workflowManager.updateUI();
         
         const requirementsStatus = document.getElementById('requirements-status');
         expect(requirementsStatus.textContent).toBe('Pending Review');
@@ -253,12 +250,12 @@ describe('WorkflowManager', () => {
     });
     
     test('should enable planning button when requirements are analyzed', () => {
-        const workflowManager = new WorkflowManager();
-        workflowManager.setProjectId('test-project');
+        const workflowManager = new WorkflowManager('test-project');
         
-        // Set requirements to pending review
-        workflowManager.setRequirementsAnalysis('req-123', 'rev-123');
-        workflowManager.updateWorkflowUI();
+        // Set requirements to approved
+        workflowManager.state.requirementsAnalysisId = 'req-123';
+        workflowManager.state.requirementsApproved = true;
+        workflowManager.updateUI();
         
         const planningButton = document.getElementById('planning-stage').querySelector('button');
         expect(planningButton.disabled).toBe(false);

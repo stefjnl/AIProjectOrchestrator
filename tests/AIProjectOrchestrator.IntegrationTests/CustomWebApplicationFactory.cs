@@ -1,4 +1,5 @@
 using AIProjectOrchestrator.API;
+using AIProjectOrchestrator.Infrastructure.Data;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -8,6 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace AIProjectOrchestrator.IntegrationTests
 {
@@ -24,6 +26,12 @@ namespace AIProjectOrchestrator.IntegrationTests
                 {
                     config.AddJsonFile(appSettingsPath);
                 }
+
+                // Override connection string for Docker testing
+                config.AddInMemoryCollection(new Dictionary<string, string>
+                {
+                    ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Port=5432;Database=aiprojectorchestrator;Username=user;Password=password"
+                });
             });
 
             builder.ConfigureServices(services =>
@@ -38,6 +46,13 @@ namespace AIProjectOrchestrator.IntegrationTests
             // Configure the host to use test environment
             builder.UseEnvironment("IntegrationTests");
             return base.CreateHost(builder);
+        }
+
+        public async Task EnsureDatabaseReadyAsync()
+        {
+            using var scope = Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await context.Database.EnsureCreatedAsync();
         }
     }
 }

@@ -42,7 +42,7 @@ namespace AIProjectOrchestrator.IntegrationTests.RequirementsAnalysis
             var instructionService = serviceProvider.GetService<IInstructionService>();
 
             // Act
-            var instructionResult = await instructionService!.GetInstructionAsync("RequirementsAnalysisService");
+            var instructionResult = await instructionService!.GetInstructionAsync("RequirementsAnalyst");
 
             // Assert
             Assert.NotNull(instructionResult);
