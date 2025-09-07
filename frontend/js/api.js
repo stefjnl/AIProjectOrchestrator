@@ -84,21 +84,39 @@ window.APIClient = {
     async analyzeRequirements(request) {
         return this.post('/requirements/analyze', request);
     },
+    
+    async getRequirements(analysisId) {
+        return this.get(`/requirements/${analysisId}`);
+    },
+    
     async canCreateProjectPlan(analysisId) {
         return this.get(`/projectplanning/can-create/${analysisId}`);
     },
+    
     async createProjectPlan(request) {
         return this.post('/projectplanning/create', request);
     },
+    
+    async getProjectPlan(planningId) {
+        return this.get(`/projectplanning/${planningId}`);
+    },
+    
     async canGenerateStories(planningId) {
         return this.get(`/stories/can-generate/${planningId}`);
     },
+    
     async generateStories(request) {
         return this.post('/stories/generate', request);
     },
+    
+    async getStories(storyGenerationId) {
+        return this.get(`/stories/${storyGenerationId}/results`);
+    },
+    
     async canGenerateCode(storyGenId) {
         return this.get(`/code/can-generate/${storyGenId}`);
     },
+    
     async generateCode(request) {
         return this.post('/code/generate', request);
     },

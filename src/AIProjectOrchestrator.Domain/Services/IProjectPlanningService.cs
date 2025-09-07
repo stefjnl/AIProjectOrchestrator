@@ -24,6 +24,10 @@ namespace AIProjectOrchestrator.Domain.Services
             Guid planningId,
             CancellationToken cancellationToken = default);
 
+        Task<ProjectPlanningResponse?> GetPlanningResultsAsync(
+            Guid planningId,
+            CancellationToken cancellationToken = default);
+
         Task<Guid?> GetRequirementsAnalysisIdAsync(
             Guid planningId,
             CancellationToken cancellationToken = default);

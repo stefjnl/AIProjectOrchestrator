@@ -58,6 +58,26 @@ namespace AIProjectOrchestrator.API.Controllers
             }
         }
 
+        [HttpGet("{planningId:guid}")]
+        public async Task<ActionResult<ProjectPlanningResponse>> GetPlanning(
+            Guid planningId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var result = await _projectPlanningService.GetPlanningResultsAsync(planningId, cancellationToken);
+                if (result == null)
+                {
+                    return NotFound(new { error = "Not found", message = "Project planning not found" });
+                }
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
+            }
+        }
+
         [HttpGet("can-create/{requirementsAnalysisId:guid}")]
         public async Task<ActionResult<bool>> CanCreatePlan(
             Guid requirementsAnalysisId,

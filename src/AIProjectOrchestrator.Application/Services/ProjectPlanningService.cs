@@ -260,6 +260,29 @@ namespace AIProjectOrchestrator.Application.Services
             return null;
         }
 
+        public async Task<ProjectPlanningResponse?> GetPlanningResultsAsync(
+            Guid planningId,
+            CancellationToken cancellationToken = default)
+        {
+            var projectPlanning = await _projectPlanningRepository.GetByPlanningIdAsync(planningId.ToString(), cancellationToken);
+            if (projectPlanning != null)
+            {
+                return new ProjectPlanningResponse
+                {
+                    PlanningId = Guid.Parse(projectPlanning.PlanningId),
+                    RequirementsAnalysisId = Guid.NewGuid(), // We don't store this as a GUID in the entity
+                    ProjectRoadmap = projectPlanning.Content ?? string.Empty,
+                    ArchitecturalDecisions = string.Empty, // Property doesn't exist in entity
+                    Milestones = string.Empty, // Property doesn't exist in entity
+                    ReviewId = Guid.Parse(projectPlanning.ReviewId),
+                    Status = projectPlanning.Status,
+                    CreatedAt = projectPlanning.CreatedDate
+                };
+            }
+
+            return null;
+        }
+
         public async Task<Guid?> GetRequirementsAnalysisIdAsync(
             Guid planningId,
             CancellationToken cancellationToken = default)

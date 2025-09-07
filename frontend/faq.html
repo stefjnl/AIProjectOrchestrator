@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Analysis - AI Project Orchestrator</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .analysis-content { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .analysis-content h1, .analysis-content h2, .analysis-content h3 { color: #333; }
+        .analysis-content pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
+        .analysis-content table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+        .analysis-content th, .analysis-content td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .analysis-content th { background-color: #f2f2f2; }
+        .back-link { display: inline-block; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/index.html" class="back-link">&larr; Back to Dashboard</a>
+        <div class="analysis-content">
+            <h1>AI Project Orchestrator - System Analysis (Updated)</h1>
+
+            <h2>Overview</h2>
+            <p>The AI Project Orchestrator automates software project planning and development using AI, following a multi-stage workflow that transforms high-level project descriptions into code artifacts. Human review checkpoints occur at each AI generation stage. The system uses ASP.NET Core backend with Clean Architecture and a static HTML/JS/CSS frontend, persisting data in PostgreSQL via Entity Framework Core.</p>
+
+            <h2>System Architecture</h2>
+            <pre><code>graph TD
+    A[Frontend - HTML/CSS/JS] -->|REST API Calls| B[Backend - ASP.NET Core API]
+    B -->|Entity Framework Core| C[Database - PostgreSQL]
+    B -->|AI Services| D[OpenRouter (qwen/qwen3-coder)]
+    B --> E[Review Service - In-Memory Queue with Metadata]
+    
+    subgraph "Frontend"
+        A
+    end
+    
+    subgraph "Backend"
+        B
+        E
+    end
+    
+    subgraph "External Services"
+        D
+    end
+    
+    subgraph "Data Storage"
+        C
+    end</code></pre>
+
+            <h2>Detailed Component Analysis</h2>
+
+            <h3>1. Frontend (Client-Side)</h3>
+            <p>Static web application with HTML, CSS, JavaScript for user interaction.</p>
+            <p><strong>Key Components:</strong></p>
+            <ul>
+                <li>Static pages for workflow management and review queue</li>
+                <li>APIClient in api.js for REST calls to backend</li>
+                <li>WorkflowManager in workflow.js for state polling and UI updates (every 10s via getWorkflowStatus)</li>
+                <li>Responsive design with status indicators and button state management</li>
+            </ul>
+            <p><strong>Main Pages:</strong></p>
+            <ul>
+                <li><code>projects/workflow.html</code> - Workflow stages with buttons to initiate generation (e.g., startRequirementsAnalysis calls POST /api/requirements/analyze, redirects to queue on pending)</li>
+                <li><code>reviews/queue.html</code> - Loads pending reviews via GET /api/review/pending, approve/reject via POST /api/review/{id}/approve/reject, pipeline-aware redirects (e.g., stories → stories-overview.html)</li>
+                <li><code>projects/create.html</code> - Project creation form (POST /api/projects)</li>
+                <li><code>projects/list.html</code> - Project listing (GET /api/projects)</li>
+                <li><code>projects/stories-overview.html</code> - Story and prompt management (Phase 4)</li>
+            </ul>
+
+            <h3>2. Backend (Server-Side)</h3>
+            <p>ASP.NET Core Web API with Clean Architecture: Domain (entities/interfaces), Application (services), Infrastructure (repositories/AI clients), API (controllers).</p>
+            <p><strong>Key Components:</strong></p>
+            <ul>
+                <li>Controllers route HTTP requests to application services</li>
+                <li>Services orchestrate AI calls, validation, review submission, and status updates</li>
+                <li>Domain entities represent workflow artifacts with statuses (e.g., PendingReview, Approved)</li>
+                <li>Infrastructure handles PostgreSQL via repositories and OpenRouter AI client</li>
+                <li>Dependency injection with ILogger, IOptions, and lazy services (e.g., Lazy<IReviewService>)</li>
+                <li>Health checks in HealthChecks/</li>
+            </ul>
+            <p><strong>Main API Controllers:</strong></p>
+            <ul>
+                <li><code>ProjectsController</code> - CRUD for projects (e.g., POST /api/projects)</li>
+                <li><code>RequirementsController</code> - Analyze requirements (POST /api/requirements/analyze), status/retrieval (GET /api/requirements/{id}), direct approval (POST /api/requirements/{id}/approve)</li>
+                <li><code>ProjectPlanningController</code> - Create plan (POST /api/projectplanning/create), status updates</li>
+                <li><code>StoriesController</code> - Generate stories (POST /api/stories/generate)</li>
+                <li><code>PromptGenerationController</code> - Generate prompts (POST /api/PromptGeneration/generate)</li>
+                <li><code>ReviewController</code> - Submit review (POST /api/review/submit), pending list (GET /api/review/pending), approve/reject (POST /api/review/{id}/approve/reject), workflow status (GET /api/review/workflow-status/{projectId})</li>
+                <li><code>CodeController</code> - Generate code (POST /api/code/generate)</li>
+                <li><code>AITestController</code> - Testing endpoints</li>
+            </ul>
+
+            <h3>3. Database (PostgreSQL)</h3>
+            <p>Persistent storage via Entity Framework Core with AppDbContext.</p>
+            <p><strong>Key Entities:</strong></p>
+            <ul>
+                <li><code>Project</code> - Core project with Id (int), Name, Description</li>
+                <li><code>RequirementsAnalysis</code> - AI-generated analysis with AnalysisId (string/GUID), ProjectId (int FK), Status (PendingReview/Approved), Content, ReviewId (string)</li>
+                <li><code>ProjectPlanning</code> - Plan with PlanningId, Status, ReviewId</li>
+                <li><code>StoryGeneration</code> - Stories collection with GenerationId, Status, ReviewId, StoryCount</li>
+                <li><code>PromptGeneration</code> - Per-story prompts with PromptId, StoryIndex, Status, ReviewId</li>
+                <li><code>Review</code> - Review submissions (likely metadata-linked, not fully persistent)</li>
+            </ul>
+            <p><strong>Relationships:</strong></p>
+            <ul>
+                <li>Project (1) → RequirementsAnalysis/ProjectPlanning/StoryGeneration/PromptGeneration (Many)</li>
+                <li>Each artifact (1) → ReviewId (for approval linkage via metadata)</li>
+                <li>Migrations in Infrastructure/Migrations/</li>
+            </ul>
+
+            <h2>User Workflow</h2>
+            <p>Linear multi-stage process with prerequisites and review checkpoints. Frontend polls backend for status changes.</p>
+
+            <h3>Stage 1: Project Creation</h3>
+            <ol>
+                <li>User submits form on create.html → POST /api/projects via APIClient.createProject()</li>
+                <li>Backend creates Project entity in DB</li>
+                <li>Redirect to workflow.html?projectId={id}</li>
+            </ol>
+
+            <h3>Stage 2: Requirements Analysis</h3>
+            <ol>
+                <li>On workflow.html, click "Start Analysis" → startRequirementsAnalysis() sets generating state, fetches project description, calls APIClient.analyzeRequirements({ProjectDescription, ProjectId})</li>
+                <li>RequirementsController.AnalyzeRequirements() → RequirementsAnalysisService.AnalyzeRequirementsAsync(): Validates input, loads RequirementsAnalyst.md instructions via IInstructionService, creates AIRequest (system message + prompt), calls OpenRouter IAIClient (qwen/qwen3-coder, temp=0.7, maxTokens=2000), stores RequirementsAnalysis entity (Status=PendingReview), submits to IReviewService.SubmitForReviewAsync() with metadata {AnalysisId, EntityId, ProjectId}, updates entity with ReviewId</li>
+                <li>Returns RequirementsAnalysisResponse with analysisId, reviewId, status=PendingReview</li>
+                <li>Frontend alerts and redirects to queue.html?projectId={id}</li>
+                <li>On queue.html, loadPendingReviews() → APIClient.getPendingReviews() → GET /api/review/pending → ReviewController.GetPendingReviews() → IReviewService.GetPendingReviewsAsync()</li>
+                <li>User clicks "Approve" → approveReview(reviewId) → APIClient.approveReview(reviewId) → POST /api/review/{id}/approve → ReviewController.ApproveReview() extracts AnalysisId from metadata, calls _requirementsAnalysisService.UpdateAnalysisStatusAsync(analysisId, Approved), returns ReviewResponse</li>
+                <li>Workflow polling (getWorkflowStatus) detects status change, enables "Start Planning" button</li>
+            </ol>
+
+            <h3>Stage 3: Project Planning</h3>
+            <p>Similar to Stage 2: Button calls APIClient.createProjectPlan({requirementsAnalysisId}) → checks prerequisites (canCreateProjectPlan), generates via IProjectPlanningService using ProjectPlanner.md, submits to review, approval updates status.</p>
+
+            <h3>Stage 4: User Story Generation</h3>
+            <p>Button calls APIClient.generateStories({planningId}) → IStoryGenerationService using StoryGenerator.md, generates collection, submits for review. On approval, auto-redirects to stories-overview.html for Phase 4 prompt management (per-story prompts via PromptGenerationController).</p>
+
+            <h3>Stage 5: Prompt Generation (Phase 4)</h3>
+            <p>Individual prompts per story: stories-overview.html generates via APIClient.generatePrompt({storyGenerationId, storyIndex}), submits to review. Completion tracked in workflow.html dashboard (progress bar, stats). All prompts approved enables code generation.</p>
+
+            <h3>Stage 6: Code Generation</h3>
+            <p>Button calls APIClient.generateCode({storyGenerationId}) → ICodeGenerationService, final output without review (or optional).</p>
+
+            <h2>Component Interactions</h2>
+
+            <h3>Frontend ↔ Backend</h3>
+            <ul>
+                <li>JSON REST via fetch in api.js (baseUrl: http://localhost:8086/api)</li>
+                <li>Error handling with circuit breaker (3 failures → maintenance mode)</li>
+                <li>WorkflowManager polls /api/review/workflow-status/{projectId} for state sync</li>
+                <li>No authentication (CORS-enabled)</li>
+            </ul>
+
+            <h3>Backend ↔ Database</h3>
+            <ul>
+                <li>EF Core repositories (e.g., IRequirementsAnalysisRepository.AddAsync/UpdateAsync/GetByAnalysisIdAsync)</li>
+                <li>Status enums (RequirementsAnalysisStatus.NotStarted/PendingReview/Approved/Failed)</li>
+                <li>Automatic migrations in development</li>
+            </ul>
+
+            <h3>Backend ↔ AI Services</h3>
+            <ul>
+                <li>IAIClientFactory creates OpenRouter client for requirements (qwen/qwen3-coder)</li>
+                <li>IInstructionService loads .md files (Instructions/RequirementsAnalyst.md) as system messages</li>
+                <li>AIRequest: SystemMessage (instructions), Prompt (project description + context), Temperature=0.7, MaxTokens=2000</li>
+                <li>Responses parsed as Content, validated for success</li>
+            </ul>
+
+            <h3>Review Process</h3>
+            <ul>
+                <li>Services submit via IReviewService.SubmitForReviewAsync(SubmitReviewRequest {ServiceName="RequirementsAnalysis", Content=AI output, Metadata={AnalysisId, ProjectId}})</li>
+                <li>Reviews stored in-memory, fetched via GetPendingReviewsAsync()</li>
+                <li>Approval: ReviewController.ApproveReview() → IReviewService.ApproveReviewAsync() + service-specific UpdateStatusAsync(AnalysisId, Approved) via metadata extraction</li>
+                <li>Rejection requires feedback, reloads queue</li>
+                <li>Cleanup via ReviewCleanupService (background)</li>
+            </ul>
+
+            <h2>Key Features</h2>
+            <ol>
+                <li><strong>Multi-Stage Workflow</strong>: Prerequisite-checked stages with polling-based progression</li>
+                <li><strong>Human-in-the-Loop</strong>: Central review queue with approve/reject, metadata-linked status updates</li>
+                <li><strong>AI Integration</strong>: OpenRouter with instruction-based prompts (.md files), specific model for requirements</li>
+                <li><strong>Persistent Storage</strong>: PostgreSQL for artifacts, in-memory for transient reviews</li>
+                <li><strong>State Management</strong>: Frontend polling syncs with backend statuses, no localStorage</li>
+                <li><strong>Responsive UI</strong>: Dynamic buttons/statuses, progress dashboards (Phase 4), temporary notifications</li>
+                <li><strong>Error Handling</strong>: Try-catch in services/controllers, circuit breaker in frontend, validation (e.g., description length >=10)</li>
+                <li><strong>Health Monitoring</strong>: HealthChecks/ endpoints, logging via ILogger</li>
+            </ol>
+
+            <h2>Running the Application with Docker / docker-compose</h2>
+            <p>The application can be deployed using Docker and docker-compose for easy setup of the full stack (backend API, frontend, PostgreSQL database).</p>
+
+            <h3>Prerequisites</h3>
+            <ul>
+                <li>Docker and Docker Compose installed</li>
+                <li>OpenRouter API key (set as environment variable: <code>OPENROUTER_API_KEY=your_api_key_here</code>)</li>
+                <li>Optional: .NET SDK for local development</li>
+            </ul>
+
+            <h3>Files</h3>
+            <ul>
+                <li><code>docker-compose.yml</code>: Orchestrates services (api, frontend, postgres)</li>
+                <li><code>Dockerfile</code> (root): Builds the ASP.NET Core backend API</li>
+                <li><code>frontend/Dockerfile</code>: Builds nginx container for static frontend files</li>
+                <li><code>frontend/nginx.conf</code>: Nginx configuration for serving frontend assets</li>
+            </ul>
+
+            <h3>Commands</h3>
+            <ol>
+                <li><strong>Start the full stack</strong> (development mode with hot reload):
+                    <pre><code>docker-compose up -d</code></pre>
+                    <ul>
+                        <li>Backend API: http://localhost:8086</li>
+                        <li>Frontend: http://localhost:80 (served via nginx)</li>
+                        <li>Database: PostgreSQL on internal network (auto-migrated by backend)</li>
+                    </ul>
+                </li>
+                <li><strong>View logs</strong>:
+                    <pre><code>docker-compose logs -f api
+docker-compose logs -f frontend
+docker-compose logs -f postgres</code></pre>
+                </li>
+                <li><strong>Stop services</strong>:
+                    <pre><code>docker-compose down</code></pre>
+                    <ul>
+                        <li>Add <code>-v</code> to remove volumes (clears database): <code>docker-compose down -v</code></li>
+                    </ul>
+                </li>
+                <li><strong>Rebuild after code changes</strong>:
+                    <pre><code>docker-compose up --build -d</code></pre>
+                </li>
+                <li><strong>Run database migrations manually</strong> (if needed):
+                    <pre><code>docker-compose exec api dotnet ef database update</code></pre>
+                </li>
+            </ol>
+
+            <h3>Environment Configuration</h3>
+            <ul>
+                <li>Set <code>OPENROUTER_API_KEY</code> in <code>.env</code> file or export before running</li>
+                <li>Database connection string auto-configured in docker-compose.yml (points to postgres service)</li>
+                <li>Frontend API base URL set to backend service (http://api:8086 in container network)</li>
+                <li>Ports: Backend exposed on 8086, Frontend on 80</li>
+            </ul>
+
+            <h3>Troubleshooting</h3>
+            <ul>
+                <li><strong>Backend fails to start</strong>: Check logs for EF migrations or missing API key</li>
+                <li><strong>Frontend 404 errors</strong>: Ensure nginx.conf serves /js/* and /css/* correctly</li>
+                <li><strong>Database connection issues</strong>: Verify postgres service healthy (<code>docker-compose ps</code>)</li>
+                <li><strong>AI calls fail</strong>: Validate OPENROUTER_API_KEY and network access</li>
+            </ul>
+
+            <h3>Production Deployment</h3>
+            <p>For production:</p>
+            <ol>
+                <li>Use multi-stage Dockerfiles for optimized images</li>
+                <li>Set environment to Production in appsettings.json</li>
+                <li>Configure HTTPS and proper CORS</li>
+                <li>Use persistent volumes for postgres data</li>
+                <li>Scale services if needed (e.g., multiple API instances)</li>
+            </ol>
+
+            <h2>Data Flow</h2>
+            <pre><code>graph LR
+    A[User clicks Start Analysis] --> B[Frontend: POST /api/requirements/analyze]
+    B --> C[RequirementsController → Service]
+    C --> D[Load Instructions + AI Call (OpenRouter)]
+    D --> E[Store Entity (PendingReview) + Submit Review]
+    E --> F[User: GET /api/review/pending on queue.html]
+    F --> G[Click Approve → POST /api/review/{id}/approve]
+    G --> H[ReviewController → Update Entity Status to Approved]
+    H --> I[Workflow polls GET /api/review/workflow-status/{projectId}]
+    I --> J[UI enables next stage]</code></pre>
+
+            <p>This updated analysis reflects the current codebase structure, with emphasis on the requirements generation/approval workflow and code relations.</p>
+        </div>
+    </div>
+</body>
+</html>

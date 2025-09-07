@@ -66,9 +66,9 @@
                 document.body.classList.remove('loading');
             }
 
-            // Set up back button
+            // Set up back button - redirect to unified overview
             document.getElementById('backToWorkflow').addEventListener('click', function() {
-                window.location.href = `workflow.html?projectId=${workflowManager.projectId}`;
+                window.location.href = `overview.html?projectId=${workflowManager.projectId}#pipeline`;
             });
 
             // Trigger sync with workflow page

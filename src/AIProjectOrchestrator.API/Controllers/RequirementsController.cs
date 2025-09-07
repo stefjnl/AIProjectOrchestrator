@@ -58,6 +58,26 @@ namespace AIProjectOrchestrator.API.Controllers
             }
         }
 
+        [HttpGet("{analysisId:guid}")]
+        public async Task<ActionResult<RequirementsAnalysisResponse>> GetAnalysis(
+            Guid analysisId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var result = await _requirementsAnalysisService.GetAnalysisResultsAsync(analysisId, cancellationToken);
+                if (result == null)
+                {
+                    return NotFound(new { error = "Not found", message = "Requirements analysis not found" });
+                }
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
+            }
+        }
+
         [HttpPost("{analysisId:guid}/approve")]
         public async Task<IActionResult> ApproveAnalysis(Guid analysisId, CancellationToken cancellationToken)
         {

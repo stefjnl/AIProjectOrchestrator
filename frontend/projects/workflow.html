@@ -446,8 +446,8 @@
 
         // Helper for completion view download
         function downloadAllApprovedFromWorkflow() {
-            // Redirect to stories page for bulk download
-            window.location.href = `stories-overview.html?projectId=${workflowManager.projectId}`;
+            // Redirect to unified overview with prompts tab for bulk download
+            window.location.href = `overview.html?projectId=${workflowManager.projectId}#prompts&action=download-all`;
         }
 
         function updateProgressBar(progress) {
