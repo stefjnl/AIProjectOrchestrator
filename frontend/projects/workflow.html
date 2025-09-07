@@ -174,7 +174,14 @@
             const button = document.getElementById(buttonId);
             const status = document.getElementById(statusId);
 
+            // Store original button content for restoration
+            const originalButtonText = button.innerHTML;
+            
+            // Apply spinner to button
             button.disabled = true;
+            button.innerHTML = '<span class="loading"></span>Generating...';
+            
+            // Update status
             status.textContent = 'Generating...';
             status.className = 'stage-status generating';
 
@@ -183,6 +190,10 @@
                 // Don't reset UI on success since we're redirecting to review queue
                 // The UI will be reset when the user returns to this page
             } catch (error) {
+                // Restore button content on error
+                button.innerHTML = originalButtonText;
+                button.disabled = false;
+                
                 alert(`Error: ${error.message}`);
                 // Reset UI on failure
                 workflowManager.updateWorkflowUI();
