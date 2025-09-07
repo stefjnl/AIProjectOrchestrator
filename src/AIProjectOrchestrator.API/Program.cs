@@ -70,6 +70,13 @@ builder.Services.AddScoped<PromptContextAssembler>();
 builder.Services.AddScoped<ContextOptimizer>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 
+// Add code generation specialized services
+builder.Services.AddScoped<ITestGenerator, TestGenerator>();
+builder.Services.AddScoped<IImplementationGenerator, ImplementationGenerator>();
+builder.Services.AddScoped<ICodeValidator, CodeValidator>();
+builder.Services.AddScoped<IContextRetriever, ContextRetriever>();
+builder.Services.AddScoped<IFileOrganizer, FileOrganizer>();
+
 // Add instruction service configuration
 builder.Services.Configure<InstructionSettings>(
     builder.Configuration.GetSection(InstructionSettings.SectionName));
