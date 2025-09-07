@@ -6,39 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stories & Prompts Management - AI Orchestrator</title>
     <link rel="stylesheet" href="/css/styles.css">
-    <style>
-        .prompt-status-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.7em;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .prompt-status-badge.generated {
-            background-color: #cce7ff;
-            color: #004085;
-            border: 1px solid #b8daff;
-        }
-        
-        .prompt-status-badge.approved {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        
-        .prompt-status-badge.pending-review {
-            background-color: #fff3cd;
-            color: #856404;
-        }
-        
-        .prompt-status-badge.not-generated {
-            background-color: #e9ecef;
-            color: #6c757d;
-            border: 1px solid #dee2e6;
-        }
-    </style>
 </head>
 
 <body>
@@ -56,8 +23,12 @@
 
         <!-- Stories Management Interface -->
         <div id="summaryStats" class="stories-summary"></div>
-        <div id="storiesContainer" class="stories-grid"></div>
-        <button id="backToWorkflow" class="primary-btn">← Back to Project Workflow</button>
+        <div class="stories-container-enhanced">
+            <div id="storiesContainer" class="stories-grid"></div>
+        </div>
+        <div class="stories-actions-enhanced">
+            <button id="backToWorkflow" class="btn-primary">← Back to Project Workflow</button>
+        </div>
     </div>
 
     <script src="/js/api.js"></script>
@@ -231,21 +202,21 @@
 
                 // Determine if the story is approved
                 const isApproved = status === 'Approved';
-                
+
                 // Check if there's a generated prompt for this story
                 const storyPrompt = storyPrompts.find(sp => sp.storyIndex === index);
                 const hasPrompt = storyPrompt && storyPrompt.promptId;
-                const promptStatus = storyPrompt ? 
-                    (storyPrompt.approved ? 'Approved' : 
-                     storyPrompt.pending ? 'Pending Review' : 'Generated') : 
+                const promptStatus = storyPrompt ?
+                    (storyPrompt.approved ? 'Approved' :
+                        storyPrompt.pending ? 'Pending Review' : 'Generated') :
                     'Not Generated';
 
                 return `
-                    <div class="story-card" data-story-index="${index}" data-story-id="${story.id}" data-priority="${story.priority || ''}" data-story-points="${story.storyPoints || ''}" data-tags='${JSON.stringify(story.tags || [])}' data-estimated-complexity="${story.estimatedComplexity || ''}">
+                    <div class="story-card-enhanced" data-story-index="${index}" data-story-id="${story.id}" data-priority="${story.priority || ''}" data-story-points="${story.storyPoints || ''}" data-tags='${JSON.stringify(story.tags || [])}' data-estimated-complexity="${story.estimatedComplexity || ''}">
                         <div class="story-header">
                             <h3>${title}</h3>
                             <span class="status-badge ${statusClass}">${status}</span>
-                            ${hasPrompt ? `<span class="prompt-status-badge ${promptStatus.toLowerCase().replace(' ', '-')}" style="margin-left: 5px;">${promptStatus}</span>` : ''}
+                            ${hasPrompt ? `<span class="prompt-status-badge status-${promptStatus.toLowerCase().replace(' ', '-')}">${promptStatus}</span>` : ''}
                         </div>
                         
                         <div class="story-content expandable">
@@ -269,7 +240,7 @@
                             </div>
                         </div>
                         
-                        <div class="story-actions">
+                        <div class="story-actions-enhanced">
                             <button class="edit-btn">Edit</button>
                             <button class="approve-btn ${isApproved ? 'hidden' : ''}">Approve</button>
                             <button class="reject-btn ${status === 'Rejected' ? 'hidden' : ''}">Reject</button>
@@ -286,24 +257,30 @@
             updateSummaryStats(stories, storyPrompts);
         }
 
+        /**
+         * Maps status strings to enterprise CSS classes with 'status-' prefix for consistency.
+         * Aligns with Phase 1 design system badge styling.
+         * @param {string} status - Status value from data (e.g., 'Approved', 'Pending Review')
+         * @returns {string} CSS class name (e.g., 'status-approved')
+         */
         function getStatusClass(status) {
             if (!status || typeof status !== 'string') {
                 console.warn('Invalid status value in getStatusClass:', status, 'type:', typeof status);
-                return 'draft';
+                return 'status-draft';
             }
 
-            const lowerStatus = status.toLowerCase();
+            const lowerStatus = status.toLowerCase().replace(' ', '-');
             switch (lowerStatus) {
-                case 'approved': return 'approved';
+                case 'approved': return 'status-approved';
                 case 'pending':
-                case 'pending review': return 'pending';
-                case 'not started':
-                case 'notstarted': return 'draft';
-                case 'rejected': return 'rejected';
-                case 'draft': return 'draft';
+                case 'pending-review': return 'status-pending-review';
+                case 'not-started':
+                case 'notstarted': return 'status-not-started';
+                case 'rejected': return 'status-rejected';
+                case 'draft': return 'status-draft';
                 default:
                     console.warn('Unknown status value:', lowerStatus);
-                    return 'draft';
+                    return 'status-draft';
             }
         }
 
@@ -377,7 +354,7 @@
             // Define the event listener function
             const eventListener = function (e) {
                 if (e.target.classList.contains('read-more-btn')) {
-                    const storyCard = e.target.closest('.story-card');
+                    const storyCard = e.target.closest('.story-card-enhanced');
                     const fullContent = storyCard.querySelector('.full-content');
                     const preview = storyCard.querySelector('.preview');
 
@@ -388,7 +365,7 @@
                     e.target.classList.remove('read-more-btn');
                     e.target.classList.add('read-less-btn');
                 } else if (e.target.classList.contains('read-less-btn')) {
-                    const storyCard = e.target.closest('.story-card');
+                    const storyCard = e.target.closest('.story-card-enhanced');
                     const fullContent = storyCard.querySelector('.full-content');
                     const preview = storyCard.querySelector('.preview');
 
@@ -402,10 +379,10 @@
 
                 // Handle edit button
                 if (e.target.classList.contains('edit-btn')) {
-                    const storyCard = e.target.closest('.story-card');
+                    const storyCard = e.target.closest('.story-card-enhanced');
                     const editMode = storyCard.querySelector('.story-edit-mode');
                     const storyContent = storyCard.querySelector('.story-content');
-                    const storyActions = storyCard.querySelector('.story-actions');
+                    const storyActions = storyCard.querySelector('.story-actions-enhanced');
 
                     // Toggle edit mode
                     if (editMode.classList.contains('active')) {
@@ -436,7 +413,7 @@
 
                 // Handle approve button
                 if (e.target.classList.contains('approve-btn')) {
-                    const storyCard = e.target.closest('.story-card');
+                    const storyCard = e.target.closest('.story-card-enhanced');
                     const storyIndex = storyCard.dataset.storyIndex;
                     const statusBadge = storyCard.querySelector('.status-badge');
 
@@ -450,7 +427,7 @@
 
                 // Handle reject button
                 if (e.target.classList.contains('reject-btn')) {
-                    const storyCard = e.target.closest('.story-card');
+                    const storyCard = e.target.closest('.story-card-enhanced');
                     const storyIndex = storyCard.dataset.storyIndex;
                     const statusBadge = storyCard.querySelector('.status-badge');
 
@@ -464,7 +441,7 @@
 
                 // Handle save changes button
                 if (e.target.classList.contains('save-btn')) {
-                    const storyCard = e.target.closest('.story-card');
+                    const storyCard = e.target.closest('.story-card-enhanced');
                     const storyIndex = storyCard.dataset.storyIndex;
 
                     // Show loading
@@ -477,10 +454,10 @@
 
                 // Handle cancel button
                 if (e.target.classList.contains('cancel-btn')) {
-                    const storyCard = e.target.closest('.story-card');
+                    const storyCard = e.target.closest('.story-card-enhanced');
                     const editMode = storyCard.querySelector('.story-edit-mode');
                     const storyContent = storyCard.querySelector('.story-content');
-                    const storyActions = storyCard.querySelector('.story-actions');
+                    const storyActions = storyCard.querySelector('.story-actions-enhanced');
                     const editBtn = storyCard.querySelector('.edit-btn');
 
                     // Properly exit edit mode
@@ -498,7 +475,7 @@
 
                 // Handle generate prompt button
                 if (e.target.classList.contains('generate-prompt-btn')) {
-                    const storyCard = e.target.closest('.story-card');
+                    const storyCard = e.target.closest('.story-card-enhanced');
                     const storyIndex = storyCard.dataset.storyIndex;
 
                     generatePrompt(storyIndex);
@@ -805,22 +782,22 @@
                 const maxFastPolls = 6; // 6 polls at 5-second intervals = 30 seconds
                 const fastPollInterval = setInterval(async () => {
                     fastPollCount++;
-                    
+
                     try {
                         // Refresh the workflow manager state
                         await workflowManager.refreshState();
-                        
+
                         // Check if the prompt for this story index has been generated
                         const storyPrompts = workflowManager.state.storyPrompts || [];
                         const storyPrompt = storyPrompts.find(sp => sp.storyIndex === storyIndex);
-                        
+
                         // If we found a prompt ID for this story, update the UI
                         if (storyPrompt && storyPrompt.promptId) {
                             clearInterval(fastPollInterval);
                             // Reload the stories to update the UI
                             await loadAndRenderStories();
                         }
-                        
+
                         // Stop fast polling after max attempts or if we've detected the prompt
                         if (fastPollCount >= maxFastPolls || (storyPrompt && storyPrompt.promptId)) {
                             clearInterval(fastPollInterval);
@@ -838,7 +815,7 @@
                     showMaintenanceBanner();
                 }
                 alert('Error generating prompt: ' + error.message);
-                
+
                 // Reset button state on error
                 generateButton.disabled = false;
                 generateButton.innerHTML = originalText;
