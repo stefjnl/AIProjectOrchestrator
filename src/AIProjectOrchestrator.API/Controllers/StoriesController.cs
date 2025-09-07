@@ -225,35 +225,45 @@ namespace AIProjectOrchestrator.API.Controllers
         [HttpPut("{storyId:guid}/edit")]
         public async Task<IActionResult> EditStory(Guid storyId, [FromBody] AIProjectOrchestrator.Domain.Models.Stories.UpdateStoryDto updatedStory, CancellationToken cancellationToken)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            _logger.LogInformation("EditStory called for storyId: {StoryId}", storyId);
+            _logger.LogInformation("Received UpdateStoryDto: Title='{Title}', Description='{Description}', Status={Status}",
+                updatedStory?.Title, updatedStory?.Description, updatedStory?.Status);
+
+            // Add model validation
 
             try
             {
-                await _storyGenerationService.UpdateStoryAsync(storyId, new UserStory
+                var userStory = new UserStory
                 {
                     Id = storyId,
-                    Title = updatedStory.Title,
-                    Description = updatedStory.Description,
+                    Title = updatedStory.Title ?? string.Empty,
+                    Description = updatedStory.Description ?? string.Empty,
                     AcceptanceCriteria = updatedStory.AcceptanceCriteria ?? new List<string>(),
                     Priority = updatedStory.Priority ?? string.Empty,
                     StoryPoints = updatedStory.StoryPoints,
                     Tags = updatedStory.Tags ?? new List<string>(),
                     EstimatedComplexity = updatedStory.EstimatedComplexity,
                     Status = updatedStory.Status
-                }, cancellationToken);
+                };
+
+                _logger.LogInformation("Calling UpdateStoryAsync with UserStory: Id={Id}, Title='{Title}', Description='{Description}'",
+                    userStory.Id, userStory.Title, userStory.Description);
+
+                await _storyGenerationService.UpdateStoryAsync(storyId, userStory, cancellationToken);
+
+                _logger.LogInformation("Successfully updated story {StoryId}", storyId);
                 return Ok();
             }
+
             catch (KeyNotFoundException ex)
             {
+                _logger.LogWarning(ex, "Story not found for editing: {StoryId}", storyId);
                 return NotFound(new { error = "Story not found", message = ex.Message });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to edit story {StoryId}", storyId);
-                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
+                _logger.LogError(ex, "Unexpected error editing story {StoryId}: {Message}\n{StackTrace}", storyId, ex.Message, ex.StackTrace);
+                return StatusCode(500, new { error = "Internal server error", message = "An unexpected error occurred while updating the story" });
             }
         }
     }

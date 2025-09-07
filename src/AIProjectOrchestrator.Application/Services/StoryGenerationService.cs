@@ -619,6 +619,8 @@ namespace AIProjectOrchestrator.Application.Services
             UserStory updatedStory,
             CancellationToken cancellationToken = default)
         {
+            _logger.LogInformation("UpdateStoryAsync called for storyId: {StoryId}", storyId);
+
             try
             {
                 if (updatedStory == null)
@@ -627,6 +629,9 @@ namespace AIProjectOrchestrator.Application.Services
                     throw new ArgumentNullException(nameof(updatedStory));
                 }
 
+                _logger.LogInformation("UpdatedStory data: Title='{Title}', Description='{Description}', Status={Status}",
+                    updatedStory.Title, updatedStory.Description, updatedStory.Status);
+
                 var existingStory = await _storyGenerationRepository.GetStoryByIdAsync(storyId, cancellationToken);
                 if (existingStory == null)
                 {
@@ -634,7 +639,9 @@ namespace AIProjectOrchestrator.Application.Services
                     throw new KeyNotFoundException($"Story with ID {storyId} not found");
                 }
 
-                // Update properties with null safety
+                _logger.LogInformation("Found existing story: Id={Id}, Title='{Title}'", existingStory.Id, existingStory.Title);
+
+                // Update properties without validation
                 existingStory.Title = updatedStory.Title ?? string.Empty;
                 existingStory.Description = updatedStory.Description ?? string.Empty;
                 existingStory.AcceptanceCriteria = updatedStory.AcceptanceCriteria ?? new List<string>();
@@ -644,7 +651,9 @@ namespace AIProjectOrchestrator.Application.Services
                 existingStory.EstimatedComplexity = updatedStory.EstimatedComplexity;
                 existingStory.Status = updatedStory.Status;
 
+                _logger.LogInformation("About to call repository UpdateStoryAsync for story {StoryId}", storyId);
                 await _storyGenerationRepository.UpdateStoryAsync(existingStory, cancellationToken);
+                _logger.LogInformation("Repository UpdateStoryAsync completed successfully for story {StoryId}", storyId);
 
                 // Update JSON field with defensive null checking using FK
                 try

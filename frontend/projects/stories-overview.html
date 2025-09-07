@@ -189,7 +189,7 @@
                 const isApproved = status === 'Approved';
 
                 return `
-                    <div class="story-card" data-story-index="${index}" data-story-id="${story.id || story.Id}">
+                    <div class="story-card" data-story-index="${index}" data-story-id="${story.id || story.Id}" data-priority="${story.Priority || ''}" data-story-points="${story.StoryPoints || ''}" data-tags='${JSON.stringify(story.Tags || [])}' data-estimated-complexity="${story.EstimatedComplexity || ''}">
                         <div class="story-header">
                             <h3>${title}</h3>
                             <span class="status-badge ${statusClass}">${status}</span>
@@ -426,6 +426,19 @@
             container.storyEventListener = eventListener;
         }
 
+        function mapToUpdateStoryDto(editedStory) {
+            return {
+                Title: editedStory.Title || '',
+                Description: editedStory.Description || '',
+                AcceptanceCriteria: editedStory.AcceptanceCriteria || [],
+                Priority: editedStory.Priority || '',
+                StoryPoints: editedStory.StoryPoints || null,
+                Tags: editedStory.Tags || [],
+                EstimatedComplexity: editedStory.EstimatedComplexity || null,
+                Status: editedStory.Status || 'Draft'
+            };
+        }
+
         async function approveStory(storyIndex, storyCard) {
             try {
                 // Get the story ID from the story card data attributes
@@ -564,29 +577,34 @@
                     throw new Error('Story ID is missing');
                 }
 
-                // Prepare updated story data
-                const updatedStory = {
+                // Prepare edited story data, preserving originals where not edited
+                const editedStory = {
                     Title: titleInput.value,
                     Description: descriptionInput.value,
                     AcceptanceCriteria: criteriaInput.value.split('\n').filter(c => c.trim()),
-                    Priority: "", // Default values for required fields
-                    Tags: [],
-                    Status: "Draft"
+                    Priority: storyCard.dataset.priority || '',
+                    StoryPoints: parseInt(storyCard.dataset.storyPoints) || null,
+                    Tags: JSON.parse(storyCard.dataset.tags || '[]'),
+                    EstimatedComplexity: storyCard.dataset.estimatedComplexity || null,
+                    Status: 'Draft'
                 };
+
+                // Map to UpdateStoryDto
+                const dto = mapToUpdateStoryDto(editedStory);
 
                 // Call the API to update the story
                 if (storyId) {
-                    await window.APIClient.editStory(storyId, updatedStory);
+                    await window.APIClient.editStory(storyId, dto);
                 }
 
                 // Update story header with new title
                 const storyHeader = storyCard.querySelector('.story-header h3');
-                storyHeader.textContent = updatedStory.Title;
+                storyHeader.textContent = editedStory.Title;
 
                 // Update preview text
                 const preview = storyCard.querySelector('.preview p');
-                const newPreview = updatedStory.Description.length > 100 ?
-                    updatedStory.Description.substring(0, 100) + '...' : updatedStory.Description;
+                const newPreview = editedStory.Description.length > 100 ?
+                    editedStory.Description.substring(0, 100) + '...' : editedStory.Description;
                 preview.textContent = newPreview;
 
                 // Hide edit mode

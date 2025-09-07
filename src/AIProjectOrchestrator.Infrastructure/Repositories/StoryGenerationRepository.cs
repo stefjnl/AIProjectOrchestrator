@@ -4,6 +4,7 @@ using AIProjectOrchestrator.Domain.Models.Stories;
 using AIProjectOrchestrator.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace AIProjectOrchestrator.Infrastructure.Repositories
 {
@@ -78,13 +79,21 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
                 }
 
                 _logger.LogDebug("Updating story {StoryGuid} with title: {StoryTitle}", story.Id, story.Title);
-                _context.UserStories.Update(story);
+
+                // Ensure the entity is properly tracked
+                var entry = _context.Entry(story);
+                if (entry.State == EntityState.Detached)
+                {
+                    _context.UserStories.Attach(story);
+                }
+                entry.State = EntityState.Modified;
+
                 await _context.SaveChangesAsync(cancellationToken);
                 _logger.LogInformation("Successfully updated story {StoryGuid}", story.Id);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Database error while updating story {StoryGuid}", story?.Id ?? Guid.Empty);
+                _logger.LogError(ex, "Database error while updating story {StoryGuid}: {Message}", story?.Id ?? Guid.Empty, ex.Message);
                 throw new InvalidOperationException($"Failed to update story {story?.Id}", ex);
             }
         }
