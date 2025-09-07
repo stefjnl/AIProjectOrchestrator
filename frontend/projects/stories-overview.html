@@ -624,9 +624,9 @@
                 // Map to UpdateStoryDto
                 const dto = mapToUpdateStoryDto(editedStory);
 
-                // Call the API to update the story
+                // Call the API to update the story, wrapping the DTO
                 if (storyId) {
-                    await window.APIClient.editStory(storyId, dto);
+                    await window.APIClient.editStory(storyId, { updatedStory: dto });
                 }
 
                 // Update story header with new title

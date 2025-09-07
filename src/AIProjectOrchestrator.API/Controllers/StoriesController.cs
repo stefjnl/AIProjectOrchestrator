@@ -226,8 +226,9 @@ namespace AIProjectOrchestrator.API.Controllers
         }
 
         [HttpPut("{storyId:guid}/edit")]
-        public async Task<IActionResult> EditStory(Guid storyId, [FromBody] AIProjectOrchestrator.Domain.Models.Stories.UpdateStoryDto updatedStory, CancellationToken cancellationToken)
+        public async Task<IActionResult> EditStory(Guid storyId, [FromBody] EditStoryRequest request, CancellationToken cancellationToken)
         {
+            var updatedStory = request.UpdatedStory;
             _logger.LogInformation("EditStory called for storyId: {StoryId}", storyId);
             _logger.LogInformation("Received UpdateStoryDto: Title='{Title}', Description='{Description}', Status={Status}",
                 updatedStory?.Title, updatedStory?.Description, updatedStory?.Status);

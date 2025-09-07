@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
+using AIProjectOrchestrator.Domain.Entities;
 
 namespace AIProjectOrchestrator.UnitTests.PromptGeneration
 {

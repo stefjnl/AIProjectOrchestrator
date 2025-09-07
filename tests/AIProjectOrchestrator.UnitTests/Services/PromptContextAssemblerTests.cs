@@ -9,6 +9,7 @@ using AIProjectOrchestrator.Domain.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
+using AIProjectOrchestrator.Domain.Entities;
 
 namespace AIProjectOrchestrator.UnitTests.Services;
 
