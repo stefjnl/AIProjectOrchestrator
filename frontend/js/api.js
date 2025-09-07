@@ -110,7 +110,7 @@ window.APIClient = {
     },
     
     async getStories(storyGenerationId) {
-        return this.get(`/stories/${storyGenerationId}/results`);
+        return this.get(`/stories/generations/${storyGenerationId}/results`);
     },
     
     async canGenerateCode(storyGenId) {
@@ -157,7 +157,7 @@ window.APIClient = {
     },
 
     async getApprovedStories(storyGenerationId) {
-        return await this.get(`/stories/${storyGenerationId}/approved`);
+        return await this.get(`/stories/generations/${storyGenerationId}/approved`);
     },
 
     async deleteProject(id) {
@@ -167,7 +167,7 @@ window.APIClient = {
     // Helper method to retrieve approved stories
     async getApprovedStories(storyGenerationId) {
         // Note: This endpoint may need to be created or use existing story endpoints
-        return await this.get(`/stories/${storyGenerationId}/approved`);
+        return await this.get(`/stories/generations/${storyGenerationId}/approved`);
     },
 
     // Story management methods
@@ -184,6 +184,6 @@ window.APIClient = {
     },
 
     async approveStories(storyGenerationId) {
-        return await this.post(`/stories/${storyGenerationId}/approve`, {});
+        return await this.post(`/stories/generations/${storyGenerationId}/approve`, {});
     }
 };

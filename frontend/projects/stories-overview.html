@@ -154,15 +154,34 @@
                 // Find the story prompt for this story
                 const storyPrompt = storyPrompts.find(sp => sp.storyIndex === index);
 
-                // Check for stored approval status in localStorage
-                let status = storyPrompt?.status || 'Draft';
-                const projectId = workflowManager.projectId;
-                const storyGenerationId = workflowManager.state.storyGenerationId;
-                if (projectId && storyGenerationId) {
-                    const storageKey = `storyApproval_${projectId}_${storyGenerationId}_${index}`;
-                    const storedStatus = localStorage.getItem(storageKey);
-                    if (storedStatus === 'approved') {
-                        status = 'Approved';
+                // Use the actual database status if available, otherwise fall back to prompt status or localStorage
+                let status = 'Draft';
+                if (story.Status !== undefined) {
+                    // Convert enum value to string representation
+                    switch (story.Status) {
+                        case 0:
+                            status = 'Draft';
+                            break;
+                        case 1:
+                            status = 'Approved';
+                            break;
+                        case 2:
+                            status = 'Rejected';
+                            break;
+                        default:
+                            status = 'Draft';
+                    }
+                } else {
+                    // Fallback to original logic
+                    status = storyPrompt?.status || 'Draft';
+                    const projectId = workflowManager.projectId;
+                    const storyGenerationId = workflowManager.state.storyGenerationId;
+                    if (projectId && storyGenerationId) {
+                        const storageKey = `storyApproval_${projectId}_${storyGenerationId}_${index}`;
+                        const storedStatus = localStorage.getItem(storageKey);
+                        if (storedStatus === 'approved') {
+                            status = 'Approved';
+                        }
                     }
                 }
 
@@ -257,17 +276,32 @@
             const summaryEl = document.getElementById('summaryStats');
             if (!summaryEl) return;
 
-            // Calculate statistics
+            // Calculate statistics using actual database status
             const totalStories = stories.length;
             const approvedStories = stories.filter(story => {
+                // Use actual database status if available
+                if (story.Status !== undefined) {
+                    return story.Status === 1; // 1 = Approved
+                }
+                // Fallback to original logic
                 const storyPrompt = storyPrompts.find(sp => sp.storyIndex === stories.indexOf(story));
                 return storyPrompt?.status === 'Approved';
             }).length;
             const draftStories = stories.filter(story => {
+                // Use actual database status if available
+                if (story.Status !== undefined) {
+                    return story.Status === 0; // 0 = Draft
+                }
+                // Fallback to original logic
                 const storyPrompt = storyPrompts.find(sp => sp.storyIndex === stories.indexOf(story));
                 return !storyPrompt || storyPrompt.status === 'Draft';
             }).length;
             const rejectedStories = stories.filter(story => {
+                // Use actual database status if available
+                if (story.Status !== undefined) {
+                    return story.Status === 2; // 2 = Rejected
+                }
+                // Fallback to original logic
                 const storyPrompt = storyPrompts.find(sp => sp.storyIndex === stories.indexOf(story));
                 return storyPrompt?.status === 'Rejected';
             }).length;
@@ -450,17 +484,19 @@
                     throw new Error('Story ID is missing');
                 }
 
-                // Call the API to approve the individual story
-                if (storyId) {
-                    await window.APIClient.approveStory(storyId);
-                }
+                // Show loading state
+                const approveBtn = storyCard.querySelector('.approve-btn');
+                approveBtn.innerHTML = '<span class="loading"></span>Approving...';
+                approveBtn.disabled = true;
 
-                // Update UI immediately for better UX
+                // Call the API to approve the individual story
+                await window.APIClient.approveStory(storyId);
+
+                // Update UI after successful API response
                 const statusBadge = storyCard.querySelector('.status-badge');
                 statusBadge.textContent = 'Approved';
                 statusBadge.className = 'status-badge approved';
 
-                const approveBtn = storyCard.querySelector('.approve-btn');
                 approveBtn.classList.add('hidden');
 
                 const rejectBtn = storyCard.querySelector('.reject-btn');
@@ -468,10 +504,6 @@
 
                 const generateBtn = storyCard.querySelector('.generate-prompt-btn');
                 generateBtn.disabled = false;
-
-                // Reset button text
-                approveBtn.innerHTML = 'Approve';
-                approveBtn.disabled = false;
 
                 // Update workflow manager state
                 if (workflowManager && typeof workflowManager.setStoriesApproved === 'function') {

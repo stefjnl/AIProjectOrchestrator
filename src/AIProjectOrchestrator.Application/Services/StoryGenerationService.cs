@@ -158,10 +158,8 @@ namespace AIProjectOrchestrator.Application.Services
                     GenerationId = generationId.ToString(),
                     ProjectPlanningId = projectPlanning.Id,
                     Status = StoryGenerationStatus.PendingReview,
-                    Content = aiResponse.Content,
                     ReviewId = string.Empty, // Will be updated after review submission
                     CreatedDate = DateTime.UtcNow,
-                    StoriesJson = JsonSerializer.Serialize(stories),
                     Stories = stories
                 };
 
@@ -186,7 +184,7 @@ namespace AIProjectOrchestrator.Application.Services
                 var reviewRequest = new SubmitReviewRequest
                 {
                     ServiceName = "StoryGeneration",
-                    Content = aiResponse.Content,
+                    Content = aiResponse.Content, // We can still send the full content for review purposes
                     CorrelationId = correlationId,
                     PipelineStage = "Stories",
                     OriginalRequest = aiRequest,
@@ -584,27 +582,6 @@ namespace AIProjectOrchestrator.Application.Services
                 story.Status = status;
                 await _storyGenerationRepository.UpdateStoryAsync(story, cancellationToken);
 
-                // Update JSON field with defensive null checking using FK
-                try
-                {
-                    if (story.StoryGenerationId > 0)
-                    {
-                        var storyGeneration = await _storyGenerationRepository.GetByIdAsync(story.StoryGenerationId, cancellationToken);
-                        if (storyGeneration != null)
-                        {
-                            var stories = await _storyGenerationRepository.GetStoriesByGenerationIdAsync(
-                                Guid.Parse(storyGeneration.GenerationId), cancellationToken);
-                            storyGeneration.StoriesJson = JsonSerializer.Serialize(stories);
-                            await _storyGenerationRepository.UpdateAsync(storyGeneration, cancellationToken);
-                        }
-                    }
-                }
-                catch (Exception jsonEx)
-                {
-                    _logger.LogWarning(jsonEx, "Failed to update StoriesJson for generation of story {StoryId}, continuing with status update", storyId);
-                    // Don't fail the main operation if JSON update fails
-                }
-
                 _logger.LogInformation("Updated story {StoryId} status to {Status}", storyId, status);
             }
             catch (Exception ex)
@@ -654,26 +631,6 @@ namespace AIProjectOrchestrator.Application.Services
                 _logger.LogInformation("About to call repository UpdateStoryAsync for story {StoryId}", storyId);
                 await _storyGenerationRepository.UpdateStoryAsync(existingStory, cancellationToken);
                 _logger.LogInformation("Repository UpdateStoryAsync completed successfully for story {StoryId}", storyId);
-
-                // Update JSON field with defensive null checking using FK
-                try
-                {
-                    if (existingStory.StoryGenerationId > 0)
-                    {
-                        var storyGeneration = await _storyGenerationRepository.GetByIdAsync(existingStory.StoryGenerationId, cancellationToken);
-                        if (storyGeneration != null)
-                        {
-                            var stories = await _storyGenerationRepository.GetStoriesByGenerationIdAsync(
-                                Guid.Parse(storyGeneration.GenerationId), cancellationToken);
-                            storyGeneration.StoriesJson = JsonSerializer.Serialize(stories);
-                            await _storyGenerationRepository.UpdateAsync(storyGeneration, cancellationToken);
-                        }
-                    }
-                }
-                catch (Exception jsonEx)
-                {
-                    _logger.LogWarning(jsonEx, "Failed to update StoriesJson for generation of story {StoryId}, continuing with story update", storyId);
-                }
 
                 _logger.LogInformation("Updated story {StoryId}", storyId);
             }

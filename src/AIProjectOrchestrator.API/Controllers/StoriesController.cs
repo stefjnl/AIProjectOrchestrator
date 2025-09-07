@@ -55,7 +55,7 @@ namespace AIProjectOrchestrator.API.Controllers
             }
         }
 
-        [HttpGet("{generationId:guid}/status")]
+        [HttpGet("generations/{generationId:guid}/status")]
         public async Task<ActionResult<StoryGenerationStatus>> GetGenerationStatus(
             Guid generationId,
             CancellationToken cancellationToken)
@@ -71,7 +71,7 @@ namespace AIProjectOrchestrator.API.Controllers
             }
         }
 
-        [HttpGet("{generationId:guid}/results")]
+        [HttpGet("generations/{generationId:guid}/results")]
         public async Task<ActionResult<List<AIProjectOrchestrator.Domain.Models.Stories.UserStoryDto>>> GetGenerationResults(
             Guid generationId,
             CancellationToken cancellationToken)
@@ -123,7 +123,7 @@ namespace AIProjectOrchestrator.API.Controllers
             }
         }
 
-        [HttpPost("{generationId:guid}/approve")]
+        [HttpPost("generations/{generationId:guid}/approve")]
         public async Task<IActionResult> ApproveStories(Guid generationId, CancellationToken cancellationToken)
         {
             try
@@ -137,7 +137,7 @@ namespace AIProjectOrchestrator.API.Controllers
             }
         }
 
-        [HttpGet("{storyGenerationId:guid}/approved")]
+        [HttpGet("generations/{storyGenerationId:guid}/approved")]
         public async Task<ActionResult<List<AIProjectOrchestrator.Domain.Models.Stories.UserStoryDto>>> GetApprovedStories(Guid storyGenerationId, CancellationToken cancellationToken)
         {
             try
@@ -204,11 +204,14 @@ namespace AIProjectOrchestrator.API.Controllers
         }
 
         [HttpPut("{storyId:guid}/reject")]
-        public async Task<IActionResult> RejectStory(Guid storyId, CancellationToken cancellationToken)
+        public async Task<IActionResult> RejectStory(Guid storyId, [FromBody] FeedbackRequest feedback, CancellationToken cancellationToken)
         {
             try
             {
+                // Note: The service layer needs to be updated to handle the feedback.
+                // For now, we just change the status.
                 await _storyGenerationService.UpdateStoryStatusAsync(storyId, StoryStatus.Rejected, cancellationToken);
+                _logger.LogInformation("Story {StoryId} rejected with feedback: {Feedback}", storyId, feedback.Feedback);
                 return Ok();
             }
             catch (KeyNotFoundException ex)
@@ -229,7 +232,16 @@ namespace AIProjectOrchestrator.API.Controllers
             _logger.LogInformation("Received UpdateStoryDto: Title='{Title}', Description='{Description}', Status={Status}",
                 updatedStory?.Title, updatedStory?.Description, updatedStory?.Status);
 
-            // Add model validation
+            if (!ModelState.IsValid)
+            {
+                _logger.LogWarning("Model validation failed for story {StoryId}: {ModelState}", storyId, ModelState);
+                return BadRequest(new
+                {
+                    error = "Validation failed",
+                    message = "Please check the required fields",
+                    details = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
+                });
+            }
 
             try
             {
