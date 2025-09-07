@@ -17,6 +17,8 @@
         <div class="header">
             <h1 id="projectTitle">Loading Project...</h1>
             <p id="projectDescription"></p>
+        </div>
+        <div class="reset-workflow-container">
             <button id="resetWorkflowBtn" onclick="workflowManager.resetState()" style="float: right; margin-left: 10px;">Reset Workflow</button>
         </div>
 
@@ -100,10 +102,10 @@
                 await workflowManager.checkApprovedStatus();
 
                 // NEW: Check for stories management redirect
-                await checkStoriesManagementRedirect();
+                // Removed stories management redirect check
 
                 // Add progression checking
-                await checkStageProgression();
+                // Removed stage progression check for stories management
 
                 // Enhanced initialization to load approved stories
                 await workflowManager.checkStoryPromptApprovals();
@@ -308,17 +310,7 @@
 
         // Add these functions to the existing script section:
 
-        // Simplified: No auto-redirect check - user navigates manually after approval
-        async function checkStoriesManagementRedirect() {
-            // Check if stories are approved and show guidance
-            if (workflowManager.state.storiesApproved && !workflowManager.state.storyGenerationId) {
-                // Show notification but no auto-redirect
-                workflowManager.showTemporaryMessage(
-                    'Stories approved! You can now manage prompts manually.',
-                    'info'
-                );
-            }
-        }
+        // Removed stories management redirect function
 
         // Stage 4 Management Functions - Manual navigation only
         function goToStoriesManagement() {
@@ -327,11 +319,8 @@
                 return;
             }
 
-            // Manual navigation - open in new tab or show navigation message
-            const userChoice = confirm('Navigate to Stories Management? This will open in a new tab.');
-            if (userChoice) {
-                window.open(`stories-overview.html?projectId=${workflowManager.projectId}`, '_blank');
-            }
+            // Show message instead of redirecting
+            alert('Stories Management is currently disabled. Please use the main navigation to access stories.');
         }
 
         function continueToCodeGeneration() {
@@ -431,40 +420,12 @@
         }
 
         // Enhanced Stage 3→4 transition with feature flag - Manual navigation only
-        async function checkStageProgression() {
-            if (!workflowManager.state.enableStoriesMVP) {
-                return; // Skip if stories MVP disabled
-            }
-
-            // Check if Stage 3 was just approved - show notification but no auto-redirect
-            if (workflowManager.state.storiesApproved &&
-                !workflowManager.getHasVisitedStoriesPage() &&
-                workflowManager.state.storyGenerationId) {
-
-                // Check if this is a fresh approval (not just a page refresh)
-                const urlParams = new URLSearchParams(window.location.search);
-                const fromReview = urlParams.get('fromReview') === 'true';
-
-                if (fromReview) {
-                    // Show notification but let user navigate manually
-                    workflowManager.showTemporaryMessage(
-                        'User stories approved! You can now manage prompts in Stories Management.',
-                        'info'
-                    );
-
-                    workflowManager.setHasVisitedStoriesPage(true);
-                    // Removed auto-redirect - user navigates manually
-                } else {
-                    // Don't auto-redirect on regular page visits - let user navigate manually
-                    console.log('Stories approved but not redirecting - user can navigate manually');
-                }
-            }
-        }
+        // Removed stage progression check function for stories management
 
         // Helper for completion view download
         function downloadAllApprovedFromWorkflow() {
-            // Redirect to unified overview with prompts tab for bulk download
-            window.location.href = `overview.html?projectId=${workflowManager.projectId}#prompts&action=download-all`;
+            // Show message instead of redirecting to overview
+            alert('Bulk download is currently disabled. Please use the Download Results button instead.');
         }
 
         function updateProgressBar(progress) {
@@ -497,11 +458,8 @@
                 return;
             }
 
-            // Manual navigation - open in new tab
-            const userChoice = confirm('View all prompts in Stories Management? This will open in a new tab.');
-            if (userChoice) {
-                window.open(`stories-overview.html?projectId=${workflowManager.projectId}&source=workflow`, '_blank');
-            }
+            // Show message instead of redirecting
+            alert('Stories Management is currently disabled. Please use the main navigation to access stories.');
         }
 
         // Stage 4: Download Results - Bulk download all approved prompts
@@ -605,39 +563,29 @@
                     // Stories not approved yet
                     status = 'Not Started';
                     statusClass = 'not-started';
-                    message = 'Awaiting Story Approval';
+                    message = 'Stories need approval first';
                     displayApproved = 'Stories Not Approved';
-                } else if (progress.total === 0) {
+                } else if (progress.approved > 0) {
+                    // At least one story is individually approved
+                    status = 'Ready';
+                    statusClass = 'ready';
+                    message = `${progress.approved} stories ready for prompts`;
+                    displayApproved = `${progress.approved} Stories Approved`;
+                    statusText = 'Ready to Start';
+                } else if (progress.total > 0) {
+                    // Stories approved but no individual stories approved yet
+                    status = 'Waiting';
+                    statusClass = 'waiting';
+                    message = 'Individual story approval needed';
+                    displayApproved = 'Stories Approved';
+                    statusText = 'Pending Individual Approval';
+                } else {
                     // Stories approved but no prompts generated yet
                     status = 'Ready';
                     statusClass = 'ready';
                     message = 'Stories Approved - Ready to Generate Prompts';
                     displayApproved = 'Stories Ready';
                     statusText = 'Ready to Start';
-                } else if (progress.generated > 0 && progress.approved < progress.total) {
-                    // Prompts are being generated/processed
-                    status = 'In Progress';
-                    statusClass = 'in-progress';
-                    message = `${progress.approved}/${progress.total} Prompts Approved`;
-                    displayGenerated = progress.generated.toString();
-                    displayApproved = `${progress.approved}/${progress.total}`;
-                    statusText = 'Processing';
-                } else if (progress.approved === progress.total && progress.total > 0) {
-                    // All prompts approved - complete
-                    status = 'Complete';
-                    statusClass = 'complete';
-                    message = 'All Prompts Ready for Code Generation';
-                    displayGenerated = progress.generated.toString();
-                    displayApproved = `${progress.approved}/${progress.total}`;
-                    statusText = 'Export Ready';
-                } else {
-                    // Fallback for edge cases
-                    status = 'Waiting';
-                    statusClass = 'waiting';
-                    message = 'Processing Prompts...';
-                    displayGenerated = progress.generated > 0 ? progress.generated.toString() : 'No';
-                    displayApproved = progress.approved > 0 ? `${progress.approved}/${progress.total}` : 'Stories Ready';
-                    statusText = 'Pending';
                 }
 
                 // Update status element

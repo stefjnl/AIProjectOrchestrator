@@ -103,6 +103,10 @@ textarea {
     grid-template-columns: repeat(5, 1fr); /* 5 columns for the 5 stages */
     gap: 20px;
     margin-top: 30px;
+    margin-bottom: 50px; /* Ensure space for elements below */
+    padding-bottom: 30px;
+    max-width: 100%;
+    overflow: visible;
 }
 
 /* Responsive adjustments for smaller screens */
@@ -110,6 +114,12 @@ textarea {
     .workflow-stages {
         grid-template-columns: repeat(3, 1fr); /* 3 columns on large tablets */
     }
+}
+
+/* Ensure Reset button has proper positioning */
+.reset-workflow-container {
+    margin-top: 30px;
+    clear: both; /* Clear any floating elements */
 }
 
 @media (max-width: 1024px) {
