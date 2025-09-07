@@ -12,6 +12,7 @@ using AIProjectOrchestrator.Domain.Models.Review;
 using AIProjectOrchestrator.Application.Services;
 using AIProjectOrchestrator.Domain.Services;
 using Xunit;
+using AIProjectOrchestrator.Domain.Entities;
 
 namespace AIProjectOrchestrator.UnitTests.Review
 {
@@ -77,6 +78,14 @@ namespace AIProjectOrchestrator.UnitTests.Review
 
             mockReviewRepository.Setup(r => r.UpdateAsync(It.IsAny<Domain.Entities.Review>(), It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
+                
+            mockReviewRepository.Setup(r => r.DeleteReviewsByProjectIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((int projectId, CancellationToken ct) =>
+                {
+                    // In a real implementation, this would delete reviews from the database
+                    // For testing purposes, we'll just verify the method is called with the correct projectId
+                    return 0;
+                });
 
             return new ReviewService(
                 _mockLogger.Object,
@@ -213,6 +222,17 @@ namespace AIProjectOrchestrator.UnitTests.Review
             // Arrange
             var service = CreateReviewService();
             var reviewId = Guid.NewGuid();
+
+            // Create a review in the repository
+            var request = new SubmitReviewRequest
+            {
+                ServiceName = "TestService",
+                Content = "Test content",
+                CorrelationId = "test-correlation-id",
+                PipelineStage = "Analysis"
+            };
+            
+            await service.SubmitForReviewAsync(request);
 
             // Act
             var review = await service.GetReviewAsync(reviewId);
@@ -464,6 +484,64 @@ namespace AIProjectOrchestrator.UnitTests.Review
             var review = await service.GetReviewAsync(submitResponse.ReviewId);
             Assert.NotNull(review);
             Assert.Equal(ReviewStatus.Expired, review.Status);
+        }
+        
+        [Fact]
+        public async Task DeleteReviewsByProjectIdAsync_CallsRepositoryMethod()
+        {
+            // Arrange
+            var mockReviewRepository = new Mock<Domain.Interfaces.IReviewRepository>();
+            var storedReviews = new List<Domain.Entities.Review>();
+            
+            // Setup mock repository methods
+            mockReviewRepository.Setup(r => r.AddAsync(It.IsAny<Domain.Entities.Review>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((Domain.Entities.Review review, CancellationToken ct) =>
+                {
+                    storedReviews.Add(review);
+                    return review;
+                });
+
+            mockReviewRepository.Setup(r => r.GetByReviewIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((Guid reviewId, CancellationToken ct) =>
+                {
+                    return storedReviews.FirstOrDefault(r => r.ReviewId == reviewId);
+                });
+
+            mockReviewRepository.Setup(r => r.GetPendingReviewsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync((CancellationToken ct) =>
+                {
+                    return storedReviews.Where(r => r.Status == ReviewStatus.Pending).ToList();
+                });
+
+            mockReviewRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync((CancellationToken ct) =>
+                {
+                    return storedReviews.ToList();
+                });
+
+            mockReviewRepository.Setup(r => r.UpdateAsync(It.IsAny<Domain.Entities.Review>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+                
+            mockReviewRepository.Setup(r => r.DeleteReviewsByProjectIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((int projectId, CancellationToken ct) =>
+                {
+                    // In a real implementation, this would delete reviews from the database
+                    // For testing purposes, we'll just verify the method is called with the correct projectId
+                    return 0;
+                })
+                .Verifiable();
+
+            var service = new ReviewService(
+                _mockLogger.Object,
+                _mockSettings.Object,
+                _mockServiceProvider.Object,
+                mockReviewRepository.Object);
+
+            // Act
+            await service.DeleteReviewsByProjectIdAsync(1);
+
+            // Assert
+            mockReviewRepository.Verify(r => r.DeleteReviewsByProjectIdAsync(1, It.IsAny<CancellationToken>()), Times.Once);
         }
     }
 }
