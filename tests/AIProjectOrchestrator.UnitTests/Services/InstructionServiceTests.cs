@@ -36,7 +36,7 @@ namespace AIProjectOrchestrator.UnitTests.Services
         public async Task GetInstructionAsync_WithValidFile_ReturnsInstructionContent()
         {
             // Arrange
-            var serviceName = "RequirementsAnalysisService";
+            var serviceName = "RequirementsAnalyst";
             var fileName = "RequirementsAnalyst.md";
             var filePath = Path.Combine(_testInstructionsPath, fileName);
             
@@ -93,7 +93,7 @@ namespace AIProjectOrchestrator.UnitTests.Services
         public async Task GetInstructionAsync_WithInvalidContent_ReturnsInvalidInstruction()
         {
             // Arrange
-            var serviceName = "RequirementsAnalysisService";
+            var serviceName = "RequirementsAnalyst";
             var fileName = "RequirementsAnalyst.md";
             var filePath = Path.Combine(_testInstructionsPath, fileName);
             
@@ -126,7 +126,7 @@ namespace AIProjectOrchestrator.UnitTests.Services
         public async Task IsValidInstructionAsync_WithValidInstruction_ReturnsTrue()
         {
             // Arrange
-            var serviceName = "RequirementsAnalysisService";
+            var serviceName = "RequirementsAnalyst";
             var fileName = "RequirementsAnalyst.md";
             var filePath = Path.Combine(_testInstructionsPath, fileName);
             
@@ -154,7 +154,7 @@ namespace AIProjectOrchestrator.UnitTests.Services
         public async Task IsValidInstructionAsync_WithInvalidInstruction_ReturnsFalse()
         {
             // Arrange
-            var serviceName = "RequirementsAnalysisService";
+            var serviceName = "RequirementsAnalyst";
             var fileName = "RequirementsAnalyst.md";
             var filePath = Path.Combine(_testInstructionsPath, fileName);
             

@@ -75,6 +75,17 @@ namespace AIProjectOrchestrator.UnitTests.RequirementsAnalysis
                 Message = "Review submitted successfully"
             };
 
+            // Mock the repository to return a valid analysis entity
+            var mockAnalysisEntity = new Domain.Entities.RequirementsAnalysis
+            {
+                AnalysisId = Guid.NewGuid().ToString(),
+                ProjectId = 1,
+                Status = RequirementsAnalysisStatus.PendingReview,
+                Content = aiResponse.Content,
+                ReviewId = reviewResponse.ReviewId.ToString(),
+                CreatedDate = DateTime.UtcNow
+            };
+
             _mockInstructionService.Setup(x => x.GetInstructionAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(instructionContent);
 
@@ -89,6 +100,9 @@ namespace AIProjectOrchestrator.UnitTests.RequirementsAnalysis
             _mockReviewService.Setup(x => x.SubmitForReviewAsync(It.IsAny<SubmitReviewRequest>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(reviewResponse);
 
+            _mockRequirementsAnalysisRepository.Setup(x => x.GetByAnalysisIdAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(mockAnalysisEntity);
+
             // First, perform an analysis to store the result
             var analysisResult = await _service.AnalyzeRequirementsAsync(request, CancellationToken.None);
 
@@ -98,10 +112,10 @@ namespace AIProjectOrchestrator.UnitTests.RequirementsAnalysis
             // Assert
             Assert.NotNull(result);
             Assert.Equal(analysisResult.AnalysisId, result.AnalysisId);
-            Assert.Equal(analysisResult.ProjectDescription, result.ProjectDescription);
-            Assert.Equal(analysisResult.AnalysisResult, result.AnalysisResult);
-            Assert.Equal(analysisResult.ReviewId, result.ReviewId);
-            Assert.Equal(analysisResult.Status, result.Status);
+            Assert.Equal("", result.ProjectDescription); // Project description is not stored in entity
+            Assert.Equal(aiResponse.Content, result.AnalysisResult);
+            Assert.Equal(reviewResponse.ReviewId, result.ReviewId);
+            Assert.Equal(RequirementsAnalysisStatus.PendingReview, result.Status);
         }
 
         [Fact]

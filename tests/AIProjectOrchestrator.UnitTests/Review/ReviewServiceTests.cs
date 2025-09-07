@@ -32,7 +32,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
             _mockRequirementsAnalysisService = new Mock<IRequirementsAnalysisService>();
             _mockProjectPlanningService = new Mock<IProjectPlanningService>();
             _mockStoryGenerationService = new Mock<IStoryGenerationService>();
-            
+
             _settings = new ReviewSettings
             {
                 MaxConcurrentReviews = 100,
@@ -47,6 +47,37 @@ namespace AIProjectOrchestrator.UnitTests.Review
         private ReviewService CreateReviewService()
         {
             var mockReviewRepository = new Mock<Domain.Interfaces.IReviewRepository>();
+            var storedReviews = new List<Domain.Entities.Review>();
+
+            // Setup mock repository methods
+            mockReviewRepository.Setup(r => r.AddAsync(It.IsAny<Domain.Entities.Review>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((Domain.Entities.Review review, CancellationToken ct) =>
+                {
+                    storedReviews.Add(review);
+                    return review;
+                });
+
+            mockReviewRepository.Setup(r => r.GetByReviewIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((Guid reviewId, CancellationToken ct) =>
+                {
+                    return storedReviews.FirstOrDefault(r => r.ReviewId == reviewId);
+                });
+
+            mockReviewRepository.Setup(r => r.GetPendingReviewsAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync((CancellationToken ct) =>
+                {
+                    return storedReviews.Where(r => r.Status == ReviewStatus.Pending).ToList();
+                });
+
+            mockReviewRepository.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync((CancellationToken ct) =>
+                {
+                    return storedReviews.ToList();
+                });
+
+            mockReviewRepository.Setup(r => r.UpdateAsync(It.IsAny<Domain.Entities.Review>(), It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
             return new ReviewService(
                 _mockLogger.Object,
                 _mockSettings.Object,
@@ -350,7 +381,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
         {
             // Arrange
             var service = CreateReviewService();
-            
+
             // Create a pending review
             var pendingRequest = new SubmitReviewRequest
             {
@@ -412,7 +443,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
             mockTestSettings.Setup(s => s.Value).Returns(testSettings);
 
             var service = CreateReviewService();
-            
+
             var request = new SubmitReviewRequest
             {
                 ServiceName = "TestService",
