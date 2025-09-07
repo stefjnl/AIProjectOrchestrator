@@ -46,7 +46,25 @@ namespace AIProjectOrchestrator.Domain.Services
             CancellationToken cancellationToken = default);
             
         Task<int> GetStoryCountAsync(
-            Guid storyGenerationId, 
+            Guid storyGenerationId,
+            CancellationToken cancellationToken = default);
+
+        Task<StoryStatus> GetStoryStatusAsync(
+            Guid storyId,
+            CancellationToken cancellationToken = default);
+
+        Task UpdateStoryStatusAsync(
+            Guid storyId,
+            StoryStatus status,
+            CancellationToken cancellationToken = default);
+
+        Task UpdateStoryAsync(
+            Guid storyId,
+            UserStory updatedStory,
+            CancellationToken cancellationToken = default);
+
+        Task<int> GetApprovedStoryCountAsync(
+            Guid storyGenerationId,
             CancellationToken cancellationToken = default);
 
         // Get generation by project for workflow state

@@ -139,5 +139,62 @@ namespace AIProjectOrchestrator.API.Controllers
                 return StatusCode(500, new { error = "Internal server error", message = ex.Message });
             }
         }
+
+        [HttpGet("{storyId:guid}/status")]
+        public async Task<ActionResult<StoryStatus>> GetStoryStatus(Guid storyId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var status = await _storyGenerationService.GetStoryStatusAsync(storyId, cancellationToken);
+                return Ok(status);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
+            }
+        }
+
+        [HttpPut("{storyId:guid}/approve")]
+        public async Task<IActionResult> ApproveStory(Guid storyId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await _storyGenerationService.UpdateStoryStatusAsync(storyId, StoryStatus.Approved, cancellationToken);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
+            }
+        }
+
+        [HttpPut("{storyId:guid}/reject")]
+        public async Task<IActionResult> RejectStory(Guid storyId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await _storyGenerationService.UpdateStoryStatusAsync(storyId, StoryStatus.Rejected, cancellationToken);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
+            }
+        }
+
+        [HttpPut("{storyId:guid}/edit")]
+        public async Task<IActionResult> EditStory(Guid storyId, [FromBody] UserStory updatedStory, CancellationToken cancellationToken)
+        {
+            try
+            {
+                updatedStory.Id = storyId;
+                await _storyGenerationService.UpdateStoryAsync(storyId, updatedStory, cancellationToken);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
+            }
+        }
     }
 }

@@ -585,5 +585,68 @@ namespace AIProjectOrchestrator.Application.Services
             return stories.Count;
         }
 
+        public async Task<StoryStatus> GetStoryStatusAsync(
+            Guid storyId,
+            CancellationToken cancellationToken = default)
+        {
+            var story = await _storyGenerationRepository.GetStoryByIdAsync(storyId, cancellationToken);
+            if (story == null)
+            {
+                throw new InvalidOperationException($"Story with ID {storyId} not found");
+            }
+            return story.Status;
+        }
+
+        public async Task UpdateStoryStatusAsync(
+            Guid storyId,
+            StoryStatus status,
+            CancellationToken cancellationToken = default)
+        {
+            var story = await _storyGenerationRepository.GetStoryByIdAsync(storyId, cancellationToken);
+            if (story == null)
+            {
+                throw new InvalidOperationException($"Story with ID {storyId} not found");
+            }
+
+            story.Status = status;
+            await _storyGenerationRepository.UpdateStoryAsync(story, cancellationToken);
+
+            _logger.LogInformation("Updated story {StoryId} status to {Status}", storyId, status);
+        }
+
+        public async Task UpdateStoryAsync(
+            Guid storyId,
+            UserStory updatedStory,
+            CancellationToken cancellationToken = default)
+        {
+            var existingStory = await _storyGenerationRepository.GetStoryByIdAsync(storyId, cancellationToken);
+            if (existingStory == null)
+            {
+                throw new InvalidOperationException($"Story with ID {storyId} not found");
+            }
+
+            // Update properties
+            existingStory.Title = updatedStory.Title;
+            existingStory.Description = updatedStory.Description;
+            existingStory.AcceptanceCriteria = updatedStory.AcceptanceCriteria ?? new List<string>();
+            existingStory.Priority = updatedStory.Priority;
+            existingStory.StoryPoints = updatedStory.StoryPoints;
+            existingStory.Tags = updatedStory.Tags ?? new List<string>();
+            existingStory.EstimatedComplexity = updatedStory.EstimatedComplexity;
+            existingStory.Status = updatedStory.Status;
+
+            await _storyGenerationRepository.UpdateStoryAsync(existingStory, cancellationToken);
+
+            _logger.LogInformation("Updated story {StoryId}", storyId);
+        }
+
+        public async Task<int> GetApprovedStoryCountAsync(
+            Guid storyGenerationId,
+            CancellationToken cancellationToken = default)
+        {
+            var stories = await GetAllStoriesAsync(storyGenerationId, cancellationToken);
+            return stories.Count(s => s.Status == StoryStatus.Approved);
+        }
+
     }
 }

@@ -6,7 +6,7 @@ using AIProjectOrchestrator.Domain.Entities;
 using AIProjectOrchestrator.Domain.Interfaces;
 using AIProjectOrchestrator.Domain.Models.Stories;
 
-namespace AIProjectOrchestrator.Domain.Interfaces
+namespace AIProjectOrchestrator.Domain.Repositories
 {
     public interface IStoryGenerationRepository : IRepository<StoryGeneration>
     {
