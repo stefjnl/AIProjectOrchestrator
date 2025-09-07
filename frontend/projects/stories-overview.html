@@ -10,7 +10,11 @@
     <div class="container">
         <!-- Header Section -->
         <div class="header">
-            <a href="/index.html">Home</a> > <a href="/projects/list.html">Projects</a> > <a href="#" id="workflowBreadcrumb">Workflow</a> > <strong>Stories & Prompts</strong>
+            <div class="main-nav-buttons">
+                <a href="/projects/create.html"><button>Create New Project</button></a>
+                <a href="/projects/list.html"><button>View All Projects</button></a>
+                <a href="/reviews/queue.html"><button>Go To Review Queue</button></a>
+            </div>
             <h1 id="projectTitle">Stories Management</h1>
             <p id="projectDescription">Stories management workspace for prompt generation.</p>
         </div>
@@ -37,12 +41,6 @@
             }
 
             workflowManager = new WorkflowManager(projectId);
-
-            // Update breadcrumb with projectId
-            const workflowBreadcrumb = document.getElementById('workflowBreadcrumb');
-            if (workflowBreadcrumb) {
-                workflowBreadcrumb.href = `/projects/workflow.html?projectId=${encodeURIComponent(projectId)}`;
-            }
 
             // Show loading state
             document.body.classList.add('loading');
