@@ -53,7 +53,8 @@ namespace AIProjectOrchestrator.IntegrationTests
             projectResponse.EnsureSuccessStatusCode();
             var projectJson = await projectResponse.Content.ReadAsStringAsync();
             var project = JsonSerializer.Deserialize<dynamic>(projectJson);
-            var projectId = (Guid)project.Id;
+            Assert.NotNull(project);
+            var projectId = (Guid)project.Id!;
 
             // 2. Submit requirements analysis  
             var reqData = new { ProjectId = projectId, Description = "Analyze requirements for this project" };
@@ -62,7 +63,8 @@ namespace AIProjectOrchestrator.IntegrationTests
             reqResponse.EnsureSuccessStatusCode();
             var reqJson = await reqResponse.Content.ReadAsStringAsync();
             var req = JsonSerializer.Deserialize<dynamic>(reqJson);
-            var analysisId = (Guid)req.Id; // Assume response has Id for analysis
+            Assert.NotNull(req);
+            var analysisId = (Guid)req.Id!;
 
             // 3. Approve requirements (assume review is created, get pending and approve first)
             await Task.Delay(100); // Small delay for background processing if needed
@@ -70,7 +72,9 @@ namespace AIProjectOrchestrator.IntegrationTests
             pendingReviewsResponse.EnsureSuccessStatusCode();
             var pendingReviewsJson = await pendingReviewsResponse.Content.ReadAsStringAsync();
             dynamic pendingReviews = JsonSerializer.Deserialize<dynamic>(pendingReviewsJson);
-            var reviewId = (Guid)pendingReviews[0].Id; // Assume first is the requirements review
+            Assert.NotNull(pendingReviews);
+            Assert.True(((dynamic[])pendingReviews).Length > 0);
+            var reviewId = (Guid)pendingReviews[0].Id!;
             var approveContent = new StringContent("{}", Encoding.UTF8, "application/json");
             var approveReqResponse = await client.PostAsync($"/api/review/{reviewId}/approve", approveContent);
             approveReqResponse.EnsureSuccessStatusCode();
@@ -82,7 +86,8 @@ namespace AIProjectOrchestrator.IntegrationTests
             planResponse.EnsureSuccessStatusCode();
             var planJson = await planResponse.Content.ReadAsStringAsync();
             var plan = JsonSerializer.Deserialize<dynamic>(planJson);
-            var planningId = (Guid)plan.Id; // Assume Id
+            Assert.NotNull(plan);
+            var planningId = (Guid)plan.Id!;
 
             // 5. Approve planning
             await Task.Delay(100);
@@ -90,7 +95,9 @@ namespace AIProjectOrchestrator.IntegrationTests
             pendingPlanResponse.EnsureSuccessStatusCode();
             var pendingPlanJson = await pendingPlanResponse.Content.ReadAsStringAsync();
             dynamic pendingPlans = JsonSerializer.Deserialize<dynamic>(pendingPlanJson);
-            var planReviewId = (Guid)pendingPlans[0].Id;
+            Assert.NotNull(pendingPlans);
+            Assert.True(((dynamic[])pendingPlans).Length > 0);
+            var planReviewId = (Guid)pendingPlans[0].Id!;
             var approvePlanResponse = await client.PostAsync($"/api/review/{planReviewId}/approve", approveContent);
             approvePlanResponse.EnsureSuccessStatusCode();
 
@@ -101,7 +108,8 @@ namespace AIProjectOrchestrator.IntegrationTests
             storyResponse.EnsureSuccessStatusCode();
             var storyJson = await storyResponse.Content.ReadAsStringAsync();
             var story = JsonSerializer.Deserialize<dynamic>(storyJson);
-            var storyGenerationId = (Guid)story.Id; // Assume GenerationId
+            Assert.NotNull(story);
+            var storyGenerationId = (Guid)story.Id!;
 
             // 7. Approve stories
             await Task.Delay(100);
@@ -109,7 +117,9 @@ namespace AIProjectOrchestrator.IntegrationTests
             pendingStoryResponse.EnsureSuccessStatusCode();
             var pendingStoryJson = await pendingStoryResponse.Content.ReadAsStringAsync();
             dynamic pendingStories = JsonSerializer.Deserialize<dynamic>(pendingStoryJson);
-            var storyReviewId = (Guid)pendingStories[0].Id;
+            Assert.NotNull(pendingStories);
+            Assert.True(((dynamic[])pendingStories).Length > 0);
+            var storyReviewId = (Guid)pendingStories[0].Id!;
             var approveStoryResponse = await client.PostAsync($"/api/review/{storyReviewId}/approve", approveContent);
             approveStoryResponse.EnsureSuccessStatusCode();
 

@@ -28,7 +28,7 @@ namespace AIProjectOrchestrator.IntegrationTests
                 }
 
                 // Override connection string for Docker testing
-                config.AddInMemoryCollection(new Dictionary<string, string>
+                config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["ConnectionStrings:DefaultConnection"] = "Host=localhost;Port=5432;Database=aiprojectorchestrator;Username=user;Password=password"
                 });

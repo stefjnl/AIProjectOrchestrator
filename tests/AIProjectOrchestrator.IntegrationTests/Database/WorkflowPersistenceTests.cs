@@ -22,7 +22,7 @@ namespace AIProjectOrchestrator.IntegrationTests.Database
         }
 
         [Fact]
-        public async Task StoryGenerationService_WhenGeneratingStories_SavesToDatabase()
+        public void StoryGenerationService_WhenGeneratingStories_SavesToDatabase()
         {
             // Arrange
             // This test would require setting up proper test data and mocks
@@ -35,7 +35,7 @@ namespace AIProjectOrchestrator.IntegrationTests.Database
         }
 
         [Fact]
-        public async Task PromptGenerationService_WhenGeneratingPrompts_SavesToDatabase()
+        public void PromptGenerationService_WhenGeneratingPrompts_SavesToDatabase()
         {
             // Arrange
             // This test would require setting up proper test data and mocks
@@ -48,7 +48,7 @@ namespace AIProjectOrchestrator.IntegrationTests.Database
         }
 
         [Fact]
-        public async Task ReviewService_WhenSubmittingReview_SavesToDatabase()
+        public void ReviewService_WhenSubmittingReview_SavesToDatabase()
         {
             // Arrange
             // This test would require setting up proper test data and mocks

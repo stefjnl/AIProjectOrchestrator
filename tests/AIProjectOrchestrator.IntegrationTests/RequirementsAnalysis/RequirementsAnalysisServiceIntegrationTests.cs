@@ -18,7 +18,7 @@ namespace AIProjectOrchestrator.IntegrationTests.RequirementsAnalysis
         }
 
         [Fact]
-        public async Task RequirementsAnalysisService_CanBeResolvedFromDIContainer()
+        public void RequirementsAnalysisService_CanBeResolvedFromDIContainer()
         {
             // Arrange
             var scope = _factory.Services.CreateScope();
