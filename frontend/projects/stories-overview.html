@@ -644,28 +644,40 @@
         }
 
         async function updateStory(storyIndex, storyCard) {
+            // Declare all DOM elements at function scope to avoid scope issues in catch block
+            let titleInput = storyCard ? storyCard.querySelector('.story-title-edit') : null;
+            let descriptionInput = storyCard ? storyCard.querySelector('.story-description-edit') : null;
+            let criteriaInput = storyCard ? storyCard.querySelector('.story-acceptance-criteria-edit') : null;
+            let editMode = storyCard ? storyCard.querySelector('.story-edit-mode') : null;
+            let storyContent = storyCard ? storyCard.querySelector('.story-content') : null;
+            let storyActions = storyCard ? storyCard.querySelector('.story-actions-enhanced') : null;
+            let editBtn = storyCard ? storyCard.querySelector('.edit-btn') : null;
+            let saveBtn = storyCard ? storyCard.querySelector('.save-btn') : null;
+            let storyHeader = storyCard ? storyCard.querySelector('.story-header h3') : null;
+            let preview = storyCard ? storyCard.querySelector('.preview p') : null;
+
             try {
-                const titleInput = storyCard.querySelector('.story-title-edit');
-                const descriptionInput = storyCard.querySelector('.story-description-edit');
-                const criteriaInput = storyCard.querySelector('.story-acceptance-criteria-edit');
-                const editMode = storyCard.querySelector('.story-edit-mode');
-                const storyContent = storyCard.querySelector('.story-content');
-                const storyActions = storyCard.querySelector('.story-actions');
-                const editBtn = storyCard.querySelector('.edit-btn');
+                // Validate core elements exist
+                if (!storyCard) {
+                    throw new Error('Story card element is missing');
+                }
 
                 // Get the story ID from the story card data attributes
                 const storyId = storyCard.dataset.storyId;
                 console.log('Updating story with ID:', storyId);
 
-                // Validate that we have a story ID
+                // Validate that we have a story ID and required input elements
                 if (!storyId) {
                     throw new Error('Story ID is missing');
+                }
+                if (!titleInput || !descriptionInput || !criteriaInput) {
+                    throw new Error('Required story input elements are missing');
                 }
 
                 // Prepare edited story data, preserving originals where not edited
                 const editedStory = {
-                    title: titleInput.value,
-                    description: descriptionInput.value,
+                    title: titleInput.value || '',
+                    description: descriptionInput.value || '',
                     acceptanceCriteria: criteriaInput.value.split('\n').filter(c => c.trim()),
                     priority: storyCard.dataset.priority || '',
                     storyPoints: parseInt(storyCard.dataset.storyPoints) || null,
@@ -688,26 +700,37 @@
                     editTimeout = null;
                 }
 
-                // Update story header with new title
-                const storyHeader = storyCard.querySelector('.story-header h3');
-                storyHeader.textContent = editedStory.title;
+                // Update story header with new title if element exists
+                if (storyHeader) {
+                    storyHeader.textContent = editedStory.title;
+                }
 
-                // Update preview text
-                const preview = storyCard.querySelector('.preview p');
-                const newPreview = editedStory.description.length > 100 ?
-                    editedStory.description.substring(0, 100) + '...' : editedStory.description;
-                preview.textContent = newPreview;
+                // Update preview text if element exists
+                if (preview && editedStory.description) {
+                    const newPreview = editedStory.description.length > 100 ?
+                        editedStory.description.substring(0, 100) + '...' : editedStory.description;
+                    preview.textContent = newPreview;
+                }
 
-                // Hide edit mode
-                editMode.classList.remove('active');
-                storyContent.style.display = 'block';
-                storyActions.style.display = 'flex';
-                editBtn.textContent = 'Edit';
+                // Hide edit mode if elements exist
+                if (editMode) {
+                    editMode.classList.remove('active');
+                }
+                if (storyContent) {
+                    storyContent.style.display = 'block';
+                }
+                if (storyActions) {
+                    storyActions.style.display = 'flex';
+                }
+                if (editBtn) {
+                    editBtn.textContent = 'Edit';
+                }
 
-                // Reset button text
-                const saveBtn = storyCard.querySelector('.save-btn');
-                saveBtn.innerHTML = 'Save Changes';
-                saveBtn.disabled = false;
+                // Reset button text if element exists
+                if (saveBtn) {
+                    saveBtn.innerHTML = 'Save Changes';
+                    saveBtn.disabled = false;
+                }
 
                 // Show success notification
                 showNotification('Story updated successfully!', 'success');
@@ -715,21 +738,30 @@
             } catch (error) {
                 console.error('Failed to update story:', error);
 
-                // Reset button text
-                const saveBtn = storyCard.querySelector('.save-btn');
-                saveBtn.innerHTML = 'Save Changes';
-                saveBtn.disabled = false;
+                // Reset button text if element exists
+                if (saveBtn) {
+                    saveBtn.innerHTML = 'Save Changes';
+                    saveBtn.disabled = false;
+                }
 
-                // Exit edit mode on error
+                // Exit edit mode on error if elements exist
                 isEditing = false;
                 if (editTimeout) {
                     clearTimeout(editTimeout);
                     editTimeout = null;
                 }
-                editMode.classList.remove('active');
-                storyContent.style.display = 'block';
-                storyActions.style.display = 'flex';
-                editBtn.textContent = 'Edit';
+                if (editMode) {
+                    editMode.classList.remove('active');
+                }
+                if (storyContent) {
+                    storyContent.style.display = 'block';
+                }
+                if (storyActions) {
+                    storyActions.style.display = 'flex';
+                }
+                if (editBtn) {
+                    editBtn.textContent = 'Edit';
+                }
 
                 // Show error toast
                 let errorMessage = 'Failed to update story. Please try again.';

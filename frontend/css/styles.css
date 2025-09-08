@@ -2666,3 +2666,514 @@ button:focus {
     outline: 2px solid #667eea;
     outline-offset: 2px;
 }
+
+/* ===== PHASE 2: ENHANCED UX IMPLEMENTATION - Progress & Micro-Interactions ===== */
+/*
+ * Phase 2 builds upon Phase 1's modern card-based design by adding sophisticated UX elements:
+ * - Progress indicator component with milestones and animated fill
+ * - Stage connection visualization with flowing lines and arrows
+ * - Micro-interactions including button loading states, success animations, stage card processing glows
+ * - Status badge transitions with loading dots for processing states
+ * - Responsive connection line adjustments for single-column layouts
+ * - Shimmer effects, pulse animations, and celebration effects for enterprise polish
+ * All animations use CSS transforms for 60fps performance and respect prefers-reduced-motion
+ */
+
+/* 1. Progress Indicator Component */
+.progress-header {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 32px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.progress-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0;
+}
+
+.progress-stats {
+    font-size: 14px;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.progress-separator {
+    color: #cbd5e0;
+}
+
+.progress-container {
+    position: relative;
+}
+
+.progress-track {
+    width: 100%;
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 3px;
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.progress-milestones {
+    display: flex;
+    justify-content: space-between;
+    position: absolute;
+    top: -12px;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+}
+
+.milestone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+}
+
+.milestone-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    border: 3px solid white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 2;
+}
+
+.milestone-dot.completed {
+    background: #4CAF50;
+    transform: scale(1.1);
+}
+
+.milestone-dot.completed::before {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.milestone-dot.active {
+    background: #2196F3;
+    animation: pulse-glow 2s infinite;
+}
+
+.milestone-dot.pending {
+    background: #FF9800;
+}
+
+@keyframes pulse-glow {
+    0% {
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 0 rgba(33, 150, 243, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 8px rgba(33, 150, 243, 0);
+    }
+
+    100% {
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 0 0 0 rgba(33, 150, 243, 0);
+    }
+}
+
+.milestone-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: #64748b;
+    margin-top: 8px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.milestone-dot.completed+.milestone-label {
+    color: #4CAF50;
+    font-weight: 600;
+}
+
+.milestone-dot.active+.milestone-label {
+    color: #2196F3;
+    font-weight: 600;
+}
+
+/* 2. Stage Connection Visualization */
+.workflow-container {
+    position: relative;
+    /* Keep existing grid properties from Phase 1 */
+}
+
+.stage-card {
+    position: relative;
+    /* Keep existing card properties from Phase 1 */
+}
+
+.stage-card::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: -12px;
+    width: 24px;
+    height: 2px;
+    background: #e2e8f0;
+    z-index: 1;
+    transition: background 0.3s ease;
+}
+
+.stage-card.completed::after {
+    background: linear-gradient(90deg, #4CAF50, #45a049);
+    animation: flow-line 2s ease-in-out;
+}
+
+.stage-card.in-progress::after {
+    background: linear-gradient(90deg, #2196F3, #1976D2);
+    animation: flow-line-active 2s infinite;
+}
+
+/* Remove connector from last stage */
+.stage-card:last-child::after {
+    display: none;
+}
+
+@keyframes flow-line {
+    0% {
+        transform: scaleX(0);
+        transform-origin: left;
+    }
+
+    100% {
+        transform: scaleX(1);
+        transform-origin: left;
+    }
+}
+
+@keyframes flow-line-active {
+    0% {
+        opacity: 0.5;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.5;
+    }
+}
+
+/* Connection arrows */
+.stage-card.completed::before,
+.stage-card.in-progress::before {
+    content: '▶';
+    position: absolute;
+    top: 50%;
+    right: -20px;
+    transform: translateY(-50%);
+    color: #4CAF50;
+    font-size: 8px;
+    z-index: 2;
+    animation: arrow-pulse 1.5s ease-in-out infinite;
+}
+
+.stage-card.in-progress::before {
+    color: #2196F3;
+}
+
+@keyframes arrow-pulse {
+
+    0%,
+    100% {
+        transform: translateY(-50%) translateX(0);
+    }
+
+    50% {
+        transform: translateY(-50%) translateX(2px);
+    }
+}
+
+/* Responsive adjustments for single column */
+@media (max-width: 1024px) {
+    .stage-card::after {
+        top: auto;
+        bottom: -12px;
+        right: 50%;
+        transform: translateX(50%) rotate(90deg);
+        width: 24px;
+        height: 2px;
+    }
+
+    .stage-card::before {
+        top: auto;
+        bottom: -20px;
+        right: 50%;
+        transform: translateX(50%) translateY(0) rotate(90deg);
+    }
+
+    @keyframes arrow-pulse {
+
+        0%,
+        100% {
+            transform: translateX(50%) translateY(0) rotate(90deg);
+        }
+
+        50% {
+            transform: translateX(50%) translateY(2px) rotate(90deg);
+        }
+    }
+}
+
+/* 3. Micro-Interactions Implementation */
+
+/* Button Loading States */
+.btn-primary.loading {
+    position: relative;
+    color: transparent;
+    pointer-events: none;
+}
+
+.btn-primary.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border: 2px solid transparent;
+    border-top-color: white;
+    border-radius: 50%;
+    animation: button-spinner 0.8s linear infinite;
+}
+
+@keyframes button-spinner {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.btn-primary.success {
+    background: #4CAF50;
+    transform: scale(1.05);
+}
+
+.btn-primary.success::before {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    animation: success-bounce 0.5s ease;
+}
+
+@keyframes success-bounce {
+    0% {
+        transform: translate(-50%, -50%) scale(0);
+    }
+
+    50% {
+        transform: translate(-50%, -50%) scale(1.2);
+    }
+
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+/* Stage Card Animations */
+.stage-card.processing {
+    animation: processing-glow 2s ease-in-out infinite alternate;
+    border-color: rgba(33, 150, 243, 0.3);
+}
+
+@keyframes processing-glow {
+    from {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 0 0 0 rgba(33, 150, 243, 0.1);
+    }
+
+    to {
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12), 0 0 0 4px rgba(33, 150, 243, 0.1);
+    }
+}
+
+.stage-card.completing {
+    animation: completion-celebration 1s ease-out;
+}
+
+@keyframes completion-celebration {
+    0% {
+        transform: scale(1);
+    }
+
+    30% {
+        transform: scale(1.02);
+    }
+
+    60% {
+        transform: scale(0.98);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Success particle effect */
+.stage-card.completing::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(76, 175, 80, 0.1) 0%, transparent 70%);
+    animation: success-ripple 0.8s ease-out;
+    pointer-events: none;
+}
+
+@keyframes success-ripple {
+    0% {
+        transform: scale(0);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 0;
+    }
+}
+
+/* Status Badge Transitions */
+.status-badge {
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Keep existing styles from Phase 1 */
+}
+
+.status-badge.transitioning {
+    animation: status-morph 0.6s ease-in-out;
+}
+
+@keyframes status-morph {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+        opacity: 0.7;
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Loading dots for processing states */
+.status-in-progress::after {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: currentColor;
+    margin-left: 8px;
+    animation: loading-dots 1.4s infinite ease-in-out both;
+}
+
+.status-in-progress::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: currentColor;
+    margin-right: 4px;
+    animation: loading-dots 1.4s infinite ease-in-out both;
+    animation-delay: -0.16s;
+}
+
+@keyframes loading-dots {
+
+    0%,
+    80%,
+    100% {
+        transform: scale(0);
+        opacity: 0.5;
+    }
+
+    40% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Accessibility: Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+
+    .progress-fill,
+    .progress-fill::after,
+    .milestone-dot,
+    .stage-card::after,
+    .stage-card::before,
+    .btn-primary.loading::after,
+    .btn-primary.success::before,
+    .stage-card.processing,
+    .stage-card.completing,
+    .stage-card.completing::before,
+    .status-badge.transitioning,
+    .status-in-progress::after,
+    .status-in-progress::before {
+        animation: none !important;
+        transition: none !important;
+    }
+}

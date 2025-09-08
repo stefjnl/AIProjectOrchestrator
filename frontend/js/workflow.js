@@ -631,6 +631,10 @@ class WorkflowManager {
         } else {
             console.log('updateWorkflowUI called on non-workflow page. Skipping UI updates.');
         }
+
+        // Always update progress indicator after workflow UI update
+        // Note: This enhanced version adds progress indicator synchronization
+        this.updateProgressIndicator();
     }
 
     async checkApprovedStatus() {
@@ -658,4 +662,131 @@ class WorkflowManager {
             window.location.href = `stories-overview.html?projectId=${this.projectId}&source=workflow`;
         }, 2000);
     }
+
+    // Phase 2: Progress Indicator Methods - Add these to existing WorkflowManager class
+
+    /**
+     * Updates the progress indicator with current workflow completion status
+     * Handles milestone dot animations and progress bar fill/shimmer effects
+     * Called from updateWorkflowUI to synchronize visual state with data
+     */
+    updateProgressIndicator() {
+        const stages = ['requirements', 'planning', 'stories', 'prompts'];
+        let completedCount = 0;
+
+        stages.forEach((stage, index) => {
+            const milestone = document.getElementById(`milestone-${stage}`);
+            if (!milestone) return; // Skip if DOM element not found
+
+            const isCompleted = this.isStageCompleted(stage);
+            const isActive = this.isStageActive(stage);
+            const isPending = this.isStagePending(stage);
+
+            // Remove all state classes first
+            milestone.classList.remove('completed', 'active', 'pending');
+
+            if (isCompleted) {
+                milestone.classList.add('completed');
+                completedCount++;
+            } else if (isActive) {
+                milestone.classList.add('active');
+            } else if (isPending) {
+                milestone.classList.add('pending');
+            }
+        });
+
+        // Update progress fill and stats - with null checks for DOM elements
+        const percentage = Math.round((completedCount / stages.length) * 100);
+        const progressFill = document.getElementById('progressFill');
+        const progressPercentage = document.getElementById('progressPercentage');
+        const progressSteps = document.getElementById('progressSteps');
+
+        if (progressFill) {
+            progressFill.style.width = `${percentage}%`;
+        }
+        if (progressPercentage) {
+            progressPercentage.textContent = `${percentage}%`;
+        }
+        if (progressSteps) {
+            progressSteps.textContent = `${completedCount} of ${stages.length} stages completed`;
+        }
+    }
+
+    /**
+     * Determines if a specific workflow stage is completed
+     * @param {string} stage - Stage identifier: 'requirements', 'planning', 'stories', 'prompts'
+     * @returns {boolean} True if stage is completed/approved
+     */
+    isStageCompleted(stage) {
+        switch (stage) {
+            case 'requirements':
+                return this.state.requirementsApproved;
+            case 'planning':
+                return this.state.planningApproved;
+            case 'stories':
+                return this.state.storiesApproved;
+            case 'prompts':
+                // For prompts stage, completion means all individual story prompts are approved
+                const storyPrompts = this.state.storyPrompts || [];
+                const totalStories = storyPrompts.length;
+                const approvedPrompts = storyPrompts.filter(sp => sp.approved).length;
+                return totalStories > 0 && approvedPrompts === totalStories;
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Determines if a specific workflow stage is currently active/processing
+     * @param {string} stage - Stage identifier
+     * @returns {boolean} True if stage is pending review or currently generating
+     */
+    isStageActive(stage) {
+        // Return true if stage is currently being processed or pending review
+        switch (stage) {
+            case 'requirements':
+                return this.state.requirementsPending || this.state.requirementsGenerating;
+            case 'planning':
+                return this.state.planningPending || this.state.planningGenerating;
+            case 'stories':
+                return this.state.storiesPending || this.state.storiesGenerating;
+            case 'prompts':
+                // Check if any story prompt is pending review
+                const storyPrompts = this.state.storyPrompts || [];
+                return storyPrompts.some(sp => sp.pending);
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Determines if a specific workflow stage is pending (next in sequence but not active)
+     * @param {string} stage - Stage identifier
+     * @returns {boolean} True if this is the next stage to be processed
+     */
+    isStagePending(stage) {
+        // Calculate how many stages are completed
+        const completedStages = this.getCompletedStagesCount();
+        // Get the index of current stage in sequence
+        const stageIndex = ['requirements', 'planning', 'stories', 'prompts'].indexOf(stage);
+
+        // Stage is pending if it's the next one after completed stages and not currently active
+        return stageIndex === completedStages &&
+            !this.isStageActive(stage) &&
+            !this.isStageCompleted(stage);
+    }
+
+    /**
+     * Gets the total count of completed workflow stages
+     * @returns {number} Count of completed stages (0-4)
+     */
+    getCompletedStagesCount() {
+        let count = 0;
+        if (this.isStageCompleted('requirements')) count++;
+        if (this.isStageCompleted('planning')) count++;
+        if (this.isStageCompleted('stories')) count++;
+        if (this.isStageCompleted('prompts')) count++;
+        return count;
+    }
+
 }

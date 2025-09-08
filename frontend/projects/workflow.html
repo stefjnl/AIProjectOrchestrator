@@ -1,26 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project Workflow - AI Orchestrator</title>
     <link rel="stylesheet" href="/css/styles.css">
 </head>
+
 <body>
     <div class="container">
         <div class="main-nav-buttons">
             <a href="/projects/create.html"><button class="btn-primary">Create New Project</button></a>
             <a href="/projects/list.html"><button class="btn-secondary">View All Projects</button></a>
             <a href="/reviews/queue.html"><button class="btn-secondary">Go To Review Queue</button></a>
-            <a href="#" id="storiesOverviewLink" style="display: none;"><button class="btn-secondary">Manage Stories</button></a>
+            <a href="#" id="storiesOverviewLink" style="display: none;"><button class="btn-secondary">Manage
+                    Stories</button></a>
         </div>
         <a href="/index.html" class="back-link">&larr; Back to Home</a>
         <div class="header">
             <h1 id="projectTitle">Loading Project...</h1>
+            <!-- Add immediately after the project title, before workflow-container -->
+            <div class="progress-header">
+                <div class="progress-info">
+                    <h2 class="progress-title">Project Progress</h2>
+                    <div class="progress-stats">
+                        <span id="progressPercentage">0%</span>
+                        <span class="progress-separator">•</span>
+                        <span id="progressSteps">0 of 4 stages completed</span>
+                    </div>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-track">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-milestones">
+                        <div class="milestone" data-stage="requirements">
+                            <div class="milestone-dot" id="milestone-requirements"></div>
+                            <span class="milestone-label">Requirements</span>
+                        </div>
+                        <div class="milestone" data-stage="planning">
+                            <div class="milestone-dot" id="milestone-planning"></div>
+                            <span class="milestone-label">Planning</span>
+                        </div>
+                        <div class="milestone" data-stage="stories">
+                            <div class="milestone-dot" id="milestone-stories"></div>
+                            <span class="milestone-label">Stories</span>
+                        </div>
+                        <div class="milestone" data-stage="prompts">
+                            <div class="milestone-dot" id="milestone-prompts"></div>
+                            <span class="milestone-label">Prompts</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <p id="projectDescription"></p>
         </div>
         <div class="reset-workflow-container">
-            <button id="resetWorkflowBtn" class="btn-secondary" onclick="workflowManager.resetState()" style="float: right; margin-left: 10px;">Reset Workflow</button>
+            <button id="resetWorkflowBtn" class="btn-secondary" onclick="workflowManager.resetState()"
+                style="float: right; margin-left: 10px;">Reset Workflow</button>
         </div>
 
         <div class="workflow-container">
@@ -29,7 +67,8 @@
                 <div class="workflow-stage">
                     <h3 class="stage-title">1. Requirements Analysis</h3>
                     <div class="status-badge status-not-started" id="requirementsStatus">Not Started</div>
-                    <button id="startRequirementsBtn" class="btn-primary" onclick="startRequirementsAnalysis()">Start Analysis</button>
+                    <button id="startRequirementsBtn" class="btn-primary" onclick="startRequirementsAnalysis()">Start
+                        Analysis</button>
                 </div>
             </div>
 
@@ -38,7 +77,8 @@
                 <div class="workflow-stage">
                     <h3 class="stage-title">2. Project Planning</h3>
                     <div class="status-badge status-not-started" id="planningStatus">Not Started</div>
-                    <button id="startPlanningBtn" class="btn-primary" onclick="startProjectPlanning()">Start Planning</button>
+                    <button id="startPlanningBtn" class="btn-primary" onclick="startProjectPlanning()">Start
+                        Planning</button>
                 </div>
             </div>
 
@@ -47,7 +87,8 @@
                 <div class="workflow-stage">
                     <h3 class="stage-title">3. User Stories</h3>
                     <div class="status-badge status-not-started" id="storiesStatus">Not Started</div>
-                    <button id="startStoriesBtn" class="btn-primary" onclick="startStoryGeneration()">Generate Stories</button>
+                    <button id="startStoriesBtn" class="btn-primary" onclick="startStoryGeneration()">Generate
+                        Stories</button>
                 </div>
             </div>
 
@@ -64,7 +105,8 @@
                         <div class="stats-summary" id="dynamicStats">
                             <span>Loading stats...</span>
                         </div>
-                        <button id="refreshStatsBtn" onclick="initStage4UI()" class="btn-secondary" style="margin-left: 10px; padding: 4px 8px; font-size: 12px;">Refresh Status</button>
+                        <button id="refreshStatsBtn" onclick="initStage4UI()" class="btn-secondary"
+                            style="margin-left: 10px; padding: 4px 8px; font-size: 12px;">Refresh Status</button>
                     </div>
                     <div class="stage-progress" id="promptProgress" style="display: none;">
                         <div class="progress-summary">
@@ -90,7 +132,7 @@
     <script>
         let workflowManager;
 
-        window.addEventListener('DOMContentLoaded', async function() {
+        window.addEventListener('DOMContentLoaded', async function () {
             const urlParams = new URLSearchParams(window.location.search);
             const projectId = urlParams.get('projectId');
 
@@ -100,11 +142,28 @@
                 return;
             }
 
+            // Wait for WorkflowManager to be defined before instantiation
+            function waitForWorkflowManager() {
+                return new Promise((resolve) => {
+                    if (typeof WorkflowManager !== 'undefined') {
+                        resolve();
+                    } else {
+                        const checkInterval = setInterval(() => {
+                            if (typeof WorkflowManager !== 'undefined') {
+                                clearInterval(checkInterval);
+                                resolve();
+                            }
+                        }, 50); // Check every 50ms
+                    }
+                });
+            }
+
+            await waitForWorkflowManager();
             workflowManager = new WorkflowManager(projectId);
-            
+
             // Show loading state
             document.body.classList.add('loading');
-            
+
             // Load state from API instead of localStorage
             try {
                 await workflowManager.loadStateFromAPI();
@@ -123,45 +182,45 @@
                 if (workflowManager.state.enableDynamicStage4) {
                     initStage4UI();
                 }
-                
+
                 // Show "Manage Stories" button if stories are approved
                 updateStoriesOverviewLink();
-                
+
                 // Start polling for updates
                 workflowManager.startPolling();
-                
+
                 // Hide loading state
                 document.body.classList.remove('loading');
-                
+
             } catch (error) {
                 console.error('Failed to initialize workflow:', error);
                 alert('Failed to load workflow. Please try again.');
                 document.body.classList.remove('loading');
             }
 
-        try {
-            const project = await window.APIClient.getProject(projectId);
-            workflowManager.recordApiSuccess();
-            // Update project info directly
-            document.getElementById('projectTitle').textContent = project.name;
-            document.getElementById('projectDescription').textContent = project.description;
-            workflowManager.updateWorkflowUI(); // Update UI after project info is loaded
-            updateStoriesOverviewLink(); // Update stories overview link visibility
-        } catch (error) {
-            workflowManager.recordApiFailure();
-            if (workflowManager.isApiDisabled()) {
-                showMaintenanceBanner();
+            try {
+                const project = await window.APIClient.getProject(projectId);
+                workflowManager.recordApiSuccess();
+                // Update project info directly
+                document.getElementById('projectTitle').textContent = project.name;
+                document.getElementById('projectDescription').textContent = project.description;
+                workflowManager.updateWorkflowUI(); // Update UI after project info is loaded
+                updateStoriesOverviewLink(); // Update stories overview link visibility
+            } catch (error) {
+                workflowManager.recordApiFailure();
+                if (workflowManager.isApiDisabled()) {
+                    showMaintenanceBanner();
+                }
+                // Fallback to mock project data
+                document.getElementById('projectTitle').textContent = 'Demo Project';
+                document.getElementById('projectDescription').textContent = 'This is a demonstration project for testing the workflow.';
+                workflowManager.updateWorkflowUI();
+                updateStoriesOverviewLink(); // Update stories overview link visibility
+                console.warn(`Using demo data due to API error: ${error.message}`);
             }
-            // Fallback to mock project data
-            document.getElementById('projectTitle').textContent = 'Demo Project';
-            document.getElementById('projectDescription').textContent = 'This is a demonstration project for testing the workflow.';
-            workflowManager.updateWorkflowUI();
-            updateStoriesOverviewLink(); // Update stories overview link visibility
-            console.warn(`Using demo data due to API error: ${error.message}`);
-        }
 
             // Page visibility listener for polling optimization
-            document.addEventListener('visibilitychange', function() {
+            document.addEventListener('visibilitychange', function () {
                 if (document.hidden) {
                     workflowManager.stopPolling();
                 } else {
@@ -170,46 +229,86 @@
                     workflowManager.refreshState().catch(console.error);
                 }
             });
-            
+
             // Cleanup on page unload
-            window.addEventListener('beforeunload', function() {
+            window.addEventListener('beforeunload', function () {
                 workflowManager.stopPolling();
             });
         });
 
-        // Helper function to manage UI state during async operations
+        // Enhanced helper function with micro-interaction support
         async function handleStageStart(buttonId, statusId, startFunction) {
             const button = document.getElementById(buttonId);
             const status = document.getElementById(statusId);
+            const card = button ? button.closest('.stage-card') : null;
+
+            if (!button || !status) {
+                console.error('Button or status element not found for handleStageStart');
+                return;
+            }
 
             // Store original button content for restoration
             const originalButtonText = button.innerHTML;
-            
-            // Apply spinner to button
+
+            // Apply enhanced loading state with micro-interaction
+            button.classList.add('loading');
             button.disabled = true;
-            button.innerHTML = '<span class="loading"></span>Generating...';
-            
-            // Update status
-            status.textContent = 'Generating...';
-            status.className = 'stage-status generating';
+            if (card) {
+                card.classList.add('processing');
+            }
+
+            // Update status with processing animation
+            status.textContent = 'Processing...';
+            status.classList.add('transitioning');
+            setTimeout(() => {
+                status.className = 'status-badge status-in-progress';
+                status.classList.remove('transitioning');
+            }, 200);
 
             try {
-                await startFunction();
-                // Don't reset UI on success since we're redirecting to review queue
-                // The UI will be reset when the user returns to this page
+                await startFunction(button, card);
+
+                // Success micro-interactions - now handled by caller
+                // Update progress indicator from caller if needed
+
+                // Reset states after brief success display (before redirect)
+                setTimeout(() => {
+                    try {
+                        if (button) {
+                            button.classList.remove('loading', 'success');
+                            if (card) {
+                                card.classList.remove('processing', 'completing');
+                            }
+                        }
+                    } catch (resetError) {
+                        console.warn('Error resetting UI states:', resetError);
+                    }
+                }, 800); // Shorter timeout since we're redirecting
+
             } catch (error) {
-                // Restore button content on error
-                button.innerHTML = originalButtonText;
-                button.disabled = false;
-                
+                // Error state - remove all animation classes
+                try {
+                    button.classList.remove('loading', 'success');
+                    if (card) {
+                        card.classList.remove('processing', 'completing');
+                    }
+                    button.disabled = false;
+                    button.innerHTML = originalButtonText;
+                } catch (resetError) {
+                    console.warn('Error resetting UI states on error:', resetError);
+                }
+
+                // Reset status to previous state
+                if (typeof workflowManager !== 'undefined') {
+                    workflowManager.updateWorkflowUI();
+                }
+
                 alert(`Error: ${error.message}`);
-                // Reset UI on failure
-                workflowManager.updateWorkflowUI();
-                
+
                 // Provide user with option to retry
                 const userChoice = confirm('Would you like to try again? Cancel to continue without retrying.');
                 if (userChoice) {
-                    // Retry the operation
+                    // Retry the operation with fresh animation states
                     await handleStageStart(buttonId, statusId, startFunction);
                 }
             }
@@ -217,7 +316,7 @@
 
         // Stage 1: Requirements Analysis
         function startRequirementsAnalysis() {
-            handleStageStart('startRequirementsBtn', 'requirementsStatus', async () => {
+            handleStageStart('startRequirementsBtn', 'requirementsStatus', async (button, card) => {
                 try {
                     // Set generating state
                     workflowManager.setRequirementsGenerating(true);
@@ -238,12 +337,50 @@
                     // Don't save state - will be updated by polling
                     workflowManager.updateWorkflowUI();
 
+                    // Success micro-interactions
+                    try {
+                        if (button) {
+                            button.classList.remove('loading');
+                            button.classList.add('success');
+                        }
+                        if (card) {
+                            card.classList.remove('processing');
+                            card.classList.add('completing');
+                        }
+                        workflowManager.updateProgressIndicator();
+                    } catch (uiError) {
+                        console.warn('UI success update failed:', uiError);
+                    }
+
+                    // Show success message
                     alert('Requirements analysis submitted for review. Please check the review queue.');
+
+                    // Reset animations before redirect
+                    setTimeout(() => {
+                        try {
+                            if (button) button.classList.remove('success');
+                            if (card) card.classList.remove('completing');
+                        } catch (resetError) {
+                            console.warn('Error resetting UI states:', resetError);
+                        }
+                    }, 800);
+
                     window.location.href = `/reviews/queue.html?projectId=${encodeURIComponent(workflowManager.projectId)}`;
                 } catch (error) {
-                    // Clear generating state on error
-                    workflowManager.setRequirementsGenerating(false);
-                    workflowManager.updateWorkflowUI();
+                    // Error state - remove animations and reset
+                    try {
+                        if (button) {
+                            button.classList.remove('loading');
+                            button.disabled = false;
+                        }
+                        if (card) {
+                            card.classList.remove('processing');
+                        }
+                        workflowManager.setRequirementsGenerating(false);
+                        workflowManager.updateWorkflowUI();
+                    } catch (resetError) {
+                        console.warn('Error resetting UI states on error:', resetError);
+                    }
                     throw error; // Re-throw to be handled by handleStageStart
                 }
             });
@@ -251,85 +388,219 @@
 
         // Stage 2: Project Planning
         function startProjectPlanning() {
-            handleStageStart('startPlanningBtn', 'planningStatus', async () => {
-                // Set generating state
-                workflowManager.setPlanningGenerating(true);
-                workflowManager.updateWorkflowUI();
-
-                const canCreate = await window.APIClient.canCreateProjectPlan(workflowManager.state.requirementsAnalysisId);
-                if (!canCreate) {
-                    workflowManager.setPlanningGenerating(false); // Clear generating state
+            handleStageStart('startPlanningBtn', 'planningStatus', async (button, card) => {
+                try {
+                    // Set generating state
+                    workflowManager.setPlanningGenerating(true);
                     workflowManager.updateWorkflowUI();
-                    throw new Error('Cannot start project planning. Requirements must be approved first.');
+
+                    const canCreate = await window.APIClient.canCreateProjectPlan(workflowManager.state.requirementsAnalysisId);
+                    if (!canCreate) {
+                        workflowManager.setPlanningGenerating(false); // Clear generating state
+                        workflowManager.updateWorkflowUI();
+                        throw new Error('Cannot start project planning. Requirements must be approved first.');
+                    }
+
+                    const request = {
+                        requirementsAnalysisId: workflowManager.state.requirementsAnalysisId,
+                        preferences: {}
+                    };
+
+                    const response = await window.APIClient.createProjectPlan(request);
+                    workflowManager.setProjectPlanningId(response.planningId);
+                    workflowManager.setPlanningPending(true);
+                    workflowManager.setPlanningGenerating(false); // Clear generating state
+                    // Don't save state - will be updated by polling
+                    workflowManager.updateWorkflowUI();
+
+                    // Success micro-interactions
+                    try {
+                        if (button) {
+                            button.classList.remove('loading');
+                            button.classList.add('success');
+                        }
+                        if (card) {
+                            card.classList.remove('processing');
+                            card.classList.add('completing');
+                        }
+                        workflowManager.updateProgressIndicator();
+                    } catch (uiError) {
+                        console.warn('UI success update failed:', uiError);
+                    }
+
+                    // Show success message
+                    alert('Project planning submitted for review. Please check the review queue.');
+
+                    // Reset animations before redirect
+                    setTimeout(() => {
+                        try {
+                            if (button) button.classList.remove('success');
+                            if (card) card.classList.remove('completing');
+                        } catch (resetError) {
+                            console.warn('Error resetting UI states:', resetError);
+                        }
+                    }, 800);
+
+                    window.location.href = `/reviews/queue.html?projectId=${encodeURIComponent(workflowManager.projectId)}`;
+                } catch (error) {
+                    // Error state - remove animations and reset
+                    try {
+                        if (button) {
+                            button.classList.remove('loading');
+                            button.disabled = false;
+                        }
+                        if (card) {
+                            card.classList.remove('processing');
+                        }
+                        workflowManager.setPlanningGenerating(false);
+                        workflowManager.updateWorkflowUI();
+                    } catch (resetError) {
+                        console.warn('Error resetting UI states on error:', resetError);
+                    }
+                    throw error; // Re-throw to be handled by handleStageStart
                 }
-
-                const request = {
-                    requirementsAnalysisId: workflowManager.state.requirementsAnalysisId,
-                    preferences: {}
-                };
-
-                const response = await window.APIClient.createProjectPlan(request);
-                workflowManager.setProjectPlanningId(response.planningId);
-                workflowManager.setPlanningPending(true);
-                workflowManager.setPlanningGenerating(false); // Clear generating state
-                // Don't save state - will be updated by polling
-                workflowManager.updateWorkflowUI();
-
-                alert('Project planning submitted for review. Please check the review queue.');
-                window.location.href = `/reviews/queue.html?projectId=${encodeURIComponent(workflowManager.projectId)}`;
             });
         }
 
         // Stage 3: Story Generation - Simplified redirect per proposal
         function startStoryGeneration() {
-            handleStageStart('startStoriesBtn', 'storiesStatus', async () => {
-                // Set generating state
-                workflowManager.setStoriesGenerating(true);
-                workflowManager.updateWorkflowUI();
-
-                const canGenerate = await window.APIClient.canGenerateStories(workflowManager.state.projectPlanningId);
-                if (!canGenerate) {
-                    workflowManager.setStoriesGenerating(false); // Clear generating state
+            handleStageStart('startStoriesBtn', 'storiesStatus', async (button, card) => {
+                try {
+                    // Set generating state
+                    workflowManager.setStoriesGenerating(true);
                     workflowManager.updateWorkflowUI();
-                    throw new Error('Cannot generate stories. Project planning must be approved first.');
+
+                    const canGenerate = await window.APIClient.canGenerateStories(workflowManager.state.projectPlanningId);
+                    if (!canGenerate) {
+                        workflowManager.setStoriesGenerating(false); // Clear generating state
+                        workflowManager.updateWorkflowUI();
+                        throw new Error('Cannot generate stories. Project planning must be approved first.');
+                    }
+
+                    const request = {
+                        planningId: workflowManager.state.projectPlanningId
+                    };
+
+                    const response = await window.APIClient.generateStories(request);
+                    workflowManager.setStoryGenerationId(response.generationId);
+                    workflowManager.setStoriesPending(true);
+                    workflowManager.setStoriesGenerating(false); // Clear generating state
+                    // Don't save state - will be updated by polling
+                    workflowManager.updateWorkflowUI();
+
+                    // Success micro-interactions
+                    try {
+                        if (button) {
+                            button.classList.remove('loading');
+                            button.classList.add('success');
+                        }
+                        if (card) {
+                            card.classList.remove('processing');
+                            card.classList.add('completing');
+                        }
+                        workflowManager.updateProgressIndicator();
+                    } catch (uiError) {
+                        console.warn('UI success update failed:', uiError);
+                    }
+
+                    // Show success message
+                    workflowManager.showTemporaryMessage('User stories submitted for review. Check the review queue, then return here to continue.', 'info');
+
+                    // Reset animations before redirect
+                    setTimeout(() => {
+                        try {
+                            if (button) button.classList.remove('success');
+                            if (card) card.classList.remove('completing');
+                        } catch (resetError) {
+                            console.warn('Error resetting UI states:', resetError);
+                        }
+                    }, 800);
+
+                    window.location.href = `/reviews/queue.html?projectId=${encodeURIComponent(workflowManager.projectId)}`;
+                } catch (error) {
+                    // Error state - remove animations and reset
+                    try {
+                        if (button) {
+                            button.classList.remove('loading');
+                            button.disabled = false;
+                        }
+                        if (card) {
+                            card.classList.remove('processing');
+                        }
+                        workflowManager.setStoriesGenerating(false);
+                        workflowManager.updateWorkflowUI();
+                    } catch (resetError) {
+                        console.warn('Error resetting UI states on error:', resetError);
+                    }
+                    throw error; // Re-throw to be handled by handleStageStart
                 }
-
-                const request = {
-                    planningId: workflowManager.state.projectPlanningId
-                };
-
-                const response = await window.APIClient.generateStories(request);
-                workflowManager.setStoryGenerationId(response.generationId);
-                workflowManager.setStoriesPending(true);
-                workflowManager.setStoriesGenerating(false); // Clear generating state
-                // Don't save state - will be updated by polling
-                workflowManager.updateWorkflowUI();
-
-                workflowManager.showTemporaryMessage('User stories submitted for review. Check the review queue, then return here to continue.', 'info');
-                window.location.href = `/reviews/queue.html?projectId=${encodeURIComponent(workflowManager.projectId)}`;
             });
         }
 
         // Stage 4: Code Generation
         function startCodeGeneration() {
-            handleStageStart('startCodeBtn', 'codeStatus', async () => {
-                const canGenerate = await window.APIClient.canGenerateCode(workflowManager.state.storyGenerationId);
-                if (!canGenerate) {
-                    throw new Error('Cannot generate code. User stories must be approved first.');
+            handleStageStart('startCodeBtn', 'codeStatus', async (button, card) => {
+                try {
+                    const canGenerate = await window.APIClient.canGenerateCode(workflowManager.state.storyGenerationId);
+                    if (!canGenerate) {
+                        throw new Error('Cannot generate code. User stories must be approved first.');
+                    }
+
+                    const request = {
+                        storyGenerationId: workflowManager.state.storyGenerationId
+                    };
+
+                    const response = await window.APIClient.generateCode(request);
+                    workflowManager.setCodeGenerationId(response.generationId);
+                    // This is the final stage, so it doesn't go to pending review in the same way
+                    // Don't save state - will be updated by polling
+                    workflowManager.updateWorkflowUI();
+
+                    // Success micro-interactions for final stage
+                    try {
+                        if (button) {
+                            button.classList.remove('loading');
+                            button.classList.add('success');
+                        }
+                        if (card) {
+                            card.classList.remove('processing');
+                            card.classList.add('completing');
+                        }
+                        workflowManager.updateProgressIndicator();
+                    } catch (uiError) {
+                        console.warn('UI success update failed:', uiError);
+                    }
+
+                    // Show success message
+                    alert('Code generation has been completed!');
+
+                    // Longer celebration for final completion
+                    setTimeout(() => {
+                        try {
+                            if (button) button.classList.remove('success');
+                            if (card) card.classList.remove('completing');
+                        } catch (resetError) {
+                            console.warn('Error resetting UI states:', resetError);
+                        }
+                    }, 2000);
+
+                    // Optional: redirect or update UI to show completion
+                } catch (error) {
+                    // Error state - remove animations and reset
+                    try {
+                        if (button) {
+                            button.classList.remove('loading');
+                            button.disabled = false;
+                        }
+                        if (card) {
+                            card.classList.remove('processing');
+                        }
+                        workflowManager.updateWorkflowUI();
+                    } catch (resetError) {
+                        console.warn('Error resetting UI states on error:', resetError);
+                    }
+                    throw error; // Re-throw to be handled by handleStageStart
                 }
-
-                const request = {
-                    storyGenerationId: workflowManager.state.storyGenerationId
-                };
-
-                const response = await window.APIClient.generateCode(request);
-                workflowManager.setCodeGenerationId(response.generationId);
-                // This is the final stage, so it doesn't go to pending review in the same way
-                // Don't save state - will be updated by polling
-                workflowManager.updateWorkflowUI();
-
-                alert('Code generation has been completed!');
-                // Optional: redirect or update UI to show completion
             });
         }
 
@@ -366,9 +637,9 @@
             const progressDiv = document.getElementById('promptProgress');
             const progressText = document.getElementById('promptProgressText');
             const statusDiv = document.getElementById('promptStageStatus');
-            
+
             if (!manageBtn || !continueBtn) return;
-            
+
             if (!workflowManager.state.storiesApproved) {
                 // Stories not approved yet
                 manageBtn.disabled = true;
@@ -379,17 +650,17 @@
             } else {
                 // Stories approved - enable management and show completion view
                 const progress = workflowManager.getPromptCompletionProgress();
-                
+
                 manageBtn.disabled = false;
                 progressDiv.style.display = 'block';
-                
+
                 // Completion dashboard mode
                 if (progress.approved === progress.total && progress.total > 0) {
                     // Full completion view
                     manageBtn.textContent = 'View All Prompts';
                     statusDiv.textContent = 'Complete - Project Ready';
                     statusDiv.className = 'stage-status complete';
-                    
+
                     // Enhanced progress with summary stats
                     const summaryHtml = `
                         <div class="completion-summary">
@@ -418,22 +689,22 @@
                     manageBtn.textContent = 'Manage Stories & Prompts';
                     statusDiv.textContent = 'Ready';
                     statusDiv.className = 'stage-status ready';
-                    
+
                     // Standard progress text
                     if (progress.total > 0) {
                         const parts = [];
                         if (progress.approved > 0) parts.push(`${progress.approved} approved`);
                         if (progress.pending > 0) parts.push(`${progress.pending} pending`);
                         if (progress.notStarted > 0) parts.push(`${progress.notStarted} not started`);
-                        
-                        progressText.textContent = `${progress.approved}/${progress.total} prompts approved` + 
+
+                        progressText.textContent = `${progress.approved}/${progress.total} prompts approved` +
                             (parts.length > 1 ? ` (${parts.join(', ')})` : '');
-                        
+
                         // Progress bar
                         updateProgressBar(progress);
                     }
                 }
-                
+
                 // Enable continue button if all prompts approved
                 continueBtn.disabled = progress.approved < progress.total;
                 if (progress.approved === progress.total && progress.total > 0) {
@@ -465,10 +736,10 @@
                 `;
                 return progressBar; // Return for insertion in completion view
             }
-            
+
             const fill = document.getElementById('promptProgressFill');
             const percentText = document.getElementById('promptProgressPercent');
-            
+
             if (fill && percentText) {
                 fill.style.width = `${progress.percentComplete}%`;
                 percentText.textContent = `${progress.percentComplete}%`;
@@ -494,11 +765,11 @@
                     alert('No approved stories found. Complete Stage 3 first.');
                     return;
                 }
-                
+
                 // Get all approved stories and their prompts
                 const stories = await window.APIClient.getApprovedStories(workflowManager.state.storyGenerationId);
                 const approvedPrompts = [];
-                
+
                 for (let i = 0; i < stories.length; i++) {
                     const promptId = workflowManager.getStoryPromptId(i);
                     if (promptId && workflowManager.getStoryPromptStatus(i) === 'Approved') {
@@ -510,15 +781,15 @@
                         });
                     }
                 }
-                
+
                 if (approvedPrompts.length === 0) {
                     alert('No approved prompts available for download.');
                     return;
                 }
-                
+
                 // Create ZIP file content or multiple .md files
                 downloadPromptsAsZip(approvedPrompts);
-                
+
             } catch (error) {
                 alert('Error downloading results: ' + error.message);
             }
@@ -541,23 +812,18 @@
         }
 
         // Ensure buttons have proper event handlers
-        window.addEventListener('DOMContentLoaded', function() {
+        window.addEventListener('DOMContentLoaded', function () {
             // Add event listeners to Stage 4 buttons
             const viewPromptsBtn = document.getElementById('viewAllPromptsBtn');
             const downloadBtn = document.getElementById('downloadResultsBtn');
-            
+
             if (viewPromptsBtn) {
                 viewPromptsBtn.addEventListener('click', viewAllPrompts);
             }
-            
+
             if (downloadBtn) {
                 downloadBtn.addEventListener('click', downloadResults);
             }
-        });
-
-        // Cleanup on page unload
-        window.addEventListener('beforeunload', function() {
-            workflowManager.stopPolling();
         });
 
         // Stage 4: Initialize dynamic stats
@@ -690,4 +956,5 @@
         }
     </script>
 </body>
+
 </html>
