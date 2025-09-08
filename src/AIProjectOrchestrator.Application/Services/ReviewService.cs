@@ -21,7 +21,7 @@ namespace AIProjectOrchestrator.Application.Services
         private readonly IOptions<ReviewSettings> _settings;
         private readonly IServiceProvider _serviceProvider;
         private readonly IReviewRepository _reviewRepository;
-        
+
 
         public ReviewService(
             ILogger<ReviewService> logger,
@@ -37,7 +37,7 @@ namespace AIProjectOrchestrator.Application.Services
 
         public async Task<ReviewResponse> SubmitForReviewAsync(SubmitReviewRequest request, CancellationToken cancellationToken = default)
         {
-            _logger.LogDebug("Submitting review for service {ServiceName} with correlation ID {CorrelationId}", 
+            _logger.LogDebug("Submitting review for service {ServiceName} with correlation ID {CorrelationId}",
                 request.ServiceName, request.CorrelationId);
 
             // Validate request
@@ -73,7 +73,7 @@ namespace AIProjectOrchestrator.Application.Services
 
             // Create review submission
             var reviewId = Guid.NewGuid();
-            
+
             // Create the database entity
             var reviewEntity = new Review
             {
@@ -110,7 +110,7 @@ namespace AIProjectOrchestrator.Application.Services
             // Save to database
             await _reviewRepository.AddAsync(reviewEntity, cancellationToken);
 
-            _logger.LogInformation("Review {ReviewId} submitted successfully for service {ServiceName} in pipeline stage {PipelineStage}", 
+            _logger.LogInformation("Review {ReviewId} submitted successfully for service {ServiceName} in pipeline stage {PipelineStage}",
                 reviewId, request.ServiceName, request.PipelineStage);
 
             return new ReviewResponse
@@ -130,7 +130,7 @@ namespace AIProjectOrchestrator.Application.Services
             if (reviewEntity != null)
             {
                 // Check if review has expired
-                if (reviewEntity.Status == ReviewStatus.Pending && 
+                if (reviewEntity.Status == ReviewStatus.Pending &&
                     DateTime.UtcNow.Subtract(reviewEntity.CreatedDate).TotalHours > _settings.Value.ReviewTimeoutHours)
                 {
                     reviewEntity.Status = ReviewStatus.Expired;
@@ -190,7 +190,7 @@ namespace AIProjectOrchestrator.Application.Services
             reviewEntity.Status = ReviewStatus.Approved;
             reviewEntity.UpdatedDate = DateTime.UtcNow;
             reviewEntity.Feedback = decision?.Feedback ?? string.Empty;
-            
+
             await _reviewRepository.UpdateAsync(reviewEntity, cancellationToken);
 
             _logger.LogInformation("Review {ReviewId} approved successfully", reviewId);
@@ -215,7 +215,7 @@ namespace AIProjectOrchestrator.Application.Services
                 },
                 Metadata = new Dictionary<string, object>() // This would need to be stored in the database
             };
-            
+
             await NotifyReviewApprovedAsync(reviewId, reviewSubmission, cancellationToken);
 
             return new ReviewResponse
@@ -265,7 +265,7 @@ namespace AIProjectOrchestrator.Application.Services
             reviewEntity.Status = ReviewStatus.Rejected;
             reviewEntity.UpdatedDate = DateTime.UtcNow;
             reviewEntity.Feedback = decision.Feedback ?? string.Empty;
-            
+
             await _reviewRepository.UpdateAsync(reviewEntity, cancellationToken);
 
             _logger.LogInformation("Review {ReviewId} rejected successfully", reviewId);
@@ -291,7 +291,7 @@ namespace AIProjectOrchestrator.Application.Services
             foreach (var reviewEntity in reviewEntities)
             {
                 // Check if review has expired
-                if (reviewEntity.Status == ReviewStatus.Pending && 
+                if (reviewEntity.Status == ReviewStatus.Pending &&
                     now.Subtract(reviewEntity.CreatedDate).TotalHours <= timeoutHours)
                 {
                     pendingReviews.Add(new ReviewSubmission
@@ -340,7 +340,7 @@ namespace AIProjectOrchestrator.Application.Services
             foreach (var reviewEntity in reviewEntities)
             {
                 // Check if review has expired
-                if (reviewEntity.Status == ReviewStatus.Pending && 
+                if (reviewEntity.Status == ReviewStatus.Pending &&
                     now.Subtract(reviewEntity.CreatedDate).TotalHours > timeoutHours)
                 {
                     reviewEntity.Status = ReviewStatus.Expired;
@@ -357,16 +357,16 @@ namespace AIProjectOrchestrator.Application.Services
 
             return expiredCount;
         }
-        
+
         // Add to ReviewService (Application layer)
         public async Task<ReviewDashboardData> GetDashboardDataAsync(CancellationToken cancellationToken)
         {
             // Aggregate pending reviews from database
             // Cross-reference with requirements/planning/story services to build workflow status
             // Return structured data for dashboard consumption
-            
+
             var pendingReviews = await GetPendingReviewsAsync(cancellationToken);
-            
+
             var dashboardData = new ReviewDashboardData
             {
                 PendingReviews = pendingReviews.Select(r => new PendingReviewItem
@@ -390,12 +390,12 @@ namespace AIProjectOrchestrator.Application.Services
             // Track complete workflow status across all services
             // Requirements status, Planning status, Stories status
             // Return current stage and next required action
-            
+
             // This is a placeholder implementation
             // In a real implementation, we would query the actual workflow status
             return null;
         }
-        
+
         public async Task NotifyReviewApprovedAsync(Guid reviewId, ReviewSubmission review, CancellationToken cancellationToken = default)
         {
             _logger.LogInformation("Review {ReviewId} approved, triggering workflow progression", reviewId);
@@ -464,14 +464,104 @@ namespace AIProjectOrchestrator.Application.Services
                 }
             }
         }
-        
+
         public async Task DeleteReviewsByProjectIdAsync(int projectId, CancellationToken cancellationToken = default)
         {
             _logger.LogDebug("Deleting reviews for project ID {ProjectId}", projectId);
-            
+
             var deletedCount = await _reviewRepository.DeleteReviewsByProjectIdAsync(projectId, cancellationToken);
-            
+
             _logger.LogInformation("Deleted {DeletedCount} reviews for project ID {ProjectId}", deletedCount, projectId);
+        }
+
+        public async Task<IEnumerable<PendingReviewWithProject>> GetPendingReviewsWithProjectAsync(CancellationToken cancellationToken = default)
+        {
+            _logger.LogDebug("Retrieving pending reviews with project info");
+
+            var reviewEntities = await _reviewRepository.GetPendingReviewsWithProjectAsync(cancellationToken);
+            var now = DateTime.UtcNow;
+            var timeoutHours = _settings.Value.ReviewTimeoutHours;
+            var pendingReviews = new List<PendingReviewWithProject>();
+
+            foreach (var reviewEntity in reviewEntities)
+            {
+                // Check if review has expired
+                if (reviewEntity.Status == ReviewStatus.Pending &&
+                    now.Subtract(reviewEntity.CreatedDate).TotalHours <= timeoutHours)
+                {
+                    var project = GetProjectFromReview(reviewEntity);
+                    if (project != null)
+                    {
+                        pendingReviews.Add(new PendingReviewWithProject
+                        {
+                            Id = reviewEntity.ReviewId,
+                            ServiceName = reviewEntity.ServiceName,
+                            Content = reviewEntity.Content,
+                            CorrelationId = string.Empty,
+                            PipelineStage = reviewEntity.PipelineStage,
+                            Status = reviewEntity.Status,
+                            SubmittedAt = reviewEntity.CreatedDate,
+                            ReviewedAt = reviewEntity.UpdatedDate,
+                            ProjectName = project.Name,
+                            ProjectDescription = project.Description,
+                            ProjectStage = reviewEntity.PipelineStage,
+                            ProjectCreatedDate = project.CreatedDate
+                        });
+                    }
+                }
+            }
+
+            _logger.LogInformation("Found {PendingReviewCount} pending reviews with project info", pendingReviews.Count);
+            return pendingReviews;
+        }
+
+        private Project? GetProjectFromReview(Review review)
+        {
+            if (review.RequirementsAnalysis?.Project != null) return review.RequirementsAnalysis.Project;
+            if (review.ProjectPlanning?.RequirementsAnalysis?.Project != null) return review.ProjectPlanning.RequirementsAnalysis.Project;
+            if (review.StoryGeneration?.ProjectPlanning?.RequirementsAnalysis?.Project != null) return review.StoryGeneration.ProjectPlanning.RequirementsAnalysis.Project;
+            if (review.PromptGeneration?.StoryGeneration?.ProjectPlanning?.RequirementsAnalysis?.Project != null) return review.PromptGeneration.StoryGeneration.ProjectPlanning.RequirementsAnalysis.Project;
+            return null;
+        }
+
+        public async Task<ReviewResponse> DeleteReviewAsync(Guid reviewId, CancellationToken cancellationToken = default)
+        {
+            _logger.LogDebug("Deleting review {ReviewId}", reviewId);
+
+            var reviewEntity = await _reviewRepository.GetReviewWithWorkflowAsync(reviewId, cancellationToken);
+            if (reviewEntity == null)
+            {
+                _logger.LogWarning("Review {ReviewId} not found", reviewId);
+                throw new InvalidOperationException($"Review {reviewId} not found");
+            }
+
+            // Check if review is in a valid state for deletion
+            if (reviewEntity.Status != ReviewStatus.Pending)
+            {
+                _logger.LogWarning("Review {ReviewId} is not in pending state. Current status: {Status}", reviewId, reviewEntity.Status);
+                throw new InvalidOperationException($"Review is not in pending state. Current status: {reviewEntity.Status}");
+            }
+
+            // Check if review has expired
+            if (DateTime.UtcNow.Subtract(reviewEntity.CreatedDate).TotalHours > _settings.Value.ReviewTimeoutHours)
+            {
+                reviewEntity.Status = ReviewStatus.Expired;
+                reviewEntity.UpdatedDate = DateTime.UtcNow;
+                await _reviewRepository.UpdateAsync(reviewEntity, cancellationToken);
+                _logger.LogInformation("Review {ReviewId} has expired and cannot be deleted", reviewId);
+                throw new InvalidOperationException("Review has expired and cannot be deleted");
+            }
+
+            await _reviewRepository.DeleteReviewWithCascadesAsync(reviewEntity, cancellationToken);
+            _logger.LogInformation("Review {ReviewId} deleted successfully with cascades", reviewId);
+
+            return new ReviewResponse
+            {
+                ReviewId = reviewEntity.ReviewId,
+                Status = ReviewStatus.Approved, // Use existing status or extend enum
+                SubmittedAt = reviewEntity.CreatedDate,
+                Message = "Review deleted successfully"
+            };
         }
     }
 }

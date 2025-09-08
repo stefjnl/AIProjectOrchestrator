@@ -54,48 +54,120 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
                 .Where(r => r.PipelineStage == pipelineStage)
                 .ToListAsync(cancellationToken);
         }
-        
+
         public async Task<int> DeleteReviewsByProjectIdAsync(int projectId, CancellationToken cancellationToken = default)
         {
             // Delete reviews associated with RequirementsAnalysis entities for the project
             var requirementsAnalysisReviews = await _context.Reviews
                 .Where(r => r.RequirementsAnalysis != null && r.RequirementsAnalysis.ProjectId == projectId)
                 .ToListAsync(cancellationToken);
-            
+
             // Delete reviews associated with ProjectPlanning entities for the project
             // We need to join through RequirementsAnalysis to get to ProjectPlanning
             var projectPlanningReviews = await _context.Reviews
                 .Where(r => r.ProjectPlanning != null && r.ProjectPlanning.RequirementsAnalysis.ProjectId == projectId)
                 .ToListAsync(cancellationToken);
-            
+
             // Delete reviews associated with StoryGeneration entities for the project
             // We need to join through RequirementsAnalysis -> ProjectPlanning to get to StoryGeneration
             var storyGenerationReviews = await _context.Reviews
                 .Where(r => r.StoryGeneration != null && r.StoryGeneration.ProjectPlanning.RequirementsAnalysis.ProjectId == projectId)
                 .ToListAsync(cancellationToken);
-            
+
             // Delete reviews associated with PromptGeneration entities for the project
             // We need to join through RequirementsAnalysis -> ProjectPlanning -> StoryGeneration to get to PromptGeneration
             var promptGenerationReviews = await _context.Reviews
                 .Where(r => r.PromptGeneration != null && r.PromptGeneration.StoryGeneration.ProjectPlanning.RequirementsAnalysis.ProjectId == projectId)
                 .ToListAsync(cancellationToken);
-            
+
             // Combine all reviews to delete
             var allReviewsToDelete = new List<Review>();
             allReviewsToDelete.AddRange(requirementsAnalysisReviews);
             allReviewsToDelete.AddRange(projectPlanningReviews);
             allReviewsToDelete.AddRange(storyGenerationReviews);
             allReviewsToDelete.AddRange(promptGenerationReviews);
-            
+
             // Remove duplicates if any
             var uniqueReviewsToDelete = allReviewsToDelete.Distinct().ToList();
-            
+
             _context.Reviews.RemoveRange(uniqueReviewsToDelete);
-            
+
             // Save changes to ensure the reviews are deleted
             await _context.SaveChangesAsync(cancellationToken);
-            
+
             return uniqueReviewsToDelete.Count;
+        }
+
+        public async Task<IEnumerable<Review>> GetPendingReviewsWithProjectAsync(CancellationToken cancellationToken = default)
+        {
+            return await _context.Reviews
+                .Where(r => r.Status == ReviewStatus.Pending)
+                .Include(r => r.RequirementsAnalysis).ThenInclude(ra => ra.Project)
+                .Include(r => r.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
+                .Include(r => r.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
+                .Include(r => r.PromptGeneration).ThenInclude(pg => pg.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<Review?> GetReviewWithWorkflowAsync(Guid reviewId, CancellationToken cancellationToken = default)
+        {
+            return await _context.Reviews
+                .Include(r => r.RequirementsAnalysis)
+                .Include(r => r.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis)
+                .Include(r => r.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis)
+                .Include(r => r.PromptGeneration).ThenInclude(pg => pg.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis)
+                .FirstOrDefaultAsync(r => r.ReviewId == reviewId, cancellationToken);
+        }
+
+        public async Task<int> DeleteReviewWithCascadesAsync(Review review, CancellationToken cancellationToken = default)
+        {
+            // Cascade delete linked workflow entities (not Project itself)
+            if (review.RequirementsAnalysis != null)
+            {
+                _context.RequirementsAnalyses.Remove(review.RequirementsAnalysis);
+            }
+
+            if (review.ProjectPlanning != null)
+            {
+                if (review.ProjectPlanning.RequirementsAnalysis != null)
+                {
+                    _context.RequirementsAnalyses.Remove(review.ProjectPlanning.RequirementsAnalysis);
+                }
+                _context.ProjectPlannings.Remove(review.ProjectPlanning);
+            }
+
+            if (review.StoryGeneration != null)
+            {
+                if (review.StoryGeneration.ProjectPlanning != null)
+                {
+                    if (review.StoryGeneration.ProjectPlanning.RequirementsAnalysis != null)
+                    {
+                        _context.RequirementsAnalyses.Remove(review.StoryGeneration.ProjectPlanning.RequirementsAnalysis);
+                    }
+                    _context.ProjectPlannings.Remove(review.StoryGeneration.ProjectPlanning);
+                }
+                _context.StoryGenerations.Remove(review.StoryGeneration);
+            }
+
+            if (review.PromptGeneration != null)
+            {
+                if (review.PromptGeneration.StoryGeneration != null)
+                {
+                    if (review.PromptGeneration.StoryGeneration.ProjectPlanning != null)
+                    {
+                        if (review.PromptGeneration.StoryGeneration.ProjectPlanning.RequirementsAnalysis != null)
+                        {
+                            _context.RequirementsAnalyses.Remove(review.PromptGeneration.StoryGeneration.ProjectPlanning.RequirementsAnalysis);
+                        }
+                        _context.ProjectPlannings.Remove(review.PromptGeneration.StoryGeneration.ProjectPlanning);
+                    }
+                    _context.StoryGenerations.Remove(review.PromptGeneration.StoryGeneration);
+                }
+                _context.PromptGenerations.Remove(review.PromptGeneration);
+            }
+
+            _context.Reviews.Remove(review);
+            return await _context.SaveChangesAsync(cancellationToken);
         }
     }
 }

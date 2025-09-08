@@ -6,6 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stories & Prompts Management - AI Orchestrator</title>
     <link rel="stylesheet" href="/css/styles.css">
+    <!-- Markdown support libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
+    <script src="/js/markdown-utils.js"></script>
 </head>
 
 <body>
@@ -61,7 +65,9 @@
                 const project = await window.APIClient.getProject(projectId);
                 workflowManager.recordApiSuccess();
                 document.getElementById('projectTitle').textContent = project.name;
-                document.getElementById('projectDescription').textContent = project.description;
+                const descriptionEl = document.getElementById('projectDescription');
+                descriptionEl.innerHTML = renderMarkdownToHTML(project.description);
+                setTimeout(() => initTruncatedDescription(descriptionEl, 200), 0); // Delay for DOM, longer for header
 
                 // Load and render stories
                 await loadAndRenderStories();
@@ -826,16 +832,27 @@
                         // If we found a prompt ID for this story, update the UI
                         if (storyPrompt && storyPrompt.promptId) {
                             clearInterval(fastPollInterval);
+                            // Reset the button state before reloading stories
+                            generateButton.disabled = false;
+                            generateButton.innerHTML = 'Generate Prompt';
                             // Reload the stories to update the UI
                             await loadAndRenderStories();
                         }
 
                         // Stop fast polling after max attempts or if we've detected the prompt
                         if (fastPollCount >= maxFastPolls || (storyPrompt && storyPrompt.promptId)) {
+                            // Make sure button state is reset if we're stopping polling
+                            if (!(storyPrompt && storyPrompt.promptId)) {
+                                generateButton.disabled = false;
+                                generateButton.innerHTML = originalText;
+                            }
                             clearInterval(fastPollInterval);
                         }
                     } catch (error) {
                         console.error('Error during fast polling:', error);
+                        // Reset button state on error during polling
+                        generateButton.disabled = false;
+                        generateButton.innerHTML = originalText;
                         clearInterval(fastPollInterval);
                     }
                 }, 5000); // Poll every 5 seconds for faster updates

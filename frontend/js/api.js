@@ -135,6 +135,10 @@ window.APIClient = {
         return this.post(`/review/${reviewId}/reject`, { feedback });
     },
 
+    async deleteReview(reviewId) {
+        return this._request('DELETE', `/review/${reviewId}`);
+    },
+
     // Phase 4: Prompt Generation API methods
     async generatePrompt(request) {
         return await this.post('/PromptGeneration/generate', request);
