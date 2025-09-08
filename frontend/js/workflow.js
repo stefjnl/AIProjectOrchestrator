@@ -48,42 +48,42 @@ class WorkflowManager {
         // Sync data when returning from stories page
         const urlParams = new URLSearchParams(window.location.search);
         const fromStories = urlParams.get('fromStories');
-        
+
         if (fromStories === 'true') {
             // User returned from stories page - refresh all status
             await this.refreshState();
             this.updateWorkflowUI();
-            
+
             // Clean URL without reloading
             const cleanUrl = window.location.pathname + '?projectId=' + this.projectId;
             window.history.replaceState({}, document.title, cleanUrl);
-            
+
             // Show success message if appropriate
             this.showReturnMessage();
         }
     }
-    
+
     showReturnMessage() {
         const approvedPrompts = this.state.storyPrompts?.filter(sp => sp.approved).length || 0;
         const totalStories = this.state.approvedStories?.length || 0;
-        
+
         if (approvedPrompts > 0) {
-            const message = totalStories === approvedPrompts 
+            const message = totalStories === approvedPrompts
                 ? `All ${totalStories} prompts are approved! You can now continue to code generation.`
                 : `${approvedPrompts} of ${totalStories} prompts approved. Continue managing prompts or generate more.`;
-            
+
             this.showTemporaryMessage(message, 'success');
         }
     }
-    
+
     showTemporaryMessage(message, type = 'info') {
         // Create temporary notification
         const notification = document.createElement('div');
         notification.className = `temp-notification ${type}`;
         notification.textContent = message;
-        
+
         document.body.appendChild(notification);
-        
+
         // Auto-remove after 5 seconds
         setTimeout(() => {
             if (notification.parentNode) {
@@ -91,21 +91,21 @@ class WorkflowManager {
             }
         }, 5000);
     }
-    
+
     // Enhanced progress tracking
     getPromptCompletionProgress() {
         const totalStories = this.state.approvedStories?.length || 0;
         const storyPrompts = this.state.storyPrompts || [];
-        
+
         const approved = storyPrompts.filter(sp => sp.approved).length;
         const pending = storyPrompts.filter(sp => sp.pending).length;
         const total = storyPrompts.length;
         const generated = storyPrompts.filter(sp => sp.promptId).length;
         const percentage = total > 0 ? (approved / total) * 100 : 0;
-        
+
         return { approved, pending, total, generated, percentage };
     }
-    
+
     // API-driven state loading
     async loadStateFromAPI() {
         try {
@@ -115,31 +115,31 @@ class WorkflowManager {
                 apiFailures: 0,
                 enableDynamicStage4: true,
                 enableStoriesMVP: true,
-                
+
                 // Requirements Analysis
                 requirementsAnalysisId: response.requirementsAnalysis?.analysisId || null,
                 requirementsApproved: response.requirementsAnalysis?.isApproved || false,
                 requirementsPending: response.requirementsAnalysis?.isPending || false,
-                
+
                 // Project Planning
                 projectPlanningId: response.projectPlanning?.planningId || null,
                 planningApproved: response.projectPlanning?.isApproved || false,
                 planningPending: response.projectPlanning?.isPending || false,
-                
+
                 // Story Generation
                 storyGenerationId: response.storyGeneration?.generationId || null,
                 storiesApproved: response.storyGeneration?.isApproved || false,
                 storiesPending: response.storyGeneration?.isPending || false,
                 storyCount: response.storyGeneration?.storyCount || 0,
-                
+
                 // Prompt Generation
                 storyPrompts: response.promptGeneration?.storyPrompts || [],
                 promptCompletionPercentage: response.promptGeneration?.completionPercentage || 0,
-                
+
                 // Cache for UI
                 approvedStories: [] // Will be loaded separately if needed
             };
-            
+
             this.recordApiSuccess();
             return this.state;
         } catch (error) {
@@ -148,12 +148,12 @@ class WorkflowManager {
             throw error;
         }
     }
-    
+
     async refreshState() {
         await this.loadStateFromAPI();
         this.updateWorkflowUI();
     }
-    
+
     // Poll every 10 seconds for state updates
     startPolling() {
         if (this.pollingInterval) {
@@ -163,26 +163,26 @@ class WorkflowManager {
             this.refreshState().catch(console.error);
         }, 10000);
     }
-    
+
     stopPolling() {
         if (this.pollingInterval) {
             clearInterval(this.pollingInterval);
             this.pollingInterval = null;
         }
     }
-    
+
     checkForNewApprovals() {
         const currentProgress = this.getPromptCompletionProgress();
         const lastProgress = this.state.lastKnownProgress || { completed: 0 };
-        
+
         if (currentProgress.completed > lastProgress.completed) {
             const newApprovals = currentProgress.completed - lastProgress.completed;
             this.showTemporaryMessage(
-                `${newApprovals} new prompt${newApprovals > 1 ? 's' : ''} approved!`, 
+                `${newApprovals} new prompt${newApprovals > 1 ? 's' : ''} approved!`,
                 'success'
             );
         }
-        
+
         this.state.lastKnownProgress = currentProgress;
         // No saveState - state updated on next refresh
     }
@@ -411,78 +411,123 @@ class WorkflowManager {
         if (!this.state.storyGenerationId || !this.state.storiesApproved) {
             return 'Not Started';
         }
-        
+
         const storyPrompts = this.state.storyPrompts || [];
         const promptCount = storyPrompts.length;
-        
+
         if (promptCount === 0) {
             return 'Ready'; // Can start generating prompts
         }
-        
+
         const approvedCount = storyPrompts.filter(sp => sp.approved).length;
         const pendingCount = storyPrompts.filter(sp => sp.pending).length;
-        
+
         if (pendingCount > 0) {
             return `Pending Review (${pendingCount})`;
         }
-        
+
         if (approvedCount === promptCount) {
             return `Complete (${approvedCount} prompts)`;
         }
-        
+
         return `In Progress (${approvedCount}/${promptCount} approved)`;
     }
 
-    // Update UI to show proper Stage 4 status
+    /**
+     * Updates Stage 4 (Prompt Generation) UI with enterprise styling
+     * This method handles the special case of Stage 4 which has more complex status logic
+     * and different visual requirements compared to other workflow stages.
+     *
+     * Key features of this enterprise implementation:
+     * - Dynamic status calculation based on individual story approvals
+     * - Applies appropriate status-badge classes for visual consistency
+     * - Manages button states (viewPromptsBtn, downloadBtn) with enterprise btn-primary/secondary styling
+     * - Handles complete vs. partial completion states
+     * - Preserves all existing Stage 4 functionality including API integration and event handling
+     *
+     * Status progression: Not Started → Waiting → Ready → Complete
+     */
     updateStage4UI() {
         const stage4Status = document.getElementById('promptStageStatus');
         const viewPromptsBtn = document.getElementById('viewAllPromptsBtn');
         const downloadBtn = document.getElementById('downloadResultsBtn');
-        
+
         if (!stage4Status) return;
-        
+
+        // Status class mapping for Stage 4 specific states
+        // These map to the CSS status-badge classes defined in the enterprise UI redesign
+        const statusClassMap = {
+            'Not Started': 'status-not-started',
+            'Ready': 'status-ready',
+            'Waiting': 'status-waiting',
+            'Complete': 'status-complete',
+            'Pending Review': 'status-pending-review'
+        };
+
         // Update status logic: "Not Started" when stories not individually approved
         if (!this.state.storiesApproved) {
             stage4Status.textContent = "Not Started";
-            stage4Status.className = "stage-status not-started";
-            
+            stage4Status.className = `status-badge ${statusClassMap['Not Started']}`;
+
             if (viewPromptsBtn) {
                 viewPromptsBtn.disabled = true;
+                viewPromptsBtn.classList.add('btn-primary');
             }
-            
+
             if (downloadBtn) {
                 downloadBtn.disabled = true;
+                downloadBtn.classList.add('btn-secondary');
             }
             return;
         }
-        
-        // Check if individual stories are approved
+
+        // Check if individual stories are approved for prompt generation eligibility
         const storyPrompts = this.state.storyPrompts || [];
         const individualStoriesApproved = storyPrompts.filter(sp => sp.approved).length;
-        
+        const totalStories = storyPrompts.length;
+        let statusText = '';
+        let statusClass = '';
+
         if (individualStoriesApproved > 0) {
-            stage4Status.textContent = "Ready";
-            stage4Status.className = "stage-status ready";
-            
+            if (individualStoriesApproved === totalStories && totalStories > 0) {
+                // All prompts approved - stage complete
+                statusText = "Complete";
+                statusClass = statusClassMap['Complete'];
+            } else {
+                // Some prompts ready for generation/management
+                statusText = "Ready";
+                statusClass = statusClassMap['Ready'];
+            }
+
             if (viewPromptsBtn) {
                 viewPromptsBtn.disabled = false;
+                viewPromptsBtn.classList.add('btn-primary');
             }
-            
+
             if (downloadBtn) {
                 downloadBtn.disabled = false;
+                downloadBtn.classList.add('btn-secondary');
             }
         } else {
-            stage4Status.textContent = "Waiting";
-            stage4Status.className = "stage-status waiting";
-            
+            // Stories approved but individual story approvals pending
+            statusText = "Waiting";
+            statusClass = statusClassMap['Waiting'];
+
             if (viewPromptsBtn) {
                 viewPromptsBtn.disabled = false;
+                viewPromptsBtn.classList.add('btn-primary');
             }
-            
+
             if (downloadBtn) {
                 downloadBtn.disabled = true;
+                downloadBtn.classList.add('btn-secondary');
             }
         }
+
+        // Apply new status badge class for Stage 4 with enterprise styling
+        // This ensures visual consistency across all workflow stages
+        stage4Status.textContent = statusText;
+        stage4Status.className = `status-badge ${statusClass}`;
     }
 
     // Get story prompt ID by index
@@ -491,8 +536,33 @@ class WorkflowManager {
         return storyPrompt ? storyPrompt.promptId : null;
     }
 
+    /**
+     * Updates the workflow UI with current state, applying enterprise UI status badges
+     * This method is part of the Phase 1 Enterprise UI Redesign implementation.
+     * Key changes:
+     * - Maps workflow states to new CSS status-badge classes (status-not-started, status-approved, etc.)
+     * - Preserves all existing functionality for state management, API calls, and event handling
+     * - Applies btn-primary class to enabled action buttons
+     * - Handles generating states with appropriate visual feedback
+     * - Maintains backward compatibility with existing logic
+     */
     updateWorkflowUI() {
         if (this.isWorkflowPage) {
+            // Status class mapping for new enterprise UI badges
+            // This mapping ensures consistent visual representation of workflow states
+            const statusClassMap = {
+                'Not Started': 'status-not-started',
+                'Approved': 'status-approved',
+                'Pending Review': 'status-pending-review',
+                'Generated, Awaiting Approval': 'status-pending-review',
+                'Generating...': 'status-generating',
+                'Processing': 'status-in-progress',
+                'Ready': 'status-ready',
+                'Waiting': 'status-waiting',
+                'Complete': 'status-complete',
+                'Generated': 'status-approved' // Treat generated as approved for visual consistency
+            };
+
             const updateStageUI = (stageName, idKey, approvedKey, pendingKey, buttonId, statusId, prevStageApprovedKey = null) => {
                 const statusElement = document.getElementById(statusId);
                 const buttonElement = document.getElementById(buttonId);
@@ -504,42 +574,50 @@ class WorkflowManager {
 
                 // Check if this stage is currently being generated
                 const generatingKey = `${stageName}Generating`;
+                let statusText = '';
+                let statusClass = '';
+
                 if (this.state[generatingKey]) {
-                    // Preserve the generating state
-                    statusElement.textContent = 'Generating...';
-                    statusElement.className = 'stage-status generating';
-                    buttonElement.disabled = true;
-                    return;
-                }
-
-                // Reset button state
-                buttonElement.disabled = true;
-                buttonElement.classList.remove('btn-primary', 'btn-success', 'btn-warning', 'btn-danger');
-
-                if (this.state[approvedKey]) {
-                    statusElement.textContent = 'Approved';
-                    statusElement.className = 'stage-status approved';
-                    buttonElement.disabled = true;
-                } else if (this.state[pendingKey]) {
-                    statusElement.textContent = 'Pending Review';
-                    statusElement.className = 'stage-status pending-review';
-                    buttonElement.disabled = true;
-                } else if (this.state[idKey]) {
-                    statusElement.textContent = 'Generated, Awaiting Approval';
-                    statusElement.className = 'stage-status generated';
+                    // Preserve the generating state with pulse animation
+                    statusText = 'Generating...';
+                    statusClass = statusClassMap['Generating...'] || 'status-in-progress';
                     buttonElement.disabled = true;
                 } else {
-                    statusElement.textContent = 'Not Started';
-                    statusElement.className = 'stage-status not-started';
+                    // Reset button state to use new enterprise styling
+                    buttonElement.disabled = true;
+                    buttonElement.classList.remove('btn-primary', 'btn-success', 'btn-warning', 'btn-danger');
 
-                    // Enable button if prerequisites are met and not already approved/pending/generated
-                    if (prevStageApprovedKey === null || this.state[prevStageApprovedKey]) {
-                        buttonElement.disabled = false;
-                        buttonElement.classList.add('btn-primary');
+                    if (this.state[approvedKey]) {
+                        statusText = 'Approved';
+                        statusClass = statusClassMap['Approved'] || 'status-approved';
+                        buttonElement.disabled = true;
+                    } else if (this.state[pendingKey]) {
+                        statusText = 'Pending Review';
+                        statusClass = statusClassMap['Pending Review'] || 'status-pending-review';
+                        buttonElement.disabled = true;
+                    } else if (this.state[idKey]) {
+                        statusText = 'Generated, Awaiting Approval';
+                        statusClass = statusClassMap['Generated, Awaiting Approval'] || 'status-pending-review';
+                        buttonElement.disabled = true;
+                    } else {
+                        statusText = 'Not Started';
+                        statusClass = statusClassMap['Not Started'] || 'status-not-started';
+
+                        // Enable button if prerequisites are met and not already approved/pending/generated
+                        if (prevStageApprovedKey === null || this.state[prevStageApprovedKey]) {
+                            buttonElement.disabled = false;
+                            buttonElement.classList.add('btn-primary');
+                        }
                     }
                 }
+
+                // Apply new status badge classes for enterprise UI
+                // This replaces the old 'stage-status' classes with modern badge styling
+                statusElement.textContent = statusText;
+                statusElement.className = `status-badge ${statusClass}`;
             };
 
+            // Update each workflow stage with new visual styling
             updateStageUI('requirements', 'requirementsAnalysisId', 'requirementsApproved', 'requirementsPending', 'startRequirementsBtn', 'requirementsStatus');
             updateStageUI('planning', 'projectPlanningId', 'planningApproved', 'planningPending', 'startPlanningBtn', 'planningStatus', 'requirementsApproved');
             updateStageUI('stories', 'storyGenerationId', 'storiesApproved', 'storiesPending', 'startStoriesBtn', 'storiesStatus', 'planningApproved');
@@ -548,14 +626,18 @@ class WorkflowManager {
             // Phase 4: Update story prompt interface
             this.updateStoryPromptUI();
 
-            // Stage 4: Simplified prompt management
+            // Stage 4: Simplified prompt management with enterprise styling
             this.updateStage4UI();
         } else {
             console.log('updateWorkflowUI called on non-workflow page. Skipping UI updates.');
         }
+
+        // Always update progress indicator after workflow UI update
+        // Note: This enhanced version adds progress indicator synchronization
+        this.updateProgressIndicator();
     }
 
-        async checkApprovedStatus() {
+    async checkApprovedStatus() {
         // Now handled via polling and API refresh - no individual checks needed
         await this.refreshState();
     }
@@ -567,17 +649,144 @@ class WorkflowManager {
         notification.className = 'notification-toast';
         notification.textContent = 'Stories approved! Redirecting to prompt management...';
         document.body.appendChild(notification);
-        
+
         // Auto-remove after 2 seconds
         setTimeout(() => {
             if (notification.parentNode) {
                 notification.parentNode.removeChild(notification);
             }
         }, 2000);
-        
+
         // Redirect with source parameter
         setTimeout(() => {
             window.location.href = `stories-overview.html?projectId=${this.projectId}&source=workflow`;
         }, 2000);
     }
+
+    // Phase 2: Progress Indicator Methods - Add these to existing WorkflowManager class
+
+    /**
+     * Updates the progress indicator with current workflow completion status
+     * Handles milestone dot animations and progress bar fill/shimmer effects
+     * Called from updateWorkflowUI to synchronize visual state with data
+     */
+    updateProgressIndicator() {
+        const stages = ['requirements', 'planning', 'stories', 'prompts'];
+        let completedCount = 0;
+
+        stages.forEach((stage, index) => {
+            const milestone = document.getElementById(`milestone-${stage}`);
+            if (!milestone) return; // Skip if DOM element not found
+
+            const isCompleted = this.isStageCompleted(stage);
+            const isActive = this.isStageActive(stage);
+            const isPending = this.isStagePending(stage);
+
+            // Remove all state classes first
+            milestone.classList.remove('completed', 'active', 'pending');
+
+            if (isCompleted) {
+                milestone.classList.add('completed');
+                completedCount++;
+            } else if (isActive) {
+                milestone.classList.add('active');
+            } else if (isPending) {
+                milestone.classList.add('pending');
+            }
+        });
+
+        // Update progress fill and stats - with null checks for DOM elements
+        const percentage = Math.round((completedCount / stages.length) * 100);
+        const progressFill = document.getElementById('progressFill');
+        const progressPercentage = document.getElementById('progressPercentage');
+        const progressSteps = document.getElementById('progressSteps');
+
+        if (progressFill) {
+            progressFill.style.width = `${percentage}%`;
+        }
+        if (progressPercentage) {
+            progressPercentage.textContent = `${percentage}%`;
+        }
+        if (progressSteps) {
+            progressSteps.textContent = `${completedCount} of ${stages.length} stages completed`;
+        }
+    }
+
+    /**
+     * Determines if a specific workflow stage is completed
+     * @param {string} stage - Stage identifier: 'requirements', 'planning', 'stories', 'prompts'
+     * @returns {boolean} True if stage is completed/approved
+     */
+    isStageCompleted(stage) {
+        switch (stage) {
+            case 'requirements':
+                return this.state.requirementsApproved;
+            case 'planning':
+                return this.state.planningApproved;
+            case 'stories':
+                return this.state.storiesApproved;
+            case 'prompts':
+                // For prompts stage, completion means all individual story prompts are approved
+                const storyPrompts = this.state.storyPrompts || [];
+                const totalStories = storyPrompts.length;
+                const approvedPrompts = storyPrompts.filter(sp => sp.approved).length;
+                return totalStories > 0 && approvedPrompts === totalStories;
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Determines if a specific workflow stage is currently active/processing
+     * @param {string} stage - Stage identifier
+     * @returns {boolean} True if stage is pending review or currently generating
+     */
+    isStageActive(stage) {
+        // Return true if stage is currently being processed or pending review
+        switch (stage) {
+            case 'requirements':
+                return this.state.requirementsPending || this.state.requirementsGenerating;
+            case 'planning':
+                return this.state.planningPending || this.state.planningGenerating;
+            case 'stories':
+                return this.state.storiesPending || this.state.storiesGenerating;
+            case 'prompts':
+                // Check if any story prompt is pending review
+                const storyPrompts = this.state.storyPrompts || [];
+                return storyPrompts.some(sp => sp.pending);
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Determines if a specific workflow stage is pending (next in sequence but not active)
+     * @param {string} stage - Stage identifier
+     * @returns {boolean} True if this is the next stage to be processed
+     */
+    isStagePending(stage) {
+        // Calculate how many stages are completed
+        const completedStages = this.getCompletedStagesCount();
+        // Get the index of current stage in sequence
+        const stageIndex = ['requirements', 'planning', 'stories', 'prompts'].indexOf(stage);
+
+        // Stage is pending if it's the next one after completed stages and not currently active
+        return stageIndex === completedStages &&
+            !this.isStageActive(stage) &&
+            !this.isStageCompleted(stage);
+    }
+
+    /**
+     * Gets the total count of completed workflow stages
+     * @returns {number} Count of completed stages (0-4)
+     */
+    getCompletedStagesCount() {
+        let count = 0;
+        if (this.isStageCompleted('requirements')) count++;
+        if (this.isStageCompleted('planning')) count++;
+        if (this.isStageCompleted('stories')) count++;
+        if (this.isStageCompleted('prompts')) count++;
+        return count;
+    }
+
 }

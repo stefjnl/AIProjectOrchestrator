@@ -15,8 +15,10 @@
         </div>
         <a href="/index.html" class="back-link">&larr; Back to Home</a>
         <h1>Review Queue</h1>
-        <div id="reviewList">
-            <p class="no-reviews">Loading pending reviews...</p>
+        <div class="review-container">
+            <div id="reviewList">
+                <p class="no-reviews">Loading pending reviews...</p>
+            </div>
         </div>
     </div>
 
@@ -35,13 +37,16 @@
                 }
 
                 reviewList.innerHTML = reviews.map(review => `
-                    <div class="review-item" id="review-${review.id}">
-                        <h3>${review.serviceName} - ${review.pipelineStage}</h3>
+                    <div class="review-card" id="review-${review.id}" role="article" aria-label="Review item">
+                        <div class="review-header">
+                            <h3>${review.serviceName}</h3>
+                            <span class="pipeline-badge">${review.pipelineStage}</span>
+                        </div>
                         <div class="review-content">${review.content}</div>
                         <div class="review-actions">
-                            <button class="approve" onclick="approveReview('${review.id}')"
+                            <button class="btn-primary approve" onclick="approveReview('${review.id}')"
                                     id="approve-${review.id}">Approve</button>
-                            <button class="reject" onclick="rejectReview('${review.id}')"
+                            <button class="btn-secondary reject" onclick="rejectReview('${review.id}')"
                                     id="reject-${review.id}">Reject</button>
                         </div>
                     </div>

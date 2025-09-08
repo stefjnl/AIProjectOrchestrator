@@ -23,5 +23,8 @@ namespace AIProjectOrchestrator.Domain.Services
         
         // Method to handle workflow progression after review approval
         Task NotifyReviewApprovedAsync(Guid reviewId, ReviewSubmission review, CancellationToken cancellationToken = default);
+        
+        // Method to delete reviews by project ID for cascading deletion
+        Task DeleteReviewsByProjectIdAsync(int projectId, CancellationToken cancellationToken = default);
     }
 }

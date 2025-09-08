@@ -9,5 +9,6 @@ namespace AIProjectOrchestrator.Domain.Interfaces
         Task<IEnumerable<Review>> GetPendingReviewsAsync(CancellationToken cancellationToken = default);
         Task<IEnumerable<Review>> GetReviewsByServiceAsync(string serviceName, CancellationToken cancellationToken = default);
         Task<IEnumerable<Review>> GetReviewsByPipelineStageAsync(string pipelineStage, CancellationToken cancellationToken = default);
+        Task<int> DeleteReviewsByProjectIdAsync(int projectId, CancellationToken cancellationToken = default);
     }
 }

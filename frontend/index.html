@@ -19,8 +19,8 @@
             <a href="/reviews/queue.html"><button>Go To Review Queue</button></a>
         </div>
 
-        <div class="dashboard-overview">
-            <div class="overview-section">
+        <div class="dashboard-container">
+            <div class="overview-section status-card">
                 <h2>System Status</h2>
                 <div class="status-grid">
                     <div class="status-item">
@@ -77,13 +77,13 @@
 
             recentProjects.forEach(project => {
                 const projectItem = document.createElement('div');
-                projectItem.className = 'recent-project-item';
+                projectItem.className = 'recent-project-item recent-project-card';
                 projectItem.innerHTML = `
                     <div class="project-info">
                         <h3>${escapeHTML(project.name)}</h3>
                         <p>${escapeHTML(project.description)}</p>
                     </div>
-                    <a href="/projects/workflow.html?projectId=${project.id}" class="action-link">Continue Workflow</a>
+                    <a href="/projects/workflow.html?projectId=${project.id}" class="action-link btn-primary">Continue Workflow</a>
                 `;
                 recentList.appendChild(projectItem);
             });

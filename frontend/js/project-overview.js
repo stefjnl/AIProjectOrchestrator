@@ -122,7 +122,7 @@ class ProjectOverviewManager {
         try {
             const projectData = await this.apiClient.get(`/projects/${this.projectId}`);
             this.projectTitleEl.textContent = projectData.name || 'Project Overview';
-            
+
             // Update progress summary (placeholder)
             const status = await this.apiClient.get(`/review/workflow-status/${this.projectId}`);
             this.progressSummaryEl.innerHTML = `<span>Status: ${status.status || 'Unknown'}</span>`;
@@ -147,31 +147,31 @@ class ProjectOverviewManager {
                             <h4>Requirements Analysis</h4>
                             <div class="stage-status" id="pipeline-requirementsStatus">
                                 ${workflowStatus.requirementsAnalysis?.isApproved ? 'Approved' :
-                                  workflowStatus.requirementsAnalysis?.isPending ? 'Pending Review' :
-                                  workflowStatus.requirementsAnalysis?.analysisId ? 'Generated' : 'Not Started'}
+                    workflowStatus.requirementsAnalysis?.isPending ? 'Pending Review' :
+                        workflowStatus.requirementsAnalysis?.analysisId ? 'Generated' : 'Not Started'}
                             </div>
                         </div>
                         <div class="pipeline-stage">
                             <h4>Project Planning</h4>
                             <div class="stage-status" id="pipeline-planningStatus">
                                 ${workflowStatus.projectPlanning?.isApproved ? 'Approved' :
-                                  workflowStatus.projectPlanning?.isPending ? 'Pending Review' :
-                                  workflowStatus.projectPlanning?.planningId ? 'Generated' : 'Not Started'}
+                    workflowStatus.projectPlanning?.isPending ? 'Pending Review' :
+                        workflowStatus.projectPlanning?.planningId ? 'Generated' : 'Not Started'}
                             </div>
                         </div>
                         <div class="pipeline-stage">
                             <h4>User Stories</h4>
                             <div class="stage-status" id="pipeline-storiesStatus">
                                 ${workflowStatus.storyGeneration?.isApproved ? 'Approved' :
-                                  workflowStatus.storyGeneration?.isPending ? 'Pending Review' :
-                                  workflowStatus.storyGeneration?.generationId ? 'Generated' : 'Not Started'}
+                    workflowStatus.storyGeneration?.isPending ? 'Pending Review' :
+                        workflowStatus.storyGeneration?.generationId ? 'Generated' : 'Not Started'}
                             </div>
                         </div>
                         <div class="pipeline-stage">
                             <h4>Prompt Generation</h4>
                             <div class="stage-status" id="pipeline-promptStatus">
                                 ${workflowStatus.promptGeneration?.completionPercentage === 100 ? 'Complete' :
-                                  workflowStatus.promptGeneration?.storyPrompts?.length > 0 ? 'In Progress' : 'Ready'}
+                    workflowStatus.promptGeneration?.storyPrompts?.length > 0 ? 'In Progress' : 'Ready'}
                             </div>
                         </div>
                         <div class="pipeline-stage">
@@ -200,11 +200,11 @@ class ProjectOverviewManager {
 
     async loadRequirementsContent() {
         if (!this.apiClient) return '<p>API not available</p>';
-        
+
         try {
             // Get workflow status to get the requirements analysis ID
             const workflowStatus = await this.apiClient.getWorkflowStatus(this.projectId);
-            
+
             if (workflowStatus.requirementsAnalysis && workflowStatus.requirementsAnalysis.analysisId) {
                 // Get the detailed requirements content using the analysis ID
                 const requirementsData = await this.apiClient.getRequirements(workflowStatus.requirementsAnalysis.analysisId);
@@ -220,11 +220,11 @@ class ProjectOverviewManager {
 
     async loadPlanningContent() {
         if (!this.apiClient) return '<p>API not available</p>';
-        
+
         try {
             // Get workflow status to get the project planning ID
             const workflowStatus = await this.apiClient.getWorkflowStatus(this.projectId);
-            
+
             if (workflowStatus.projectPlanning && workflowStatus.projectPlanning.planningId) {
                 // Get the detailed planning content using the planning ID
                 const planningData = await this.apiClient.getProjectPlan(workflowStatus.projectPlanning.planningId);
@@ -240,11 +240,11 @@ class ProjectOverviewManager {
 
     async loadStoriesContent() {
         if (!this.apiClient) return '<p>API not available</p>';
-        
+
         try {
             // Get workflow status to get the story generation ID
             const workflowStatus = await this.apiClient.getWorkflowStatus(this.projectId);
-            
+
             if (workflowStatus.storyGeneration && workflowStatus.storyGeneration.generationId) {
                 // Get the stories using the generation ID
                 const storiesData = await this.apiClient.getStories(workflowStatus.storyGeneration.generationId);
@@ -281,13 +281,13 @@ class ProjectOverviewManager {
         // Expand/collapse functionality
         this.tabContentEl.addEventListener('click', (e) => {
             const target = e.target;
-            
+
             // Handle read more/less buttons
             if (target.classList.contains('read-more-btn')) {
                 const storyCard = target.closest('.story-card');
                 const fullContent = storyCard.querySelector('.full-content');
                 const preview = storyCard.querySelector('.preview');
-                
+
                 fullContent.classList.remove('hidden');
                 fullContent.classList.add('show');
                 preview.style.display = 'none';
@@ -298,7 +298,7 @@ class ProjectOverviewManager {
                 const storyCard = target.closest('.story-card');
                 const fullContent = storyCard.querySelector('.full-content');
                 const preview = storyCard.querySelector('.preview');
-                
+
                 fullContent.classList.remove('show');
                 fullContent.classList.add('hidden');
                 preview.style.display = 'block';
@@ -306,14 +306,14 @@ class ProjectOverviewManager {
                 target.classList.remove('read-less-btn');
                 target.classList.add('read-more-btn');
             }
-            
+
             // Handle edit button
             if (target.classList.contains('edit-btn')) {
                 const storyCard = target.closest('.story-card');
                 const editMode = storyCard.querySelector('.story-edit-mode');
                 const storyContent = storyCard.querySelector('.story-content');
                 const storyActions = storyCard.querySelector('.story-actions');
-                
+
                 // Toggle edit mode
                 if (editMode.classList.contains('active')) {
                     editMode.classList.remove('active');
@@ -327,48 +327,48 @@ class ProjectOverviewManager {
                     target.textContent = 'Cancel';
                 }
             }
-            
+
             // Handle approve button
             if (target.classList.contains('approve-btn')) {
                 const storyCard = target.closest('.story-card');
                 const storyIndex = storyCard.dataset.storyIndex;
                 const statusBadge = storyCard.querySelector('.status-badge');
-                
+
                 // Show loading state
                 target.innerHTML = '<span class="loading"></span>Approving...';
                 target.disabled = true;
-                
+
                 // Call API to approve story
                 this.approveStory(storyIndex, storyCard);
             }
-            
+
             // Handle reject button
             if (target.classList.contains('reject-btn')) {
                 const storyCard = target.closest('.story-card');
                 const storyIndex = storyCard.dataset.storyIndex;
                 const statusBadge = storyCard.querySelector('.status-badge');
-                
+
                 // Show loading state
                 target.innerHTML = '<span class="loading"></span>Rejecting...';
                 target.disabled = true;
-                
+
                 // Call API to reject story
                 this.rejectStory(storyIndex, storyCard);
             }
-            
+
             // Handle save changes button
             if (target.classList.contains('save-btn')) {
                 const storyCard = target.closest('.story-card');
                 const storyIndex = storyCard.dataset.storyIndex;
-                
+
                 // Show loading
                 target.innerHTML = '<span class="loading"></span>Saving...';
                 target.disabled = true;
-                
+
                 // Call API to update story
                 this.updateStory(storyIndex, storyCard);
             }
-            
+
             // Handle cancel button
             if (target.classList.contains('cancel-btn')) {
                 const storyCard = target.closest('.story-card');
@@ -376,18 +376,18 @@ class ProjectOverviewManager {
                 const storyContent = storyCard.querySelector('.story-content');
                 const storyActions = storyCard.querySelector('.story-actions');
                 const editBtn = storyCard.querySelector('.edit-btn');
-                
+
                 editMode.classList.remove('active');
                 storyContent.style.display = 'block';
                 storyActions.style.display = 'flex';
                 editBtn.textContent = 'Edit';
             }
-            
+
             // Handle generate prompt button
             if (target.classList.contains('generate-prompt-btn')) {
                 const storyCard = target.closest('.story-card');
                 const storyIndex = storyCard.dataset.storyIndex;
-                
+
                 this.generatePrompt(storyIndex);
             }
         });
@@ -397,40 +397,40 @@ class ProjectOverviewManager {
         try {
             // In a real implementation, we would call the API to approve the individual story
             // For now, we'll simulate the approval and update the UI
-            
+
             // Update UI immediately for better UX
             const statusBadge = storyCard.querySelector('.status-badge');
             statusBadge.textContent = 'Approved';
             statusBadge.className = 'status-badge approved';
-            
+
             const approveBtn = storyCard.querySelector('.approve-btn');
             approveBtn.classList.add('hidden');
-            
+
             const rejectBtn = storyCard.querySelector('.reject-btn');
             rejectBtn.classList.remove('hidden');
-            
+
             const generateBtn = storyCard.querySelector('.generate-prompt-btn');
             generateBtn.disabled = false;
-            
+
             // Reset button text
             approveBtn.innerHTML = 'Approve';
             approveBtn.disabled = false;
-            
+
             // Refresh stats
             // In a real implementation, we would call the API to get the updated state
             // this.refreshStoryStats();
-            
+
             // Show success message
             this.showNotification('Story approved successfully!', 'success');
-            
+
         } catch (error) {
             console.error('Failed to approve story:', error);
-            
+
             // Reset button text
             const approveBtn = storyCard.querySelector('.approve-btn');
             approveBtn.innerHTML = 'Approve';
             approveBtn.disabled = false;
-            
+
             // Show error message
             this.showNotification('Failed to approve story. Please try again.', 'error');
         }
@@ -440,40 +440,40 @@ class ProjectOverviewManager {
         try {
             // In a real implementation, we would call the API to reject the individual story
             // For now, we'll simulate the rejection and update the UI
-            
+
             // Update UI immediately for better UX
             const statusBadge = storyCard.querySelector('.status-badge');
             statusBadge.textContent = 'Rejected';
             statusBadge.className = 'status-badge rejected';
-            
+
             const rejectBtn = storyCard.querySelector('.reject-btn');
             rejectBtn.classList.add('hidden');
-            
+
             const approveBtn = storyCard.querySelector('.approve-btn');
             approveBtn.classList.remove('hidden');
-            
+
             const generateBtn = storyCard.querySelector('.generate-prompt-btn');
             generateBtn.disabled = true;
-            
+
             // Reset button text
             rejectBtn.innerHTML = 'Reject';
             rejectBtn.disabled = false;
-            
+
             // Refresh stats
             // In a real implementation, we would call the API to get the updated state
             // this.refreshStoryStats();
-            
+
             // Show success message
             this.showNotification('Story rejected successfully!', 'success');
-            
+
         } catch (error) {
             console.error('Failed to reject story:', error);
-            
+
             // Reset button text
             const rejectBtn = storyCard.querySelector('.reject-btn');
             rejectBtn.innerHTML = 'Reject';
             rejectBtn.disabled = false;
-            
+
             // Show error message
             this.showNotification('Failed to reject story. Please try again.', 'error');
         }
@@ -488,49 +488,49 @@ class ProjectOverviewManager {
             const storyContent = storyCard.querySelector('.story-content');
             const storyActions = storyCard.querySelector('.story-actions');
             const editBtn = storyCard.querySelector('.edit-btn');
-            
+
             // Prepare updated story data
             const updatedStory = {
                 Title: titleInput.value,
                 Description: descriptionInput.value,
                 AcceptanceCriteria: criteriaInput.value.split('\n').filter(c => c.trim())
             };
-            
+
             // In a real implementation, we would call the API to update the story
             // For now, we'll simulate the update and update the UI
-            
+
             // Update story header with new title
             const storyHeader = storyCard.querySelector('.story-header h3');
             storyHeader.textContent = updatedStory.Title;
-            
+
             // Update preview text
             const preview = storyCard.querySelector('.preview p');
             const newPreview = updatedStory.Description.length > 100 ?
                 updatedStory.Description.substring(0, 100) + '...' : updatedStory.Description;
             preview.textContent = newPreview;
-            
+
             // Hide edit mode
             editMode.classList.remove('active');
             storyContent.style.display = 'block';
             storyActions.style.display = 'flex';
             editBtn.textContent = 'Edit';
-            
+
             // Reset button text
             const saveBtn = storyCard.querySelector('.save-btn');
             saveBtn.innerHTML = 'Save Changes';
             saveBtn.disabled = false;
-            
+
             // Show success notification
             this.showNotification('Story updated successfully!', 'success');
-            
+
         } catch (error) {
             console.error('Failed to update story:', error);
-            
+
             // Reset button text
             const saveBtn = storyCard.querySelector('.save-btn');
             saveBtn.innerHTML = 'Save Changes';
             saveBtn.disabled = false;
-            
+
             // Show error toast
             this.showNotification('Failed to update story. Please try again.', 'error');
         }
@@ -547,10 +547,10 @@ class ProjectOverviewManager {
         const notification = document.createElement('div');
         notification.className = `notification-toast ${type}`;
         notification.textContent = message;
-        
+
         // Add to document
         document.body.appendChild(notification);
-        
+
         // Remove after 3 seconds
         setTimeout(() => {
             if (notification.parentNode) {
@@ -561,7 +561,17 @@ class ProjectOverviewManager {
 
 }
 
+/**
+ * ContentRenderer class for rendering tab content with enterprise UI patterns.
+ * Applies status- prefixed classes for consistency with Phase 1 design system.
+ * All methods preserve original data loading and functionality.
+ */
 class ContentRenderer {
+    /**
+     * Renders requirements analysis content with enterprise badge styling.
+     * @param {Object} data - Requirements data from API
+     * @returns {string} HTML content with status-badge class
+     */
     static renderRequirements(data) {
         // Handle missing or invalid data
         if (!data) {
@@ -569,6 +579,7 @@ class ContentRenderer {
         }
 
         const status = data.status || 'Unknown';
+        const statusClass = `status-${status.toLowerCase().replace(' ', '-')}`; // Enterprise prefix
         const content = data.content || 'No content available';
         const createdAt = data.createdAt || new Date().toISOString();
         const actions = Array.isArray(data.actions) ? data.actions : ['Regenerate', 'Export', 'Edit'];
@@ -576,11 +587,11 @@ class ContentRenderer {
         return `
             <div class="requirements-content">
                 <h2>Requirements Analysis</h2>
-                <div class="status-badge">${status}</div>
+                <div class="status-badge ${statusClass}" role="status">${status}</div>
                 <div class="content">${content}</div>
                 <p>Created: ${new Date(createdAt).toLocaleDateString()}</p>
                 <div class="actions">
-                    ${actions.map(action => `<button>${action}</button>`).join('')}
+                    ${actions.map(action => `<button class="btn-primary">${action}</button>`).join('')}
                 </div>
             </div>
         `;
@@ -664,12 +675,12 @@ class ContentRenderer {
                         <h3>${storyTitle}</h3>
                         <div class="prompts-list">
                             ${promptsArray.map(prompt => {
-                                const status = prompt.status || 'Unknown';
-                                const content = prompt.content || prompt.generatedPrompt || 'No content';
-                                const createdAt = prompt.createdAt || new Date().toISOString();
-                                const actions = Array.isArray(prompt.actions) ? prompt.actions : ['Copy', 'Download', 'Regenerate'];
+                    const status = prompt.status || 'Unknown';
+                    const content = prompt.content || prompt.generatedPrompt || 'No content';
+                    const createdAt = prompt.createdAt || new Date().toISOString();
+                    const actions = Array.isArray(prompt.actions) ? prompt.actions : ['Copy', 'Download', 'Regenerate'];
 
-                                return `
+                    return `
                                     <div class="prompt-card">
                                         <div class="prompt-status">${status}</div>
                                         <div class="prompt-content">${content}</div>
@@ -679,7 +690,7 @@ class ContentRenderer {
                                         </div>
                                     </div>
                                 `;
-                            }).join('')}
+                }).join('')}
                         </div>
                     </div>
                 `;
@@ -794,7 +805,7 @@ class ContentRenderer {
                         </div>
                     </div>
                     <div style="margin-top: 15px; font-size: 0.9em; color: #6c757d;">
-                        Progress: ${approvedStories} of ${totalStories} stories approved (${Math.round((approvedStories/totalStories)*100)}%)
+                        Progress: ${approvedStories} of ${totalStories} stories approved (${Math.round((approvedStories / totalStories) * 100)}%)
                     </div>
                 </div>
                 <div class="stories-grid" id="stories-grid-container">

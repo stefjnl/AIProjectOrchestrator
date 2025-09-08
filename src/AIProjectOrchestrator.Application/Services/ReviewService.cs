@@ -464,5 +464,14 @@ namespace AIProjectOrchestrator.Application.Services
                 }
             }
         }
+        
+        public async Task DeleteReviewsByProjectIdAsync(int projectId, CancellationToken cancellationToken = default)
+        {
+            _logger.LogDebug("Deleting reviews for project ID {ProjectId}", projectId);
+            
+            var deletedCount = await _reviewRepository.DeleteReviewsByProjectIdAsync(projectId, cancellationToken);
+            
+            _logger.LogInformation("Deleted {DeletedCount} reviews for project ID {ProjectId}", deletedCount, projectId);
+        }
     }
 }
