@@ -17,6 +17,7 @@ namespace AIProjectOrchestrator.Infrastructure.Data
         public DbSet<PromptGeneration> PromptGenerations => Set<PromptGeneration>();
         public DbSet<Review> Reviews => Set<Review>();
         public DbSet<UserStory> UserStories => Set<UserStory>();
+        public DbSet<PromptTemplate> PromptTemplates => Set<PromptTemplate>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -28,7 +29,7 @@ namespace AIProjectOrchestrator.Infrastructure.Data
             modelBuilder.Entity<RequirementsAnalysis>()
                 .HasIndex(ra => ra.AnalysisId)
                 .IsUnique();
-            
+
             modelBuilder.Entity<RequirementsAnalysis>()
                 .HasOne(ra => ra.Project)
                 .WithMany(p => p.RequirementsAnalyses)
@@ -45,7 +46,7 @@ namespace AIProjectOrchestrator.Infrastructure.Data
             modelBuilder.Entity<ProjectPlanning>()
                 .HasIndex(pp => pp.PlanningId)
                 .IsUnique();
-            
+
             modelBuilder.Entity<ProjectPlanning>()
                 .HasOne(pp => pp.RequirementsAnalysis)
                 .WithMany(ra => ra.ProjectPlannings)
@@ -62,7 +63,7 @@ namespace AIProjectOrchestrator.Infrastructure.Data
             modelBuilder.Entity<StoryGeneration>()
                 .HasIndex(sg => sg.GenerationId)
                 .IsUnique();
-            
+
             modelBuilder.Entity<StoryGeneration>()
                 .HasOne(sg => sg.ProjectPlanning)
                 .WithMany(pp => pp.StoryGenerations)
@@ -85,7 +86,7 @@ namespace AIProjectOrchestrator.Infrastructure.Data
             modelBuilder.Entity<PromptGeneration>()
                 .HasIndex(pg => pg.PromptId)
                 .IsUnique();
-            
+
             modelBuilder.Entity<PromptGeneration>()
                 .HasOne(pg => pg.StoryGeneration)
                 .WithMany(sg => sg.PromptGenerations)
@@ -102,13 +103,13 @@ namespace AIProjectOrchestrator.Infrastructure.Data
             modelBuilder.Entity<Review>()
                 .HasIndex(r => r.ReviewId)
                 .IsUnique();
-            
+
             modelBuilder.Entity<Review>()
                 .HasIndex(r => r.ServiceName);
-            
+
             modelBuilder.Entity<Review>()
                 .HasIndex(r => r.PipelineStage);
-            
+
             modelBuilder.Entity<Review>()
                 .HasIndex(r => r.Status);
 
@@ -152,6 +153,23 @@ namespace AIProjectOrchestrator.Infrastructure.Data
             modelBuilder.Entity<Review>()
                 .HasIndex(r => r.CreatedDate)
                 .HasDatabaseName("IX_Review_CreatedDate");
+
+            // Configure PromptTemplate entity
+            modelBuilder.Entity<PromptTemplate>(entity =>
+            {
+                entity.HasKey(pt => pt.Id);
+                entity.Property(pt => pt.Title)
+                    .IsRequired()
+                    .HasMaxLength(200);
+                entity.Property(pt => pt.Content)
+                    .IsRequired()
+                    .HasMaxLength(5000);
+                entity.Property(pt => pt.CreatedAt)
+                    .IsRequired();
+                entity.Property(pt => pt.UpdatedAt);
+
+                entity.HasIndex(pt => pt.Title);
+            });
         }
     }
 }

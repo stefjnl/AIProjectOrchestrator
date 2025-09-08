@@ -1,24 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project Overview</title>
     <link rel="stylesheet" href="/css/styles.css">
 </head>
+
 <body>
     <div class="container">
         <div class="main-nav-buttons">
             <a href="/projects/create.html"><button>Create New Project</button></a>
             <a href="/projects/list.html"><button>View All Projects</button></a>
             <a href="/reviews/queue.html"><button>Go To Review Queue</button></a>
+            <a href="/prompt-playground.html"><button>Prompt Playground</button></a>
         </div>
         <div class="project-overview">
             <header class="project-header">
                 <h1 id="projectTitle">Project Title</h1>
                 <div class="progress-summary" id="progressSummary"></div>
             </header>
-            
+
             <nav class="content-tabs">
                 <button class="tab-button active" data-tab="pipeline">Pipeline</button>
                 <button class="tab-button" data-tab="requirements">Requirements</button>
@@ -26,7 +29,7 @@
                 <button class="tab-button" data-tab="stories">Stories</button>
                 <button class="tab-button" data-tab="prompts">Prompts</button>
             </nav>
-            
+
             <main class="content-area">
                 <div class="loading-spinner" id="loadingSpinner" style="display: none;">
                     <div class="spinner"></div>
@@ -49,4 +52,5 @@
         </script>
     </div>
 </body>
+
 </html>

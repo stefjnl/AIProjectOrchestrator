@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Playground</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+    <div class="main-nav-buttons">
+        <a href="/projects/create.html"><button>Create New Project</button></a>
+        <a href="/projects/list.html"><button>View All Projects</button></a>
+        <a href="/reviews/queue.html"><button>Go To Review Queue</button></a>
+        <a href="/prompt-playground.html"><button>Prompt Playground</button></a>
+    </div>
+    <div class="container">
+        <!-- Left Sidebar - Template Manager -->
+        <aside class="sidebar" role="complementary" aria-label="Prompt Templates">
+            <div class="sidebar-header">
+                <h2>Prompt Templates</h2>
+                <button id="newTemplateBtn" class="btn btn-primary" aria-label="Create new template">
+                    + New Template
+                </button>
+            </div>
+            <ul id="templateList" class="template-list" role="list" aria-label="List of prompt templates">
+                <!-- Templates will be populated by JavaScript -->
+            </ul>
+            <div id="loadingSpinner" class="loading hidden" aria-label="Loading templates">
+                <span>Loading...</span>
+            </div>
+        </aside>
+
+        <!-- Main Editor Area -->
+        <main class="main-content" role="main" aria-label="Prompt Editor">
+            <div class="editor-header">
+                <input type="text" id="templateTitle" placeholder="Template Title" aria-label="Template title" required>
+                <button id="saveTemplateBtn" class="btn btn-success" disabled aria-label="Save template">
+                    Save Template
+                </button>
+                <button id="cancelBtn" class="btn btn-secondary hidden" aria-label="Cancel editing">
+                    Cancel
+                </button>
+                <input type="hidden" id="currentTemplateId">
+            </div>
+
+            <div class="editor-body">
+                <label for="templateContent">Prompt Content</label>
+                <textarea id="templateContent" rows="10" placeholder="Enter your prompt template here..."
+                    aria-label="Prompt content" class="monospace"></textarea>
+
+                <button id="generateBtn" class="btn btn-primary" aria-label="Generate response from LLM">
+                    Generate
+                </button>
+            </div>
+
+            <!-- Response Area -->
+            <div class="response-area" id="responseArea" aria-live="polite">
+                <h3>LLM Response</h3>
+                <div id="responseContent" class="response-content read-only"></div>
+                <button id="copyResponseBtn" class="btn btn-secondary hidden" aria-label="Copy response">
+                    Copy
+                </button>
+                <div id="responseLoading" class="loading hidden">
+                    <span>Generating response...</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="js/api.js"></script>
+    <script src="js/prompt-playground.js"></script>
+</body>
+
+</html>

@@ -32,24 +32,53 @@ window.APIClient = {
                 console.warn('Could not read response body:', e);
             }
 
+            // Check if response is actually JSON
+            let isJsonResponse = false;
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                isJsonResponse = true;
+            }
+
             if (!response.ok) {
                 let errorMessage = `Request failed with status ${response.status}`;
                 if (responseBody) {
-                    try {
-                        const errorData = JSON.parse(responseBody);
-                        if (errorData.message) {
-                            errorMessage = errorData.message;
-                        } else if (typeof errorData === 'string') {
-                            errorMessage = errorData;
+                    // Try to parse as JSON first
+                    if (isJsonResponse) {
+                        try {
+                            const errorData = JSON.parse(responseBody);
+                            if (errorData.message) {
+                                errorMessage = errorData.message;
+                            } else if (typeof errorData === 'string') {
+                                errorMessage = errorData;
+                            }
+                        } catch (e) {
+                            // If JSON parsing fails, use the raw body
+                            errorMessage = responseBody;
                         }
-                    } catch (e) {
-                        errorMessage = responseBody; // Use raw body if not JSON
+                    } else {
+                        // Not JSON, use raw body
+                        errorMessage = responseBody;
                     }
                 }
                 throw new Error(`HTTP ${response.status}: ${errorMessage}`);
             }
 
-            return responseBody ? JSON.parse(responseBody) : {};
+            // For successful responses, try to parse as JSON if content-type indicates JSON
+            if (responseBody && isJsonResponse) {
+                try {
+                    return JSON.parse(responseBody);
+                } catch (e) {
+                    console.warn('Failed to parse JSON response:', e);
+                    // Return the raw body if JSON parsing fails
+                    return responseBody;
+                }
+            } else if (responseBody && responseBody.trim() !== '') {
+                // If there's a response body but it's not JSON, return as text
+                return responseBody;
+            } else {
+                // Empty response
+                return {};
+            }
 
         } catch (error) {
             console.error('API Network/Fetch Error:', error);
@@ -68,8 +97,14 @@ window.APIClient = {
         return this._request('POST', endpoint, data);
     },
 
+    async delete(endpoint) {
+        return this._request('DELETE', endpoint);
+    },
+
     async getProjects() {
-        return this.get('/projects');
+        const result = await this.get('/projects');
+        // Ensure we always return an array
+        return Array.isArray(result) ? result : [];
     },
 
     async getProject(id) {
@@ -110,7 +145,9 @@ window.APIClient = {
     },
 
     async getStories(storyGenerationId) {
-        return this.get(`/stories/generations/${storyGenerationId}/results`);
+        const result = await this.get(`/stories/generations/${storyGenerationId}/results`);
+        // Ensure we always return an array
+        return Array.isArray(result) ? result : [];
     },
 
     async canGenerateCode(storyGenId) {
@@ -126,7 +163,9 @@ window.APIClient = {
         return this.get(`/review/${reviewId}`);
     },
     async getPendingReviews() {
-        return this.get('/review/pending');
+        const result = await this.get('/review/pending');
+        // Ensure we always return an array
+        return Array.isArray(result) ? result : [];
     },
     async approveReview(reviewId) {
         return this.post(`/review/${reviewId}/approve`, {});
@@ -161,18 +200,21 @@ window.APIClient = {
     },
 
     async getApprovedStories(storyGenerationId) {
-        return await this.get(`/stories/generations/${storyGenerationId}/approved`);
+        const result = await this.get(`/stories/generations/${storyGenerationId}/approved`);
+        // Ensure we always return an array
+        return Array.isArray(result) ? result : [];
     },
 
     async deleteProject(id) {
         return this._request('DELETE', `/projects/${id}`);
     },
 
-    // Helper method to retrieve approved stories
-    // async getApprovedStories(storyGenerationId) {
-    //     // Note: This endpoint may need to be created or use existing story endpoints
-    //     return await this.get(`/stories/generations/${storyGenerationId}/approved`);
-    // },
+    // Prompt template methods
+    async getPromptTemplates() {
+        const result = await this.get('/PromptTemplates');
+        // Ensure we always return an array
+        return Array.isArray(result) ? result : [];
+    },
 
     // Story management methods
     async approveStory(storyId) {
@@ -189,5 +231,6 @@ window.APIClient = {
 
     async approveStories(storyGenerationId) {
         return await this.post(`/stories/generations/${storyGenerationId}/approve`, {});
-    }
+    },
+
 };

@@ -258,7 +258,9 @@ namespace AIProjectOrchestrator.API.Controllers
         public async Task<ActionResult<IEnumerable<PendingReviewWithProject>>> GetPendingReviews(CancellationToken cancellationToken)
         {
             var reviews = await _reviewService.GetPendingReviewsWithProjectAsync(cancellationToken);
-            return Ok(reviews);
+            // Ensure we're returning an array, not an object
+            var reviewList = reviews.ToList();
+            return Ok(reviewList);
         }
 
         // Add to ReviewController.cs (API layer)

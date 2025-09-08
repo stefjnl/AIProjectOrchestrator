@@ -77,6 +77,8 @@ builder.Services.AddScoped<IPromptGenerationService, PromptGenerationService>();
 builder.Services.AddScoped<PromptContextAssembler>();
 builder.Services.AddScoped<ContextOptimizer>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
+builder.Services.AddScoped<IPromptTemplateRepository, PromptTemplateRepository>();
+builder.Services.AddScoped<IPromptTemplateService, PromptTemplateService>();
 
 // Add code generation specialized services
 builder.Services.AddScoped<ITestGenerator, TestGenerator>();
