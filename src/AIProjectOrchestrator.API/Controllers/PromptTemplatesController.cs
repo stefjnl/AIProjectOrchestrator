@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using AIProjectOrchestrator.Application.Interfaces;
 using AIProjectOrchestrator.Domain.Entities;
 
@@ -9,10 +10,12 @@ namespace AIProjectOrchestrator.API.Controllers
     public class PromptTemplatesController : ControllerBase
     {
         private readonly IPromptTemplateService _service;
+        private readonly ILogger<PromptTemplatesController> _logger;
 
-        public PromptTemplatesController(IPromptTemplateService service)
+        public PromptTemplatesController(IPromptTemplateService service, ILogger<PromptTemplatesController> logger)
         {
             _service = service;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -38,14 +41,27 @@ namespace AIProjectOrchestrator.API.Controllers
         [HttpPost]
         public async Task<ActionResult<PromptTemplate>> CreateOrUpdate(PromptTemplate promptTemplate)
         {
+            _logger.LogInformation("Received prompt template: {@PromptTemplate}", promptTemplate);
+
+            if (promptTemplate == null)
+            {
+                _logger.LogWarning("Received null promptTemplate");
+                return BadRequest("Prompt template cannot be null");
+            }
+
+            _logger.LogInformation("Binding successful. Title: '{Title}', Content length: {ContentLength}",
+                promptTemplate.Title, promptTemplate.Content?.Length ?? 0);
+
             if (promptTemplate.Id == Guid.Empty)
             {
                 var created = await _service.CreateTemplateAsync(promptTemplate);
+                _logger.LogInformation("Created template with ID: {Id}", created.Id);
                 return CreatedAtAction(nameof(GetAll), new { id = created.Id }, created);
             }
             else
             {
                 var updated = await _service.UpdateTemplateAsync(promptTemplate);
+                _logger.LogInformation("Updated template with ID: {Id}", updated.Id);
                 return Ok(updated);
             }
         }

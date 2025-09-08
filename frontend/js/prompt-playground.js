@@ -96,18 +96,23 @@ class PromptPlayground {
     async saveTemplate() {
         const title = document.getElementById('templateTitle').value.trim();
         const content = document.getElementById('templateContent').value.trim();
-        const id = document.getElementById('currentTemplateId').value;
+        const id = document.getElementById('currentTemplateId').value.trim();
 
         if (!title) {
             this.showToast('Title is required', 'error');
             return;
         }
 
-        const template = {
-            id: id || null,
+        // For new templates, don't send id (let backend generate it)
+        // For existing templates, ensure id is a valid GUID
+        const templateData = {
             title,
             content
         };
+
+        if (id) {
+            templateData.id = id;
+        }
 
         try {
             this.showLoading('saveTemplateBtn');
@@ -115,11 +120,11 @@ class PromptPlayground {
 
             if (id) {
                 // Update existing
-                savedTemplate = await APIClient.post('/prompttemplates', template);
+                savedTemplate = await APIClient.post('/PromptTemplates', templateData);
                 this.showToast('Template updated successfully', 'success');
             } else {
                 // Create new
-                savedTemplate = await APIClient.post('/prompttemplates', template);
+                savedTemplate = await APIClient.post('/PromptTemplates', templateData);
                 this.showToast('Template created successfully', 'success');
                 this.templates.unshift(savedTemplate); // Add to beginning of list
             }
@@ -146,7 +151,7 @@ class PromptPlayground {
         }
 
         try {
-            await APIClient.delete(`/prompttemplates/${id}`);
+            await APIClient.delete(`/PromptTemplates/${id}`);
             this.templates = this.templates.filter(t => t.id !== id);
             this.renderTemplateList();
 
