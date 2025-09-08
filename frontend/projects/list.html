@@ -170,21 +170,25 @@
             // Create toast element
             const toast = document.createElement('div');
             toast.className = 'notification-toast';
-            
-            // Add type-specific class
+            toast.textContent = message;
+
+            // Add type-specific styling
             if (type === 'error') {
-                toast.classList.add('error');
+                toast.style.background = '#f8d7da';
+                toast.style.color = '#721c24';
+                toast.style.border = '1px solid #f5c6cb';
             } else if (type === 'info') {
-                toast.classList.add('info');
+                toast.style.background = '#d1ecf1';
+                toast.style.color = '#0c5460';
+                toast.style.border = '1px solid #bee5eb';
             }
             // For 'success' type, we use the default styles from CSS
-
-            toast.textContent = message;
 
             // Position at top center (using existing CSS positioning)
             toast.style.position = 'fixed';
             toast.style.top = '20px';
             toast.style.left = '50%';
+            toast.style.transform = 'translateX(-50%)';
             toast.style.zIndex = '1001';
 
             // Add to document
