@@ -104,21 +104,24 @@ builder.Services.Configure<ReviewSettings>(
 
 // Register HTTP clients for each provider and AI clients as singletons
 builder.Services.AddHttpClient<ClaudeClient>()
-    .ConfigureHttpClient((serviceProvider, client) => {
+    .ConfigureHttpClient((serviceProvider, client) =>
+    {
         var settings = serviceProvider.GetRequiredService<IOptions<AIProviderSettings>>().Value.Claude;
         client.BaseAddress = new Uri(settings.BaseUrl);
         client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
     });
 
 builder.Services.AddHttpClient<LMStudioClient>()
-    .ConfigureHttpClient((serviceProvider, client) => {
+    .ConfigureHttpClient((serviceProvider, client) =>
+    {
         var settings = serviceProvider.GetRequiredService<IOptions<AIProviderSettings>>().Value.LMStudio;
         client.BaseAddress = new Uri(settings.BaseUrl);
         client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
     });
 
 builder.Services.AddHttpClient<OpenRouterClient>()
-    .ConfigureHttpClient((serviceProvider, client) => {
+    .ConfigureHttpClient((serviceProvider, client) =>
+    {
         var settings = serviceProvider.GetRequiredService<IOptions<AIProviderSettings>>().Value.OpenRouter;
         // Ensure BaseAddress ends with trailing slash for proper URL construction
         var baseUrl = settings.BaseUrl.TrimEnd('/') + "/";
@@ -127,7 +130,8 @@ builder.Services.AddHttpClient<OpenRouterClient>()
     });
 
 // Register AI clients as singletons - OpenRouter uses the named HttpClient
-builder.Services.AddSingleton<IAIClient>(serviceProvider => {
+builder.Services.AddSingleton<IAIClient>(serviceProvider =>
+{
     var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
     var httpClient = httpClientFactory.CreateClient(nameof(OpenRouterClient));
     var logger = serviceProvider.GetRequiredService<ILogger<OpenRouterClient>>();
@@ -143,7 +147,7 @@ builder.Services.AddSingleton<IAIClient, LMStudioClient>();
 builder.Services.AddSingleton<IAIClientFactory, AIClientFactory>();
 
 // Register Lazy<IReviewService> for services that need it
-builder.Services.AddSingleton<Lazy<IReviewService>>(serviceProvider => new Lazy<IReviewService>(() => serviceProvider.GetRequiredService<IReviewService>()));
+builder.Services.AddScoped<Lazy<IReviewService>>(serviceProvider => new Lazy<IReviewService>(() => serviceProvider.GetRequiredService<IReviewService>()));
 
 // Register background cleanup service
 builder.Services.AddHostedService<ReviewCleanupService>();
@@ -154,7 +158,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-    
+
     // Apply migrations on startup in development
     using (var scope = app.Services.CreateScope())
     {
@@ -171,8 +175,19 @@ app.UseResponseCompression();
 // Enable CORS
 app.UseCors("AllowFrontend");
 
-// Enable static file serving
-app.UseStaticFiles();
+// Enable default files (index.html) and static file serving
+app.UseDefaultFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        // Cache static files for 1 hour in production
+        if (!app.Environment.IsDevelopment())
+        {
+            ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=3600");
+        }
+    }
+});
 
 // Map controllers
 app.MapControllers();
@@ -180,6 +195,10 @@ app.MapControllers();
 // Map health checks endpoint
 app.MapHealthChecks("/api/health");
 
+// SPA fallback routing - serve index.html for non-API routes
+app.MapFallbackToFile("index.html");
+
 app.Run();
 
 public partial class Program { }
+

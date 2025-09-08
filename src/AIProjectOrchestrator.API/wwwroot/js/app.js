@@ -1,13 +1,10 @@
-// API Base Configuration
-const API_BASE = window.location.origin;
+// API Base Configuration - Using relative paths for same-origin requests
+const API_BASE = '';
 
 // Dashboard Functions
 async function loadDashboardData() {
     try {
-        const response = await fetch(`${API_BASE}/api/review/dashboard-data`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
-        const data = await response.json();
+        const data = await window.APIClient.get('/review/dashboard-data');
         
         // Update pending reviews
         document.getElementById('pendingCount').textContent = data.pendingReviews.length;
@@ -91,17 +88,10 @@ async function approveReview(reviewId) {
     if (!confirm('Are you sure you want to approve this review?')) return;
     
     try {
-        const response = await fetch(`${API_BASE}/api/review/${reviewId}/approve`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
+        await window.APIClient.approveReview(reviewId);
         
-        if (response.ok) {
-            showSuccess('Review approved successfully!');
-            loadDashboardData(); // Refresh
-        } else {
-            throw new Error(`HTTP ${response.status}`);
-        }
+        showSuccess('Review approved successfully!');
+        loadDashboardData(); // Refresh
     } catch (error) {
         console.error('Error approving review:', error);
         showError('Failed to approve review. Please try again.');
@@ -113,18 +103,10 @@ async function rejectReview(reviewId) {
     if (feedback === null) return; // User cancelled
     
     try {
-        const response = await fetch(`${API_BASE}/api/review/${reviewId}/reject`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ feedback: feedback || 'No feedback provided' })
-        });
+        await window.APIClient.rejectReview(reviewId, feedback || 'No feedback provided');
         
-        if (response.ok) {
-            showSuccess('Review rejected successfully!');
-            loadDashboardData(); // Refresh
-        } else {
-            throw new Error(`HTTP ${response.status}`);
-        }
+        showSuccess('Review rejected successfully!');
+        loadDashboardData(); // Refresh
     } catch (error) {
         console.error('Error rejecting review:', error);
         showError('Failed to reject review. Please try again.');
@@ -199,24 +181,15 @@ async function submitPredefinedScenario(index) {
 
 async function submitTestScenario(title, description, context) {
     try {
-        const response = await fetch(`${API_BASE}/api/review/test-scenario`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                scenarioName: title,
-                projectDescription: description,
-                additionalContext: context,
-                constraints: ''
-            })
+        const result = await window.APIClient.post('/review/test-scenario', {
+            scenarioName: title,
+            projectDescription: description,
+            additionalContext: context,
+            constraints: ''
         });
         
-        if (response.ok) {
-            const result = await response.json();
-            showSuccess(`Test scenario submitted! Project ID: ${result.projectId}`);
-            loadRecentSubmissions();
-        } else {
-            throw new Error(`HTTP ${response.status}`);
-        }
+        showSuccess(`Test scenario submitted! Project ID: ${result.projectId}`);
+        loadRecentSubmissions();
     } catch (error) {
         console.error('Error submitting scenario:', error);
         showError('Failed to submit test scenario. Please try again.');
@@ -241,5 +214,5 @@ function showError(message) {
 
 function viewWorkflowDetails(projectId) {
     // Open detailed workflow view
-    window.open(`${API_BASE}/project-status.html?id=${projectId}`, '_blank');
+    window.open(`/projects/workflow.html?id=${projectId}`, '_blank');
 }

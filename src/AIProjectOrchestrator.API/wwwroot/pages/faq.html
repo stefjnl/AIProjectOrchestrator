@@ -146,7 +146,7 @@
 
             <h3>Frontend ↔ Backend</h3>
             <ul>
-                <li>JSON REST via fetch in api.js (baseUrl: http://localhost:8086/api)</li>
+                <li>JSON REST via fetch in api.js (baseUrl: /api)</li>
                 <li>Error handling with circuit breaker (3 failures → maintenance mode)</li>
                 <li>WorkflowManager polls /api/review/workflow-status/{projectId} for state sync</li>
                 <li>No authentication (CORS-enabled)</li>
@@ -211,7 +211,8 @@
                 <li><strong>Start the full stack</strong> (development mode with hot reload):
                     <pre><code>docker-compose up -d</code></pre>
                     <ul>
-                        <li>Backend API: http://localhost:8086</li>
+                                            <ul>
+                        <li>Backend API: http://localhost:8087</li>
                         <li>Frontend: http://localhost:80 (served via nginx)</li>
                         <li>Database: PostgreSQL on internal network (auto-migrated by backend)</li>
                     </ul>

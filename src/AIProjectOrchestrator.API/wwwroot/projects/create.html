@@ -80,7 +80,7 @@
                 const project = await window.APIClient.createProject(projectData);
                 // Critical: Clear any existing workflow state before redirect
                 // Redirect to workflow with clean state
-                window.location.href = `workflow.html?projectId=${project.id}&newProject=true`;
+                window.location.href = `/projects/workflow.html?projectId=${project.id}&newProject=true`;
             } catch (error) {
                 errorMessageDiv.textContent = 'Error creating project: ' + error.message;
                 errorMessageDiv.style.display = 'block';

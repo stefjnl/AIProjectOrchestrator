@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All Projects - AI Project Orchestrator</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <!-- Markdown support libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
+    <script src="/js/markdown-utils.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <div class="main-nav-buttons">
+            <a href="/projects/create.html"><button>Create New Project</button></a>
+            <a href="/projects/list.html"><button>View All Projects</button></a>
+            <a href="/reviews/queue.html"><button>Go To Review Queue</button></a>
+            <a href="/prompt-playground.html"><button>Prompt Playground</button></a>
+        </div>
+        <div class="header-nav">
+            <a href="/index.html" class="back-link">&larr; Back to Home</a>
+            <a href="/projects/create.html" class="create-btn-top"><button>Create New Project</button></a>
+        </div>
+        <h1>All Projects</h1>
+        <div class="project-list-container" id="project-list-container">
+            <div id="project-grid">
+                <!-- Projects will be loaded here by JavaScript -->
+            </div>
+            <div id="loading-message">Loading projects...</div>
+            <div id="error-message" style="display: none; color: red;"></div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const projects = await window.APIClient.getProjects();
+                await populateProjectList(projects);
+            } catch (error) {
+                const errorMessage = document.getElementById('error-message');
+                errorMessage.textContent = `Error loading projects: ${error.message}`;
+                errorMessage.style.display = 'block';
+            } finally {
+                document.getElementById('loading-message').style.display = 'none';
+            }
+        });
+
+        /**
+         * Populates the project list as an enterprise card grid instead of table.
+         * Applies status- prefixed classes for badge styling, preserves all original logic.
+         * @param {Array} projects - Array of project objects from API
+         */
+        async function populateProjectList(projects) {
+            const projectGrid = document.getElementById('project-grid');
+            if (projects.length === 0) {
+                projectGrid.innerHTML = '<div class="no-projects" style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #6c757d;">No projects found.</div>';
+                return;
+            }
+
+            projects.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            for (const project of projects) {
+                const stageInfo = await getProjectStage(project);
+                const projectCard = document.createElement('div');
+                projectCard.className = 'project-card';
+                projectCard.setAttribute('role', 'article');
+                projectCard.setAttribute('aria-label', `Project: ${project.name}`);
+                projectCard.innerHTML = `
+                        <div class="project-info">
+                            <h3>${escapeHTML(project.name)}</h3>
+                            <p class="project-description">${renderMarkdownToHTML(project.description)}</p>
+                            <div class="project-meta">
+                                <span>Created: ${new Date(project.createdAt).toLocaleDateString()}</span>
+                                <span>Stage: ${stageInfo.stage}</span>
+                                <span class="status-badge ${'status-' + stageInfo.statusClass}" role="status">${stageInfo.status}</span>
+                            </div>
+                        </div>
+                        <div class="project-actions">
+                            <a href="/projects/workflow.html?projectId=${project.id}" class="action-link btn-primary">Continue Workflow</a>
+                            <button class="delete-btn" onclick="deleteProject(${project.id})" aria-label="Delete project">Delete</button>
+                        </div>
+                    `;
+                projectGrid.appendChild(projectCard);
+
+
+                // Initialize truncation for description if long
+                const descriptionEl = projectCard.querySelector('.project-description');
+                if (descriptionEl) {
+                    setTimeout(() => initTruncatedDescription(descriptionEl, 150), 0); // Delay for DOM
+                }
+            }
+        }
+
+        async function getProjectStage(project) {
+            // This function now makes API calls to determine the true status of each stage.
+            const projectId = project.id;
+
+            try {
+                const fullProject = await window.APIClient.getProject(projectId);
+                const requirements = fullProject.requirementsAnalyses?.[0];
+                const planning = fullProject.projectPlans?.[0];
+                const stories = fullProject.storyGenerations?.[0];
+                const code = fullProject.codeGenerations?.[0];
+
+                if (code?.execution.status === 'Approved') {
+                    return { stage: 'Completed', status: 'Completed', statusClass: 'approved' };
+                }
+                if (code?.execution.status === 'Pending') {
+                    return { stage: '4. Code Generation', status: 'Pending Review', statusClass: 'pending-review' };
+                }
+                if (stories?.execution.status === 'Approved') {
+                    return { stage: '4. Code Generation', status: 'Not Started', statusClass: 'not-started' };
+                }
+                if (stories?.execution.status === 'Pending') {
+                    return { stage: '3. User Stories', status: 'Pending Review', statusClass: 'pending-review' };
+                }
+                if (planning?.execution.status === 'Approved') {
+                    return { stage: '3. User Stories', status: 'Not Started', statusClass: 'not-started' };
+                }
+                if (planning?.execution.status === 'Pending') {
+                    return { stage: '2. Project Planning', status: 'Pending Review', statusClass: 'pending-review' };
+                }
+                if (requirements?.execution.status === 'Approved') {
+                    return { stage: '2. Project Planning', status: 'Not Started', statusClass: 'not-started' };
+                }
+                if (requirements?.execution.status === 'Pending') {
+                    return { stage: '1. Requirements Analysis', status: 'Pending Review', statusClass: 'pending-review' };
+                }
+            } catch (e) {
+                console.error(`Could not determine stage for project ${project.id}`, e);
+                // Fallback to simplified logic on error
+                if (project.codeGenerationId) return { stage: '4. Code Generation', status: 'In Progress', statusClass: 'pending-review' };
+                if (project.storyGenerationId) return { stage: '3. User Stories', status: 'In Progress', statusClass: 'pending-review' };
+                if (project.projectPlanningId) return { stage: '2. Project Planning', status: 'In Progress', statusClass: 'pending-review' };
+                if (project.requirementsAnalysisId) return { stage: '1. Requirements Analysis', status: 'In Progress', statusClass: 'pending-review' };
+            }
+
+            return { stage: '1. Requirements Analysis', status: 'Not Started', statusClass: 'not-started' };
+        }
+
+        // escapeHTML function is now in markdown-utils.js, but keep for backward compatibility if needed
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(str));
+            return div.innerHTML;
+        }
+
+        async function deleteProject(id) {
+            if (!confirm(`Are you sure you want to delete this project and all related data? This action cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                await window.APIClient.deleteProject(id);
+                // Remove the card from the grid without full page reload
+                const card = document.querySelector(`.project-card:has(button[onclick="deleteProject(${id})"])`);
+                if (card) {
+                    card.remove();
+                    // If no projects left, show "No projects found"
+                    if (document.querySelectorAll('.project-card').length === 0) {
+                        document.getElementById('project-grid').innerHTML = '<div class="no-projects" style="text-align: center; padding: 40px; color: #6c757d;">No projects found.</div>';
+                    }
+                }
+                // Show success toast notification
+                showToast('Project deleted successfully.', 'success');
+            } catch (error) {
+                console.error('Delete failed:', error);
+                showToast(`Failed to delete project: ${error.message}`, 'error');
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            // Remove any existing toast notifications
+            const existingToast = document.querySelector('.notification-toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.className = 'notification-toast';
+            toast.textContent = message;
+
+            // Add type-specific styling
+            if (type === 'error') {
+                toast.style.background = '#f8d7da';
+                toast.style.color = '#721c24';
+                toast.style.border = '1px solid #f5c6cb';
+            } else if (type === 'info') {
+                toast.style.background = '#d1ecf1';
+                toast.style.color = '#0c5460';
+                toast.style.border = '1px solid #bee5eb';
+            }
+            // For 'success' type, we use the default styles from CSS
+
+            // Position at top center (using existing CSS positioning)
+            toast.style.position = 'fixed';
+            toast.style.top = '20px';
+            toast.style.left = '50%';
+            toast.style.transform = 'translateX(-50%)';
+            toast.style.zIndex = '1001';
+
+            // Add to document
+            document.body.appendChild(toast);
+
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 3000);
+        }
+    </script>
+</body>
+
+</html>

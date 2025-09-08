@@ -1,5 +1,5 @@
 window.APIClient = {
-    baseUrl: 'http://localhost:8086/api',
+    baseUrl: '/api',
 
     async _request(method, endpoint, data = null) {
         const url = `${this.baseUrl}${endpoint}`;

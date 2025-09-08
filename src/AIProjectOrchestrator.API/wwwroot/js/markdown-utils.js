@@ -92,7 +92,7 @@ function initTruncatedDescription(element, maxLength = 150) {
         element.dataset.fullContent = fullText;
         element.innerHTML = fullText.substring(0, maxLength) + '...';
         element.classList.add('truncated');
-        
+
         const toggleBtn = document.createElement('button');
         toggleBtn.className = 'toggle-description-btn';
         toggleBtn.textContent = 'Show more';
