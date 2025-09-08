@@ -6,6 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>All Projects - AI Project Orchestrator</title>
     <link rel="stylesheet" href="/css/styles.css">
+    <!-- Markdown support libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
+    <script src="/js/markdown-utils.js"></script>
 </head>
 
 <body>
@@ -67,7 +71,7 @@
                 projectCard.innerHTML = `
                         <div class="project-info">
                             <h3>${escapeHTML(project.name)}</h3>
-                            <p>${escapeHTML(project.description)}</p>
+                            <p class="project-description">${renderMarkdownToHTML(project.description)}</p>
                             <div class="project-meta">
                                 <span>Created: ${new Date(project.createdAt).toLocaleDateString()}</span>
                                 <span>Stage: ${stageInfo.stage}</span>
@@ -130,6 +134,7 @@
             return { stage: '1. Requirements Analysis', status: 'Not Started', statusClass: 'not-started' };
         }
 
+        // escapeHTML function is now in markdown-utils.js, but keep for backward compatibility if needed
         function escapeHTML(str) {
             const div = document.createElement('div');
             div.appendChild(document.createTextNode(str));

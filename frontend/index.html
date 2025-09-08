@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Project Orchestrator</title>
     <link rel="stylesheet" href="/css/styles.css">
+    <!-- Markdown support libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
+    <script src="/js/markdown-utils.js"></script>
 </head>
 <body>
     <div class="container">
@@ -81,7 +85,7 @@
                 projectItem.innerHTML = `
                     <div class="project-info">
                         <h3>${escapeHTML(project.name)}</h3>
-                        <p>${escapeHTML(project.description)}</p>
+                        <p class="project-description">${renderMarkdownToHTML(project.description)}</p>
                     </div>
                     <a href="/projects/workflow.html?projectId=${project.id}" class="action-link btn-primary">Continue Workflow</a>
                 `;

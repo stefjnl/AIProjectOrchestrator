@@ -6,6 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Project Workflow - AI Orchestrator</title>
     <link rel="stylesheet" href="/css/styles.css">
+    <!-- Markdown support libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
+    <script src="/js/markdown-utils.js"></script>
 </head>
 
 <body>
@@ -203,7 +207,7 @@
                 workflowManager.recordApiSuccess();
                 // Update project info directly
                 document.getElementById('projectTitle').textContent = project.name;
-                document.getElementById('projectDescription').textContent = project.description;
+                document.getElementById('projectDescription').innerHTML = renderMarkdownToHTML(project.description);
                 workflowManager.updateWorkflowUI(); // Update UI after project info is loaded
                 updateStoriesOverviewLink(); // Update stories overview link visibility
             } catch (error) {

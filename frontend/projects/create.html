@@ -1,11 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Create New Project</title>
     <link rel="stylesheet" href="/css/styles.css">
+    <!-- Markdown support libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
+    <script src="/js/markdown-utils.js"></script>
 </head>
+
 <body>
     <div class="container">
         <div class="main-nav-buttons">
@@ -22,10 +28,18 @@
                 </div>
                 <div>
                     <label for="projectDescription">Project Description:</label>
-                    <textarea id="projectDescription" required aria-required="true"></textarea>
+                    <textarea id="projectDescription" required aria-required="true"
+                        placeholder="Enter project description using Markdown (e.g., # Title, **bold**, - lists)"></textarea>
+                    <!-- Real-time Markdown preview -->
+                    <div class="markdown-preview" id="descriptionPreview"
+                        style="border: 1px solid #ddd; padding: 10px; min-height: 100px; margin-top: 10px; display: none; background: #f8f9fa; border-radius: 4px;">
+                        <strong>Preview:</strong>
+                        <div id="previewContent"></div>
+                    </div>
                 </div>
                 <button type="submit" id="createProjectBtn" class="btn-primary">Create Project</button>
-                <div id="errorMessage" class="alert-error" style="display: none;" role="alert" aria-live="assertive"></div>
+                <div id="errorMessage" class="alert-error" style="display: none;" role="alert" aria-live="assertive">
+                </div>
             </form>
         </div>
     </div>
@@ -74,6 +88,29 @@
                 createProjectBtn.textContent = 'Create Project';
             }
         }
+        // Real-time Markdown preview for project description
+        document.addEventListener('DOMContentLoaded', function () {
+            const descriptionTextarea = document.getElementById('projectDescription');
+            const previewDiv = document.getElementById('descriptionPreview');
+            const previewContent = document.getElementById('previewContent');
+
+            if (descriptionTextarea && previewDiv && previewContent) {
+                descriptionTextarea.addEventListener('input', function () {
+                    const mdText = this.value;
+                    if (mdText.trim()) {
+                        previewContent.innerHTML = renderMarkdownToHTML(mdText);
+                        previewDiv.style.display = 'block';
+                    } else {
+                        previewDiv.style.display = 'none';
+                    }
+                });
+
+                // Initial preview (empty)
+                previewDiv.style.display = 'none';
+            }
+        });
+
     </script>
 </body>
+
 </html>
