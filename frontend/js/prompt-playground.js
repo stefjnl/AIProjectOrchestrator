@@ -187,10 +187,7 @@ class PromptPlayground {
             this.showLoading('generateBtn');
             this.showLoading('responseArea');
 
-            const response = await APIClient.post('/ai/generate', {
-                prompt: content,
-                // model is optional as per API spec
-            });
+            const response = await APIClient.generatePromptFromPlayground(content);
 
             // Handle the AI response properly
             let responseText = '';

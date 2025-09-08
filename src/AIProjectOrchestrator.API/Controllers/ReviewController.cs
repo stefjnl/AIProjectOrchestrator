@@ -373,9 +373,9 @@ namespace AIProjectOrchestrator.API.Controllers
 
                 return new ProjectPlanningState
                 {
-                    PlanningId = planning.PlanningId,
+                    PlanningId = planning.PlanningId.ToString(),
                     Status = planning.Status,
-                    ReviewId = planning.ReviewId
+                    ReviewId = planning.ReviewId.ToString()
                 };
             }
             catch
@@ -392,7 +392,7 @@ namespace AIProjectOrchestrator.API.Controllers
                 if (generation == null)
                     return null;
 
-                var storyCount = await _storyGenerationService.GetStoryCountAsync(Guid.Parse(generation.GenerationId), cancellationToken);
+                                var storyCount = await _storyGenerationService.GetStoryCountAsync(Guid.Parse(generation.GenerationId), cancellationToken);
 
                 return new StoryGenerationState
                 {
@@ -420,9 +420,9 @@ namespace AIProjectOrchestrator.API.Controllers
                 {
                     StoryIndex = p.StoryIndex,
                     StoryTitle = $"Story {p.StoryIndex + 1}", // Default title, can be enhanced to fetch from stories
-                    PromptId = p.PromptId,
+                    PromptId = p.PromptId.ToString(),
                     Status = p.Status,
-                    ReviewId = p.ReviewId
+                    ReviewId = p.ReviewId.ToString()
                 }).ToList();
 
                 return new PromptGenerationState { StoryPrompts = storyPrompts };

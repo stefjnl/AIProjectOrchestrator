@@ -233,4 +233,8 @@ window.APIClient = {
         return await this.post(`/stories/generations/${storyGenerationId}/approve`, {});
     },
 
+    async generatePromptFromPlayground(promptContent) {
+        return this.post('/playground-prompt-generation', { promptContent });
+    },
+
 };
