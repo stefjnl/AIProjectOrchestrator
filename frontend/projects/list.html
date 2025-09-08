@@ -152,16 +152,50 @@
                         document.getElementById('project-grid').innerHTML = '<div class="no-projects" style="text-align: center; padding: 40px; color: #6c757d;">No projects found.</div>';
                     }
                 }
-                // Show success message
-                const successMsg = document.createElement('div');
-                successMsg.textContent = 'Project deleted successfully.';
-                successMsg.style.cssText = 'color: green; margin: 10px 0; padding: 5px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px;';
-                document.getElementById('project-list-container').insertBefore(successMsg, document.getElementById('project-grid'));
-                setTimeout(() => successMsg.remove(), 3000);
+                // Show success toast notification
+                showToast('Project deleted successfully.', 'success');
             } catch (error) {
                 console.error('Delete failed:', error);
-                alert(`Failed to delete project: ${error.message}`);
+                showToast(`Failed to delete project: ${error.message}`, 'error');
             }
+        }
+
+        function showToast(message, type = 'success') {
+            // Remove any existing toast notifications
+            const existingToast = document.querySelector('.notification-toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.className = 'notification-toast';
+            
+            // Add type-specific class
+            if (type === 'error') {
+                toast.classList.add('error');
+            } else if (type === 'info') {
+                toast.classList.add('info');
+            }
+            // For 'success' type, we use the default styles from CSS
+
+            toast.textContent = message;
+
+            // Position at top center (using existing CSS positioning)
+            toast.style.position = 'fixed';
+            toast.style.top = '20px';
+            toast.style.left = '50%';
+            toast.style.zIndex = '1001';
+
+            // Add to document
+            document.body.appendChild(toast);
+
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 3000);
         }
     </script>
 </body>
