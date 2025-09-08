@@ -826,16 +826,27 @@
                         // If we found a prompt ID for this story, update the UI
                         if (storyPrompt && storyPrompt.promptId) {
                             clearInterval(fastPollInterval);
+                            // Reset the button state before reloading stories
+                            generateButton.disabled = false;
+                            generateButton.innerHTML = 'Generate Prompt';
                             // Reload the stories to update the UI
                             await loadAndRenderStories();
                         }
 
                         // Stop fast polling after max attempts or if we've detected the prompt
                         if (fastPollCount >= maxFastPolls || (storyPrompt && storyPrompt.promptId)) {
+                            // Make sure button state is reset if we're stopping polling
+                            if (!(storyPrompt && storyPrompt.promptId)) {
+                                generateButton.disabled = false;
+                                generateButton.innerHTML = originalText;
+                            }
                             clearInterval(fastPollInterval);
                         }
                     } catch (error) {
                         console.error('Error during fast polling:', error);
+                        // Reset button state on error during polling
+                        generateButton.disabled = false;
+                        generateButton.innerHTML = originalText;
                         clearInterval(fastPollInterval);
                     }
                 }, 5000); // Poll every 5 seconds for faster updates

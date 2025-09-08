@@ -20,25 +20,30 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         public async Task<StoryGeneration?> GetByGenerationIdAsync(string generationId, CancellationToken cancellationToken = default)
         {
             return await _context.StoryGenerations
+                .AsNoTracking()
                 .FirstOrDefaultAsync(sg => sg.GenerationId == generationId, cancellationToken);
         }
 
         public async Task<StoryGeneration?> GetByProjectPlanningIdAsync(int projectPlanningId, CancellationToken cancellationToken = default)
         {
             return await _context.StoryGenerations
+                .AsNoTracking()
                 .FirstOrDefaultAsync(sg => sg.ProjectPlanningId == projectPlanningId, cancellationToken);
         }
 
         public async Task<IEnumerable<StoryGeneration>> GetByProjectIdAsync(int projectId, CancellationToken cancellationToken = default)
         {
             return await _context.StoryGenerations
+                .AsNoTracking()
                 .Where(sg => sg.ProjectPlanning.RequirementsAnalysis.ProjectId == projectId)
+                .Select(sg => new StoryGeneration { Id = sg.Id, GenerationId = sg.GenerationId, Status = sg.Status, ProjectPlanningId = sg.ProjectPlanningId })
                 .ToListAsync(cancellationToken);
         }
 
         public async Task<StoryGeneration?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
             return await _context.StoryGenerations
+                .AsNoTracking()
                 .FirstOrDefaultAsync(sg => sg.Id == id, cancellationToken);
         }
 
@@ -49,6 +54,7 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
                 _logger.LogDebug("Querying single story by GUID: {StoryGuid}", storyId);
 
                 var story = await _context.UserStories
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(us => us.Id == storyId, cancellationToken);
 
                 if (story == null)
@@ -115,6 +121,7 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
                     storyGeneration.Id, generationId);
 
                 var stories = await _context.UserStories
+                    .AsNoTracking()
                     .Where(us => us.StoryGenerationId == storyGeneration.Id)
                     .ToListAsync(cancellationToken);
 

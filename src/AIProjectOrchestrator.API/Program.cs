@@ -14,6 +14,7 @@ using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Infrastructure.AI;
 using AIProjectOrchestrator.API.HealthChecks;
 using AIProjectOrchestrator.Domain.Models.Review;
+using Microsoft.AspNetCore.ResponseCompression;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,6 +26,13 @@ builder.Host.UseSerilog((context, configuration) =>
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+
+// Add response compression for large LLM responses
+builder.Services.AddResponseCompression(options =>
+{
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[] { "application/json", "text/plain" });
+});
 
 // Add CORS policy for frontend
 builder.Services.AddCors(options =>
@@ -154,6 +162,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Enable response compression
+app.UseResponseCompression();
 
 // Enable CORS
 app.UseCors("AllowFrontend");

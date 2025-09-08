@@ -154,14 +154,21 @@ class WorkflowManager {
         this.updateWorkflowUI();
     }
 
-    // Poll every 10 seconds for state updates
+    // Adaptive polling: 2s during active generation, 30s when idle
     startPolling() {
         if (this.pollingInterval) {
             clearInterval(this.pollingInterval);
         }
+        const interval = this.isAnyStageActive() ? 2000 : 30000;
         this.pollingInterval = setInterval(() => {
             this.refreshState().catch(console.error);
-        }, 10000);
+        }, interval);
+    }
+
+    isAnyStageActive() {
+        return this.state.requirementsGenerating || this.state.planningGenerating ||
+            this.state.storiesGenerating || this.state.codeGenerating ||
+            this.state.storyPrompts.some(sp => sp.pending);
     }
 
     stopPolling() {
@@ -543,7 +550,7 @@ class WorkflowManager {
      * - Maps workflow states to new CSS status-badge classes (status-not-started, status-approved, etc.)
      * - Preserves all existing functionality for state management, API calls, and event handling
      * - Applies btn-primary class to enabled action buttons
-     * - Handles generating states with appropriate visual feedback
+     * - Handles generating states with appropriate visual feedback (optimistic UI with spinners)
      * - Maintains backward compatibility with existing logic
      */
     updateWorkflowUI() {
@@ -572,20 +579,27 @@ class WorkflowManager {
                     return;
                 }
 
+                // Store original button text if not already stored
+                if (!buttonElement.dataset.originalText) {
+                    buttonElement.dataset.originalText = buttonElement.textContent || stageName.charAt(0).toUpperCase() + stageName.slice(1) + ' Analysis';
+                }
+
                 // Check if this stage is currently being generated
                 const generatingKey = `${stageName}Generating`;
                 let statusText = '';
                 let statusClass = '';
 
                 if (this.state[generatingKey]) {
-                    // Preserve the generating state with pulse animation
+                    // Preserve the generating state with pulse animation and optimistic spinner
                     statusText = 'Generating...';
                     statusClass = statusClassMap['Generating...'] || 'status-in-progress';
                     buttonElement.disabled = true;
+                    buttonElement.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating...';
                 } else {
-                    // Reset button state to use new enterprise styling
+                    // Reset button state to use new enterprise styling and remove spinner
                     buttonElement.disabled = true;
                     buttonElement.classList.remove('btn-primary', 'btn-success', 'btn-warning', 'btn-danger');
+                    buttonElement.innerHTML = buttonElement.dataset.originalText;
 
                     if (this.state[approvedKey]) {
                         statusText = 'Approved';

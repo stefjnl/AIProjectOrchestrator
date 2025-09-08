@@ -43,7 +43,7 @@ namespace AIProjectOrchestrator.Application.Services
             CancellationToken cancellationToken = default)
         {
             var planningId = Guid.NewGuid();
-            _logger.LogInformation("Starting project planning {PlanningId} for requirements analysis: {RequirementsAnalysisId}", 
+            _logger.LogInformation("Starting project planning {PlanningId} for requirements analysis: {RequirementsAnalysisId}",
                 planningId, request.RequirementsAnalysisId);
 
             try
@@ -67,7 +67,7 @@ namespace AIProjectOrchestrator.Application.Services
                 _logger.LogDebug("Retrieving requirements analysis results for planning {PlanningId}", planningId);
                 var requirementsAnalysis = await _requirementsAnalysisService.GetAnalysisResultsAsync(
                     request.RequirementsAnalysisId, cancellationToken);
-                
+
                 if (requirementsAnalysis == null)
                 {
                     _logger.LogError("Project planning {PlanningId} failed: Requirements analysis not found", planningId);
@@ -77,10 +77,10 @@ namespace AIProjectOrchestrator.Application.Services
                 // Load planning instructions
                 _logger.LogDebug("Loading instructions for project planning {PlanningId}", planningId);
                 var instructionContent = await _instructionService.GetInstructionAsync("ProjectPlanner", cancellationToken);
-                
+
                 if (!instructionContent.IsValid)
                 {
-                    _logger.LogError("Project planning {PlanningId} failed: Invalid instruction content - {ValidationMessage}", 
+                    _logger.LogError("Project planning {PlanningId} failed: Invalid instruction content - {ValidationMessage}",
                         planningId, instructionContent.ValidationMessage);
                     throw new InvalidOperationException($"Failed to load valid instructions: {instructionContent.ValidationMessage}");
                 }
@@ -114,13 +114,19 @@ namespace AIProjectOrchestrator.Application.Services
                 }
 
                 _logger.LogDebug("Calling AI client for project planning {PlanningId}", planningId);
-                
+
+                // Parallelize metadata save with AI call
+                var metadataTask = SaveMetadataAsync(request, planningId, cancellationToken);
+
                 // Call AI
                 var aiResponse = await aiClient.CallAsync(aiRequest, cancellationToken);
-                
+
+                // Await metadata save completion
+                await metadataTask;
+
                 if (!aiResponse.IsSuccess)
                 {
-                    _logger.LogError("Project planning {PlanningId} failed: AI call failed - {ErrorMessage}", 
+                    _logger.LogError("Project planning {PlanningId} failed: AI call failed - {ErrorMessage}",
                         planningId, aiResponse.ErrorMessage);
                     throw new InvalidOperationException($"AI call failed: {aiResponse.ErrorMessage}");
                 }
@@ -176,7 +182,7 @@ namespace AIProjectOrchestrator.Application.Services
                 projectPlanningEntity.ReviewId = reviewResponse.ReviewId.ToString();
                 await _projectPlanningRepository.UpdateAsync(projectPlanningEntity, cancellationToken);
 
-                _logger.LogInformation("Project planning {PlanningId} completed successfully. Review ID: {ReviewId}", 
+                _logger.LogInformation("Project planning {PlanningId} completed successfully. Review ID: {ReviewId}",
                     planningId, reviewResponse.ReviewId);
 
                 var response = new ProjectPlanningResponse
@@ -209,7 +215,7 @@ namespace AIProjectOrchestrator.Application.Services
             {
                 return projectPlanning.Status;
             }
-            
+
             return ProjectPlanningStatus.Failed;
         }
 
@@ -223,7 +229,7 @@ namespace AIProjectOrchestrator.Application.Services
                 // Check that requirements analysis exists
                 var analysisResult = await _requirementsAnalysisService.GetAnalysisResultsAsync(
                     requirementsAnalysisId, cancellationToken);
-                
+
                 if (analysisResult == null)
                 {
                     _logger.LogWarning("ProjectPlanningService: Analysis result is null for {RequirementsAnalysisId}", requirementsAnalysisId);
@@ -233,7 +239,7 @@ namespace AIProjectOrchestrator.Application.Services
                 _logger.LogInformation("ProjectPlanningService: Analysis result for {RequirementsAnalysisId} has status {Status}", requirementsAnalysisId, analysisResult.Status);
 
                 // Check that requirements analysis is approved
-                var canCreate = analysisResult.ReviewId != Guid.Empty && 
+                var canCreate = analysisResult.ReviewId != Guid.Empty &&
                        analysisResult.Status == RequirementsAnalysisStatus.Approved;
 
                 _logger.LogInformation("ProjectPlanningService: CanCreatePlan for {RequirementsAnalysisId} is {CanCreate}", requirementsAnalysisId, canCreate);
@@ -294,7 +300,7 @@ namespace AIProjectOrchestrator.Application.Services
                 var requirementsAnalysis = await _requirementsAnalysisService.GetAnalysisResultsAsync(
                     Guid.Empty, // We'll need to map this properly
                     cancellationToken);
-                
+
                 // For now, return the ID from the entity
                 return Guid.NewGuid(); // This needs to be fixed properly
             }
@@ -312,7 +318,7 @@ namespace AIProjectOrchestrator.Application.Services
 
             return null;
         }
-        
+
         public async Task UpdatePlanningStatusAsync(
             Guid planningId,
             ProjectPlanningStatus status,
@@ -334,15 +340,15 @@ namespace AIProjectOrchestrator.Application.Services
         public async Task<ProjectPlanning?> GetPlanningByProjectAsync(int projectId, CancellationToken cancellationToken = default)
         {
             _logger.LogDebug("ProjectPlanningService: Getting planning for project {ProjectId}", projectId);
-            
+
             try
             {
                 // Query the repository for planning by project ID
                 var planningEntity = await _projectPlanningRepository.GetByProjectIdAsync(projectId, cancellationToken);
-                
-                _logger.LogDebug("ProjectPlanningService: Found planning for project {ProjectId}: {Found}", 
+
+                _logger.LogDebug("ProjectPlanningService: Found planning for project {ProjectId}: {Found}",
                     projectId, planningEntity != null ? "Yes" : "No");
-                
+
                 return planningEntity;
             }
             catch (Exception ex)
@@ -353,44 +359,44 @@ namespace AIProjectOrchestrator.Application.Services
         }
 
         private string CreatePromptFromContext(
-            RequirementsAnalysisResponse requirementsAnalysis, 
+            RequirementsAnalysisResponse requirementsAnalysis,
             ProjectPlanningRequest request)
         {
             var prompt = new StringBuilder();
-            
+
             prompt.AppendLine("# Project Planning Request");
             prompt.AppendLine();
             prompt.AppendLine("## Approved Requirements Analysis");
             prompt.AppendLine(requirementsAnalysis.AnalysisResult);
             prompt.AppendLine();
-            
+
             if (!string.IsNullOrWhiteSpace(request.PlanningPreferences))
             {
                 prompt.AppendLine("## Planning Preferences");
                 prompt.AppendLine(request.PlanningPreferences);
                 prompt.AppendLine();
             }
-            
+
             if (!string.IsNullOrWhiteSpace(request.TechnicalConstraints))
             {
                 prompt.AppendLine("## Technical Constraints");
                 prompt.AppendLine(request.TechnicalConstraints);
                 prompt.AppendLine();
             }
-            
+
             if (!string.IsNullOrWhiteSpace(request.TimelineConstraints))
             {
                 prompt.AppendLine("## Timeline Constraints");
                 prompt.AppendLine(request.TimelineConstraints);
                 prompt.AppendLine();
             }
-            
+
             prompt.AppendLine("## Instructions");
             prompt.AppendLine("Please provide a detailed project plan with the following sections:");
             prompt.AppendLine("1. Project Roadmap - Phases, timelines, and dependencies");
             prompt.AppendLine("2. Architectural Decisions - Technology stack, patterns, and infrastructure");
             prompt.AppendLine("3. Milestones - Key deliverables, success criteria, and checkpoints");
-            
+
             return prompt.ToString();
         }
 
@@ -430,7 +436,7 @@ namespace AIProjectOrchestrator.Application.Services
         {
             var analysisIdStr = requirementsAnalysisId.ToString();
             var entityId = await _requirementsAnalysisRepository.GetEntityIdByAnalysisIdAsync(analysisIdStr, cancellationToken);
-            
+
             if (!entityId.HasValue)
             {
                 _logger.LogError("Could not find RequirementsAnalysis entity for ID {RequirementsAnalysisId}", requirementsAnalysisId);
@@ -445,6 +451,17 @@ namespace AIProjectOrchestrator.Application.Services
             public string ProjectRoadmap { get; set; } = string.Empty;
             public string ArchitecturalDecisions { get; set; } = string.Empty;
             public string Milestones { get; set; } = string.Empty;
+        }
+
+        private async Task SaveMetadataAsync(ProjectPlanningRequest request, Guid planningId, CancellationToken cancellationToken)
+        {
+            // Save request metadata (preferences, constraints, timestamps) in parallel with AI call
+            // This reduces overall latency by overlapping I/O operations
+            _logger.LogDebug("Saving metadata for project planning {PlanningId} in parallel", planningId);
+
+            // Placeholder for actual metadata persistence - could save to DB or cache
+            // For example: await _metadataRepository.SaveAsync(new PlanningMetadata { PlanningId = planningId, Request = request, CreatedAt = DateTime.UtcNow });
+            await Task.Delay(100, cancellationToken); // Simulate async I/O (replace with real save)
         }
     }
 }
