@@ -26,5 +26,8 @@ namespace AIProjectOrchestrator.Domain.Services
         
         // Method to delete reviews by project ID for cascading deletion
         Task DeleteReviewsByProjectIdAsync(int projectId, CancellationToken cancellationToken = default);
+
+        Task<IEnumerable<PendingReviewWithProject>> GetPendingReviewsWithProjectAsync(CancellationToken cancellationToken = default);
+        Task<ReviewResponse> DeleteReviewAsync(Guid reviewId, CancellationToken cancellationToken = default);
     }
 }

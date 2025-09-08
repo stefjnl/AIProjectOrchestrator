@@ -28,7 +28,7 @@ namespace AIProjectOrchestrator.API.Controllers
         private readonly ILogger<ReviewController> _logger;
 
         public ReviewController(
-            IReviewService reviewService, 
+            IReviewService reviewService,
             IRequirementsAnalysisService requirementsAnalysisService,
             IProjectPlanningService projectPlanningService,
             IStoryGenerationService storyGenerationService,
@@ -167,7 +167,7 @@ namespace AIProjectOrchestrator.API.Controllers
                             _logger.LogWarning("Could not find GenerationId in metadata for review {ReviewId}", id);
                         }
                         break;
-                    // Add cases for other services like CodeGeneration if needed
+                        // Add cases for other services like CodeGeneration if needed
                 }
 
                 return Ok(response);
@@ -254,10 +254,10 @@ namespace AIProjectOrchestrator.API.Controllers
         }
 
         [HttpGet("pending")]
-        [ProducesResponseType(typeof(IEnumerable<ReviewSubmission>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<ReviewSubmission>>> GetPendingReviews(CancellationToken cancellationToken)
+        [ProducesResponseType(typeof(IEnumerable<PendingReviewWithProject>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<IEnumerable<PendingReviewWithProject>>> GetPendingReviews(CancellationToken cancellationToken)
         {
-            var reviews = await _reviewService.GetPendingReviewsAsync(cancellationToken);
+            var reviews = await _reviewService.GetPendingReviewsWithProjectAsync(cancellationToken);
             return Ok(reviews);
         }
 
@@ -458,6 +458,48 @@ namespace AIProjectOrchestrator.API.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
                 {
                     Title = "Error submitting test scenario",
+                    Detail = ex.Message,
+                    Status = StatusCodes.Status500InternalServerError
+                });
+            }
+        }
+
+        [HttpDelete("{id:guid}")]
+        [ProducesResponseType(typeof(ReviewResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<ReviewResponse>> DeleteReview(Guid id, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var response = await _reviewService.DeleteReviewAsync(id, cancellationToken);
+                return Ok(response);
+            }
+            catch (InvalidOperationException ex)
+            {
+                if (ex.Message.Contains("not found"))
+                {
+                    return NotFound(new ProblemDetails
+                    {
+                        Title = "Review not found",
+                        Detail = ex.Message,
+                        Status = StatusCodes.Status404NotFound
+                    });
+                }
+
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid operation",
+                    Detail = ex.Message,
+                    Status = StatusCodes.Status400BadRequest
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting review {ReviewId}", id);
+                return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+                {
+                    Title = "Error deleting review",
                     Detail = ex.Message,
                     Status = StatusCodes.Status500InternalServerError
                 });

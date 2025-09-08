@@ -58,7 +58,7 @@
 
             } catch (error) {
                 console.error("Failed to load dashboard data:", error);
-                const overview = document.querySelector('.dashboard-overview');
+                const overview = document.querySelector('.dashboard-container');
                 overview.innerHTML = `<p style="color: red;">Could not load dashboard data: ${error.message}</p>`;
             }
         });
