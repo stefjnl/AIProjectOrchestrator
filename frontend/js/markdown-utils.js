@@ -58,3 +58,45 @@ function escapeHTML(str) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { renderMarkdownToHTML, escapeHTML };
 }
+
+/**
+ * Toggles truncated/expanded state for Markdown descriptions.
+ * @param {HTMLElement} element - The description element to toggle.
+ * @param {string} maxLength - Maximum characters before truncation (default: 150).
+ */
+function toggleDescription(element, maxLength = 150) {
+    if (element.classList.contains('truncated')) {
+        // Expand
+        element.classList.remove('truncated');
+        element.innerHTML = element.dataset.fullContent;
+        element.nextElementSibling.textContent = 'Show less';
+    } else {
+        // Truncate
+        const fullText = element.innerHTML;
+        element.dataset.fullContent = fullText;
+        const truncatedText = fullText.length > maxLength ? fullText.substring(0, maxLength) + '...' : fullText;
+        element.innerHTML = truncatedText;
+        element.classList.add('truncated');
+        element.nextElementSibling.textContent = 'Show more';
+    }
+}
+
+/**
+ * Initializes truncation for a description element.
+ * @param {HTMLElement} element - The description element.
+ * @param {string} maxLength - Maximum characters before truncation (default: 150).
+ */
+function initTruncatedDescription(element, maxLength = 150) {
+    const fullText = element.innerHTML;
+    if (fullText.length > maxLength) {
+        element.dataset.fullContent = fullText;
+        element.innerHTML = fullText.substring(0, maxLength) + '...';
+        element.classList.add('truncated');
+        
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'toggle-description-btn';
+        toggleBtn.textContent = 'Show more';
+        toggleBtn.onclick = () => toggleDescription(element, maxLength);
+        element.parentNode.insertBefore(toggleBtn, element.nextSibling);
+    }
+}

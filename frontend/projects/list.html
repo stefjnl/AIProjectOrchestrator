@@ -84,6 +84,13 @@
                         </div>
                     `;
                 projectGrid.appendChild(projectCard);
+
+
+                // Initialize truncation for description if long
+                const descriptionEl = projectCard.querySelector('.project-description');
+                if (descriptionEl) {
+                    setTimeout(() => initTruncatedDescription(descriptionEl, 150), 0); // Delay for DOM
+                }
             }
         }
 

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,13 +11,14 @@
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
     <script src="/js/markdown-utils.js"></script>
 </head>
+
 <body>
     <div class="container">
         <h1>Welcome to AI Project Orchestrator</h1>
         <div style="float: right; margin-top: 10px;">
             <a href="/faq.html" style="text-decoration: none; color: #007bff; font-weight: bold;">System Analysis</a>
         </div>
-        
+
         <div class="main-nav-buttons">
             <a href="/projects/create.html"><button>Create New Project</button></a>
             <a href="/projects/list.html"><button>View All Projects</button></a>
@@ -54,7 +56,7 @@
             try {
                 const projects = await window.APIClient.getProjects();
                 const pendingReviews = await window.APIClient.getPendingReviews();
-                
+
                 document.getElementById('total-projects').textContent = projects.length;
                 document.getElementById('pending-reviews').textContent = pendingReviews.length;
 
@@ -90,6 +92,12 @@
                     <a href="/projects/workflow.html?projectId=${project.id}" class="action-link btn-primary">Continue Workflow</a>
                 `;
                 recentList.appendChild(projectItem);
+
+                // Initialize truncation for description if long
+                const descriptionEl = projectItem.querySelector('.project-description');
+                if (descriptionEl) {
+                    setTimeout(() => initTruncatedDescription(descriptionEl, 150), 0); // Delay for DOM
+                }
             });
         }
 
@@ -99,5 +107,5 @@
             return div.innerHTML;
         }
     </script>
-</body>
+
 </html>

@@ -65,7 +65,9 @@
                 const project = await window.APIClient.getProject(projectId);
                 workflowManager.recordApiSuccess();
                 document.getElementById('projectTitle').textContent = project.name;
-                document.getElementById('projectDescription').innerHTML = renderMarkdownToHTML(project.description);
+                const descriptionEl = document.getElementById('projectDescription');
+                descriptionEl.innerHTML = renderMarkdownToHTML(project.description);
+                setTimeout(() => initTruncatedDescription(descriptionEl, 200), 0); // Delay for DOM, longer for header
 
                 // Load and render stories
                 await loadAndRenderStories();

@@ -207,7 +207,9 @@
                 workflowManager.recordApiSuccess();
                 // Update project info directly
                 document.getElementById('projectTitle').textContent = project.name;
-                document.getElementById('projectDescription').innerHTML = renderMarkdownToHTML(project.description);
+                const descriptionEl = document.getElementById('projectDescription');
+                descriptionEl.innerHTML = renderMarkdownToHTML(project.description);
+                setTimeout(() => initTruncatedDescription(descriptionEl, 200), 0); // Delay for DOM, longer for header
                 workflowManager.updateWorkflowUI(); // Update UI after project info is loaded
                 updateStoriesOverviewLink(); // Update stories overview link visibility
             } catch (error) {
