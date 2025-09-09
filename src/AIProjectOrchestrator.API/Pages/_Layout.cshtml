@@ -36,6 +36,10 @@
                 <a href="/faq" class="nav-item">
                     <span class="nav-icon">❓</span>FAQ
                 </a>
+                <a href="/PromptPlayground"
+                    class="nav-item @(ViewContext.RouteData.Values["page"]?.ToString() == "/PromptPlayground" ? "active" : "")">
+                    <span class="nav-icon">🧪</span>Prompt Playground
+                </a>
             </nav>
             <div class="user-menu">
                 <span class="status-indicator online"></span>
