@@ -70,9 +70,12 @@ class WorkflowManager {
                     this.currentStage = 1; // Force new projects to start at stage 1
                     await this.loadStageContent(1); // Load stage 1 content
                     this.handleNewProjectScenario();
+                    this.showStartWorkflowButton(); // Show start button for new projects
+                    this.showNewProjectActionButton(); // Show prominent action button
                 } else {
                     console.log('Not new project, proceeding with normal workflow');
                     await this.loadStageContent(this.currentStage);
+                    this.hideStartWorkflowButton(); // Hide start button for existing projects
                 }
             } catch (workflowError) {
                 console.error('Failed to load workflow state or determine current stage:', workflowError);
@@ -84,6 +87,7 @@ class WorkflowManager {
                     this.workflowState = this.getDefaultWorkflowState();
                     await this.loadStageContent(1);
                     this.handleNewProjectScenario();
+                    this.showStartWorkflowButton(); // Show start button in fallback too
                 } else {
                     // For existing projects, show error and fallback to stage 1
                     window.App.showNotification('Failed to load workflow data. Starting at stage 1.', 'warning');
@@ -1235,6 +1239,38 @@ class WorkflowManager {
 
     exportProject() {
         window.App.showNotification('Export project functionality coming soon', 'info');
+    }
+
+    // Show start workflow button for new projects
+    showStartWorkflowButton() {
+        const container = document.getElementById('start-workflow-container');
+        if (container) {
+            container.style.display = 'block';
+        }
+    }
+
+    // Hide start workflow button when not needed
+    hideStartWorkflowButton() {
+        const container = document.getElementById('start-workflow-container');
+        if (container) {
+            container.style.display = 'none';
+        }
+    }
+
+    // Show prominent action button for new projects
+    showNewProjectActionButton() {
+        const container = document.getElementById('new-project-stage-action');
+        if (container) {
+            container.style.display = 'block';
+        }
+    }
+
+    // Hide prominent action button when not needed
+    hideNewProjectActionButton() {
+        const container = document.getElementById('new-project-stage-action');
+        if (container) {
+            container.style.display = 'none';
+        }
     }
 
     initializeRequirementsStage() {

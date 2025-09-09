@@ -42,7 +42,42 @@
                 </div>
             </div>
         </div>
+        <!-- Start Workflow Button for New Projects -->
+        <div class="overview-item start-workflow-container" id="start-workflow-container" style="display: none;">
+            <div class="start-workflow-btn">
+                <button class="btn btn-primary" onclick="window.workflowManager.analyzeRequirements()">
+                    🚀 Start Workflow & Generate Requirements
+                </button>
+                <p class="small-text">Click to begin the AI-powered development process</p>
+            </div>
+        </div>
     </div>
+
+    <!-- Custom Styles for Start Workflow Button -->
+    <style>
+        .start-workflow-container {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .start-workflow-btn .btn {
+            font-size: 1.1rem;
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .start-workflow-btn .small-text {
+            margin-top: 0.75rem;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+    </style>
 
     <!-- Workflow Pipeline -->
     <div class="workflow-pipeline">
@@ -87,6 +122,16 @@
         </div>
     </div>
 
+    <!-- Stage Action Button for New Projects -->
+    <div class="new-project-stage-action" id="new-project-stage-action"
+        style="display: none; margin: 2rem 0; text-align: center;">
+        <h3>Ready to start your project?</h3>
+        <p>Click the button below to begin the AI-powered development workflow</p>
+        <button class="btn btn-lg btn-primary" onclick="window.workflowManager.analyzeRequirements()">
+            🚀 Start Requirements Analysis
+        </button>
+    </div>
+
     <!-- Stage Content -->
     <div class="stage-content" id="stage-content">
         <!-- Dynamic content will be loaded here based on current stage -->
@@ -105,6 +150,7 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/workflow.js"></script>
     <script>
         // Enhanced workflow initialization with new project support
         document.addEventListener('DOMContentLoaded', function () {
