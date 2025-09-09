@@ -1063,7 +1063,7 @@ class WorkflowManager {
             return;
         }
 
-        showLoading('Preparing requirements analysis...');
+        const loadingOverlay = showLoading('Preparing requirements analysis...');
         try {
             // Get project details to pre-populate requirements
             const project = await APIClient.getProject(this.projectId);
@@ -1084,11 +1084,7 @@ class WorkflowManager {
 
             // If no pre-populated input, prompt user
             if (!requirementsInput) {
-                requirementsInput = prompt('Please provide detailed requirements for your project:');
-            }
-
-            if (!requirementsInput) {
-                hideLoading();
+                hideLoading(loadingOverlay);
                 return;
             }
 
@@ -1112,7 +1108,7 @@ class WorkflowManager {
         } catch (error) {
             window.App.showNotification(`Failed to analyze requirements: ${error.message || error}`, 'error');
         } finally {
-            hideLoading();
+            hideLoading(loadingOverlay);
         }
     }
 
@@ -1130,7 +1126,7 @@ class WorkflowManager {
             return;
         }
 
-        showLoading('Regenerating project plan...');
+        const loadingOverlay = showLoading('Regenerating project plan...');
         try {
             // Implementation for plan regeneration
             window.App.showNotification('Project plan submitted for review! Check the Review Queue.', 'success');
@@ -1141,7 +1137,7 @@ class WorkflowManager {
         } catch (error) {
             window.App.showNotification(`Failed to regenerate plan: ${error.message || error}`, 'error');
         } finally {
-            hideLoading();
+            hideLoading(loadingOverlay);
         }
     }
 
@@ -1164,7 +1160,7 @@ class WorkflowManager {
             return;
         }
 
-        showLoading('Generating user stories...');
+        const loadingOverlay = showLoading('Generating user stories...');
         try {
             // Implementation for story generation
             window.App.showNotification('User stories submitted for review! Check the Review Queue.', 'success');
@@ -1175,12 +1171,12 @@ class WorkflowManager {
         } catch (error) {
             window.App.showNotification(`Failed to generate stories: ${error.message || error}`, 'error');
         } finally {
-            hideLoading();
+            hideLoading(loadingOverlay);
         }
     }
 
     async generateAllPrompts() {
-        showLoading('Generating all prompts...');
+        const loadingOverlay = showLoading('Generating all prompts...');
         try {
             // Implementation for prompt generation
             window.App.showNotification('All prompts generated successfully!', 'success');
@@ -1188,13 +1184,13 @@ class WorkflowManager {
         } catch (error) {
             window.App.showNotification(`Failed to generate prompts: ${error.message || error}`, 'error');
         } finally {
-            hideLoading();
+            hideLoading(loadingOverlay);
         }
     }
 
     async completeProject() {
         if (confirm('Are you sure you want to complete this project? This action cannot be undone.')) {
-            showLoading('Completing project...');
+            const loadingOverlay = showLoading('Completing project...');
             try {
                 // Implementation for project completion
                 window.App.showNotification('Project completed successfully!', 'success');
@@ -1204,7 +1200,7 @@ class WorkflowManager {
             } catch (error) {
                 window.App.showNotification(`Failed to complete project: ${error.message || error}`, 'error');
             } finally {
-                hideLoading();
+                hideLoading(loadingOverlay);
             }
         }
     }
@@ -1319,36 +1315,25 @@ class WorkflowManager {
         window.App.showNotification('Export project functionality coming soon', 'info');
     }
 
-    // Show start workflow button for new projects
+    // Show start workflow button for new projects (containers removed, now integrated into stage content)
     showStartWorkflowButton() {
-        const container = document.getElementById('start-workflow-container');
-        if (container) {
-            container.style.display = 'block';
-        }
+        // These containers were removed from HTML, functionality now integrated into stage content
+        console.log('Start workflow button functionality integrated into stage content - containers removed');
     }
 
     // Hide start workflow button when not needed
     hideStartWorkflowButton() {
-        const container = document.getElementById('start-workflow-container');
-        if (container) {
-            container.style.display = 'none';
-        }
+        // Button visibility now handled by stage content loading
+        console.log('Start workflow button visibility managed by stage content - containers removed');
     }
 
-    // Show prominent action button for new projects
+    // Legacy methods - containers removed from HTML
     showNewProjectActionButton() {
-        const container = document.getElementById('new-project-stage-action');
-        if (container) {
-            container.style.display = 'block';
-        }
+        console.log('New project action button container removed from HTML');
     }
 
-    // Hide prominent action button when not needed
     hideNewProjectActionButton() {
-        const container = document.getElementById('new-project-stage-action');
-        if (container) {
-            container.style.display = 'none';
-        }
+        console.log('New project action button container removed from HTML');
     }
 
     initializeRequirementsStage() {
