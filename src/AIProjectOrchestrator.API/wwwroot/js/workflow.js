@@ -639,19 +639,23 @@ class WorkflowManager {
 
     async getPlanningStage() {
         try {
+            const canAccess = this.workflowState?.requirementsAnalysis?.isApproved === true;
+
+            if (!canAccess) {
+                return this.getPlanningLockedState();
+            }
+
             // Check if we have a planning ID from the workflow state
             const planningId = this.workflowState?.projectPlanning?.planningId;
+            const planningStatus = this.workflowState?.projectPlanning?.status;
+            const isApproved = this.workflowState?.projectPlanning?.isApproved === true;
+
+            console.log('Planning stage check - planningId:', planningId, 'status:', planningStatus, 'isApproved:', isApproved);
 
             if (planningId) {
                 // Try to get the actual planning results
                 try {
                     const planning = await APIClient.getProjectPlan(planningId);
-                    const isApproved = this.workflowState?.projectPlanning?.isApproved === true;
-                    const canAccess = this.workflowState?.requirementsAnalysis?.isApproved === true;
-
-                    if (!canAccess) {
-                        return this.getPlanningLockedState();
-                    }
 
                     if (isApproved && planning) {
                         return this.getPlanningCompletedState(planning);
@@ -660,11 +664,17 @@ class WorkflowManager {
                     console.warn('Could not load project planning details:', apiError);
                     // Continue with state-based logic even if API call fails
                 }
-            } else {
-                const canAccess = this.workflowState?.requirementsAnalysis?.isApproved === true;
-                if (!canAccess) {
-                    return this.getPlanningLockedState();
-                }
+            }
+
+            // Check status - if NotStarted (status 0) and no planningId, show empty state
+            if (planningStatus === 0 || planningStatus === 'NotStarted' || !planningId) {
+                console.log('Planning not started, showing empty state');
+                return this.getPlanningEmptyState();
+            }
+
+            if (isApproved) {
+                console.log('Planning approved, showing completed state');
+                return this.getPlanningCompletedState(null);
             }
 
             return this.getPlanningActiveState();
@@ -691,8 +701,12 @@ class WorkflowManager {
     }
 
     getPlanningActiveState() {
-        const hasPlanning = this.workflowState?.projectPlanning?.status !== 'NotStarted';
-        const isPending = this.workflowState?.projectPlanning?.status === 'PendingReview';
+        const planningStatus = this.workflowState?.projectPlanning?.status;
+        const isPending = planningStatus === 'PendingReview';
+        const isNotStarted = planningStatus === 'NotStarted' || planningStatus === 0;
+        const hasPlanningId = this.workflowState?.projectPlanning?.planningId;
+
+        console.log('getPlanningActiveState - status:', planningStatus, 'isPending:', isPending, 'isNotStarted:', isNotStarted, 'hasPlanningId:', hasPlanningId);
 
         if (isPending) {
             return `
@@ -707,7 +721,15 @@ class WorkflowManager {
             `;
         }
 
-        if (hasPlanning) {
+        // If planning hasn't been generated yet (NotStarted and no planningId), show empty state
+        if (isNotStarted && !hasPlanningId) {
+            console.log('Planning not started and no planning ID, showing empty state');
+            return this.getPlanningEmptyState();
+        }
+
+        // If we have a planning ID or it's not NotStarted, show as having planning
+        if (hasPlanningId || !isNotStarted) {
+            console.log('Has planning ID or not NotStarted, showing as having planning');
             return this.getPlanningCompletedState(null);
         }
 
