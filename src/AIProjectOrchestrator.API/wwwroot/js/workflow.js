@@ -922,8 +922,12 @@ class WorkflowManager {
     }
 
     getStoriesActiveState() {
-        const hasStories = this.workflowState?.storyGeneration?.status !== 'NotStarted';
-        const isPending = this.workflowState?.storyGeneration?.status === 'PendingReview';
+        const storyStatus = this.workflowState?.storyGeneration?.status;
+        const isPending = storyStatus === 'PendingReview';
+        const isNotStarted = storyStatus === 'NotStarted' || storyStatus === 0 || !storyStatus;
+        const hasGenerationId = this.workflowState?.storyGeneration?.generationId;
+
+        console.log('getStoriesActiveState - status:', storyStatus, 'isPending:', isPending, 'isNotStarted:', isNotStarted, 'hasGenerationId:', hasGenerationId);
 
         if (isPending) {
             return `
@@ -938,11 +942,45 @@ class WorkflowManager {
             `;
         }
 
-        if (hasStories) {
-            return this.getStoriesCompletedState(null);
+        // CRITICAL FIX: Check if stories haven't been generated yet
+        // Empty string ("") is falsy, so !hasGenerationId will be true
+        const hasNoGenerationId = !hasGenerationId || hasGenerationId === '';
+        console.log('hasNoGenerationId:', hasNoGenerationId, 'hasGenerationId:', hasGenerationId);
+
+        if (isNotStarted && hasNoGenerationId) {
+            console.log('Stories not started and no generation ID, showing empty state');
+            return this.getStoriesEmptyState();
         }
 
+        // If we have a generation ID but it's not approved, show active state
+        if (hasGenerationId && !this.workflowState?.storyGeneration?.isApproved) {
+            console.log('Has generation ID but not approved, showing active state');
+            return this.getStoriesActiveStateWithRegenerate();
+        }
+
+        console.log('Falling back to empty state for stories');
         return this.getStoriesEmptyState();
+    }
+
+    getStoriesActiveStateWithRegenerate() {
+        return `
+            <div class="stage-container">
+                <h2>User Stories</h2>
+                <div class="stage-status active">
+                    <div class="status-icon">📖</div>
+                    <h3>Stories Generation in Progress</h3>
+                    <p>Your user stories are being processed. Check the Review Queue for status updates.</p>
+                    <div class="stage-actions">
+                        <button class="btn btn-primary" onclick="workflowManager.viewRequirementsReview()">
+                            📋 View Review Details
+                        </button>
+                        <button class="btn btn-success" onclick="workflowManager.regenerateStories()">
+                            ✨ Regenerate Stories
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     getStoriesCompletedState(stories) {
@@ -1440,6 +1478,8 @@ class WorkflowManager {
     }
 
     async generateStories() {
+        console.log('=== generateStories() called ===');
+        
         // Check if stories are already approved
         if (this.workflowState?.storyGeneration?.isApproved === true) {
             if (!confirm('User stories are already completed. Do you want to regenerate them? This will require re-approval.')) {
@@ -1460,14 +1500,98 @@ class WorkflowManager {
 
         const loadingOverlay = showLoading('Generating user stories...');
         try {
-            // Implementation for story generation
+            console.log('Getting project details for story generation...');
+            const project = await APIClient.getProject(this.projectId);
+            
+            // Create the story generation request
+            const request = {
+                ProjectId: this.projectId,
+                RequirementsAnalysisId: this.workflowState?.requirementsAnalysis?.analysisId,
+                ProjectPlanningId: this.workflowState?.projectPlanning?.planningId,
+                ProjectDescription: project.description || 'No description available',
+                TechStack: project.techStack || 'Not specified',
+                Timeline: project.timeline || 'Not specified',
+                AdditionalContext: null // Can be extended later
+            };
+
+            console.log('Generating user stories with request:', request);
+            
+            // Make API call to generate user stories
+            console.log('Calling APIClient.generateStories...');
+            const result = await APIClient.generateStories(request);
+            console.log('User stories generation result:', result);
+
             window.App.showNotification('User stories submitted for review! Check the Review Queue.', 'success');
 
             // Reload workflow state to reflect changes
+            console.log('Reloading workflow state...');
             await this.loadWorkflowState();
+            console.log('Reloading stage content...');
             await this.loadStageContent(3);
+            console.log('=== generateStories() completed successfully ===');
         } catch (error) {
+            console.error('Failed to generate user stories:', error);
             window.App.showNotification(`Failed to generate stories: ${error.message || error}`, 'error');
+        } finally {
+            hideLoading(loadingOverlay);
+        }
+    }
+
+    async regenerateStories() {
+        console.log('=== regenerateStories() called ===');
+        
+        // Check if stories are already approved
+        if (this.workflowState?.storyGeneration?.isApproved === true) {
+            if (!confirm('User stories are already completed. Do you want to regenerate them? This will require re-approval.')) {
+                return;
+            }
+        }
+
+        // Check if requirements and planning are approved
+        if (this.workflowState?.requirementsAnalysis?.isApproved !== true) {
+            window.App.showNotification('You must complete Requirements Analysis before generating user stories.', 'warning');
+            return;
+        }
+
+        if (this.workflowState?.projectPlanning?.isApproved !== true) {
+            window.App.showNotification('You must complete Project Planning before generating user stories.', 'warning');
+            return;
+        }
+
+        const loadingOverlay = showLoading('Regenerating user stories...');
+        try {
+            console.log('Getting project details for story regeneration...');
+            const project = await APIClient.getProject(this.projectId);
+            
+            // Create the story generation request for regeneration
+            const request = {
+                ProjectId: this.projectId,
+                RequirementsAnalysisId: this.workflowState?.requirementsAnalysis?.analysisId,
+                ProjectPlanningId: this.workflowState?.projectPlanning?.planningId,
+                ProjectDescription: project.description || 'No description available',
+                TechStack: project.techStack || 'Not specified',
+                Timeline: project.timeline || 'Not specified',
+                AdditionalContext: 'Regenerated stories' // Indicate this is a regeneration
+            };
+
+            console.log('Regenerating user stories with request:', request);
+            
+            // Make API call to regenerate user stories
+            console.log('Calling APIClient.generateStories for regeneration...');
+            const result = await APIClient.generateStories(request);
+            console.log('User stories regeneration result:', result);
+
+            window.App.showNotification('User stories submitted for review! Check the Review Queue.', 'success');
+
+            // Reload workflow state to reflect changes
+            console.log('Reloading workflow state after regeneration...');
+            await this.loadWorkflowState();
+            console.log('Reloading stage content after regeneration...');
+            await this.loadStageContent(3);
+            console.log('=== regenerateStories() completed successfully ===');
+        } catch (error) {
+            console.error('Failed to regenerate user stories:', error);
+            window.App.showNotification(`Failed to regenerate stories: ${error.message || error}`, 'error');
         } finally {
             hideLoading(loadingOverlay);
         }
