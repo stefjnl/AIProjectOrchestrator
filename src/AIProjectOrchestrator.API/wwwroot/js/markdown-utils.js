@@ -69,7 +69,9 @@ function toggleDescription(element, maxLength = 150) {
         // Expand
         element.classList.remove('truncated');
         element.innerHTML = element.dataset.fullContent;
-        element.nextElementSibling.textContent = 'Show less';
+        if (element.nextElementSibling && element.nextElementSibling.classList.contains('toggle-description-btn')) {
+            element.nextElementSibling.textContent = 'Show less';
+        }
     } else {
         // Truncate
         const fullText = element.innerHTML;
@@ -77,7 +79,9 @@ function toggleDescription(element, maxLength = 150) {
         const truncatedText = fullText.length > maxLength ? fullText.substring(0, maxLength) + '...' : fullText;
         element.innerHTML = truncatedText;
         element.classList.add('truncated');
-        element.nextElementSibling.textContent = 'Show more';
+        if (element.nextElementSibling && element.nextElementSibling.classList.contains('toggle-description-btn')) {
+            element.nextElementSibling.textContent = 'Show more';
+        }
     }
 }
 
@@ -88,7 +92,10 @@ function toggleDescription(element, maxLength = 150) {
  */
 function initTruncatedDescription(element, maxLength = 150) {
     const fullText = element.innerHTML;
-    if (fullText.length > maxLength) {
+    const plainText = element.textContent || element.innerText || '';
+    
+    // Use plain text length for truncation decision, but truncate HTML content
+    if (plainText.length > maxLength) {
         element.dataset.fullContent = fullText;
         element.innerHTML = fullText.substring(0, maxLength) + '...';
         element.classList.add('truncated');

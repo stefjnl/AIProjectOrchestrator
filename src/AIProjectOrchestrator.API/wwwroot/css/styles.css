@@ -3189,3 +3189,61 @@ button:focus {
         transition: none !important;
     }
 }
+
+/* Toggle Description Button Styles */
+.toggle-description-btn {
+    background: none;
+    border: none;
+    color: #007bff;
+    cursor: pointer;
+    font-size: 0.9em;
+    text-decoration: underline;
+    padding: 4px 0;
+    margin: 8px 0;
+    display: inline-block;
+    transition: color 0.3s ease;
+}
+
+.toggle-description-btn:hover {
+    color: #0056b3;
+    text-decoration: none;
+}
+
+.toggle-description-btn:focus {
+    outline: 2px solid #007bff;
+    outline-offset: 2px;
+}
+
+/* Truncated description styles for project list */
+.project-description {
+    margin: 10px 0;
+    line-height: 1.5;
+}
+
+.project-description.truncated {
+    position: relative;
+    max-height: 4.5em; /* Approximately 3 lines */
+    overflow: hidden;
+}
+
+.project-description.truncated::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1.5em;
+    background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,1));
+}
+
+/* Ensure toggle button is visible in project cards */
+.project-card .toggle-description-btn {
+    margin-top: 5px;
+    margin-bottom: 0;
+    font-size: 0.85em;
+    color: #667eea;
+}
+
+.project-card .toggle-description-btn:hover {
+    color: #5a67d8;
+}

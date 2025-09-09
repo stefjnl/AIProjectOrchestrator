@@ -90,6 +90,7 @@
                 // Initialize truncation for description if long
                 const descriptionEl = projectCard.querySelector('.project-description');
                 if (descriptionEl) {
+                    // Add the same initialization as workflow.html but with shorter truncation
                     setTimeout(() => initTruncatedDescription(descriptionEl, 150), 0); // Delay for DOM
                 }
             }
