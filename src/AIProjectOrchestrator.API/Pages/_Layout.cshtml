@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewData["Title"] - AI Project Orchestrator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="~/css/styles.css">
+    <link rel="icon" type="image/x-icon" href="~/favicon.ico">
+</head>
+
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <span class="logo-icon">🚀</span>
+                <span class="logo-text">AI Project Orchestrator</span>
+            </div>
+            <nav class="header-nav">
+                <a href="/" class="nav-item @(ViewContext.RouteData.Values["page"]?.ToString() == "/" ? "active" : "")">
+                    <span class="nav-icon">🏠</span>Dashboard
+                </a>
+                <a href="/Projects"
+                    class="nav-item @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("Projects") == true ? "active" : "")">
+                    <span class="nav-icon">📁</span>Projects
+                </a>
+                <a href="/Reviews/Queue"
+                    class="nav-item @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("Reviews") == true ? "active" : "")">
+                    <span class="nav-icon">👀</span>Reviews
+                </a>
+                <a href="/faq" class="nav-item">
+                    <span class="nav-icon">❓</span>FAQ
+                </a>
+            </nav>
+            <div class="user-menu">
+                <span class="status-indicator online"></span>
+                <span class="user-name">Developer</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        @RenderBody()
+    </main>
+
+    <footer class="footer">
+        <div class="footer-content">
+            <p>&copy; 2024 AI Project Orchestrator. Built with .NET 9 and ❤️.</p>
+            <div class="footer-links">
+                <a href="/api/health">Health Check</a>
+                <a href="/swagger">API Docs</a>
+                <a href="https://github.com">GitHub</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Global JavaScript -->
+    <script src="~/js/api.js"></script>
+    <script src="~/js/app.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+
+</html>

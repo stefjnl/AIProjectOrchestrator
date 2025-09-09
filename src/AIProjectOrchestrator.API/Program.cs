@@ -25,6 +25,8 @@ builder.Host.UseSerilog((context, configuration) =>
 
 // Add services to the container.
 builder.Services.AddControllers();
+builder.Services.AddControllersWithViews();
+builder.Services.AddRazorPages();
 builder.Services.AddOpenApi();
 
 // Add response compression for large LLM responses
@@ -191,6 +193,12 @@ app.UseStaticFiles(new StaticFileOptions
 
 // Map controllers
 app.MapControllers();
+
+// Add Razor pages
+app.MapRazorPages();
+
+// Add MVC routing
+app.MapDefaultControllerRoute();
 
 // Map health checks endpoint
 app.MapHealthChecks("/api/health");
