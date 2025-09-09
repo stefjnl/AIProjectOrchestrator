@@ -5,63 +5,66 @@
 }
 
 <div class="container">
-    <div class="card">
-        <div class="d-flex justify-content-between align-items-center mb-md">
+    <div class="playground-container">
+        <div class="d-flex justify-content-between align-items-center mb-lg">
             <h1>Prompt Playground</h1>
         </div>
 
-        <div class="d-flex" style="height: 600px;">
+        <div class="playground-layout">
             <!-- Left Sidebar - Template Manager -->
-            <div class="w-25 pr-md" style="border-right: 1px solid var(--color-gray-200);">
-                <div class="d-flex justify-content-between align-items-center mb-md">
-                    <h3>Prompt Templates</h3>
-                    <button id="newTemplateBtn" class="btn btn-primary" aria-label="Create new template">+ New</button>
+            <div class="playground-sidebar">
+                <div class="sidebar-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="sidebar-title">Prompt Templates</h3>
+                        <button id="newTemplateBtn" class="btn-playground-primary" aria-label="Create new template">
+                            <span>➕</span> New
+                        </button>
+                    </div>
                 </div>
 
-                <ul id="templateList" class="list-none p-0" role="list">
-                    <!-- Templates will be populated by JavaScript -->
-                </ul>
+                <div class="template-list-container">
+                    <ul id="templateList" class="list-none p-0" role="list">
+                        <!-- Templates will be populated by JavaScript -->
+                    </ul>
+                </div>
             </div>
 
             <!-- Main Editor Area -->
-            <div class="flex-grow-1 d-flex flex-column ml-md">
+            <div class="playground-main">
                 <input type="hidden" id="currentTemplateId" />
 
-                <div class="form-group">
-                    <label for="templateTitle" class="form-label">Template Title</label>
-                    <input type="text" id="templateTitle" class="form-input" placeholder="Enter template title"
+                <div class="form-group-enhanced">
+                    <label for="templateTitle" class="form-label-enhanced">Template Title</label>
+                    <input type="text" id="templateTitle" class="form-input-enhanced" placeholder="Enter template title"
                         required />
                 </div>
 
-                <div class="form-group flex-grow-1">
-                    <label for="templateContent" class="form-label">Prompt Content</label>
-                    <textarea id="templateContent" class="form-textarea" style="font-family: var(--font-mono);"
+                <div class="form-group-enhanced flex-grow-1">
+                    <label for="templateContent" class="form-label-enhanced">Prompt Content</label>
+                    <textarea id="templateContent" class="form-textarea-enhanced"
                         placeholder="Enter your prompt content using {{variables}} for dynamic values"></textarea>
                 </div>
 
-                <div class="d-flex justify-content-between mt-md">
-                    <div>
-                        <button id="saveTemplateBtn" class="btn btn-primary">Save Template</button>
-                        <button id="cancelBtn" class="btn btn-secondary hidden">Cancel</button>
+                <div class="action-buttons-group">
+                    <div class="d-flex gap-md">
+                        <button id="saveTemplateBtn" class="btn-playground-primary">💾 Save Template</button>
+                        <button id="cancelBtn" class="btn-playground-secondary hidden">❌ Cancel</button>
                     </div>
-                    <button id="generateBtn" class="btn btn-success">Generate</button>
+                    <button id="generateBtn" class="btn-playground-success">⚡ Generate</button>
                 </div>
 
                 <!-- Response Area -->
-                <div class="mt-lg">
-                    <div class="d-flex justify-content-between align-items-center mb-sm">
-                        <h3>Response</h3>
-                        <button id="copyResponseBtn" class="btn btn-secondary hidden"
-                            aria-label="Copy response to clipboard">Copy</button>
+                <div class="response-container">
+                    <div class="response-header">
+                        <h3 class="mb-0">Response</h3>
+                        <button id="copyResponseBtn" class="btn-playground-secondary hidden"
+                            aria-label="Copy response to clipboard">📋 Copy</button>
                     </div>
-                    <div id="responseLoading" class="d-flex justify-content-center align-items-center hidden"
-                        style="height: 100px;">
-                        <div class="loading"></div>
+                    <div id="responseLoading" class="loading-container hidden">
+                        <div class="loading-enhanced"></div>
                     </div>
-                    <div id="responseArea" class="border rounded p-md"
-                        style="min-height: 100px; background: var(--color-gray-50);">
-                        <p id="responseContent" class="mb-0"
-                            style="font-family: var(--font-mono); white-space: pre-wrap;"></p>
+                    <div id="responseContentWrapper" class="response-content-wrapper">
+                        <p id="responseContent" class="response-content"></p>
                     </div>
                 </div>
             </div>
