@@ -66,13 +66,17 @@ class WorkflowManager {
 
                 // Handle new project scenario - NEW PROJECTS ALWAYS START AT STAGE 1
                 if (this.isNewProject) {
-                    console.log('New project detected - forcing stage 1 and showing prompt');
+                    console.log('=== NEW PROJECT DETECTED ===');
+                    console.log('Forcing stage 1 and showing prompt');
                     this.hasShownNewProjectPrompt = true;
                     this.currentStage = 1; // Force new projects to start at stage 1
+                    console.log('Loading stage 1 content for new project...');
                     await this.loadStageContent(1); // Load stage 1 content
+                    console.log('Stage 1 content loaded, handling new project scenario...');
                     this.handleNewProjectScenario();
                     this.showStartWorkflowButton(); // Show start button for new projects
                     this.showNewProjectActionButton(); // Show prominent action button
+                    console.log('=== NEW PROJECT SETUP COMPLETE ===');
                 } else {
                     console.log('Not new project, proceeding with normal workflow');
                     await this.loadStageContent(this.currentStage);
@@ -311,8 +315,11 @@ class WorkflowManager {
     }
 
     async loadStageContent(stage) {
+        console.log(`=== loadStageContent called for stage ${stage} ===`);
+
         // Validate that we can access this stage
         if (!this.canAccessStage(stage)) {
+            console.log(`Stage ${stage} not accessible, finding highest accessible stage`);
             // Redirect to the highest accessible stage
             const accessibleStage = this.getHighestAccessibleStage();
             if (accessibleStage !== this.currentStage) {
@@ -322,6 +329,7 @@ class WorkflowManager {
         }
 
         this.currentStage = stage;
+        console.log(`Setting current stage to ${stage}`);
 
         // Update navigation
         document.getElementById('stage-counter').textContent = `Stage ${stage} of 5`;
@@ -332,11 +340,21 @@ class WorkflowManager {
         this.updateNextStageButton();
 
         // Load stage-specific content
+        console.log(`Getting content for stage ${stage}...`);
         const content = await this.getStageContent(stage);
-        document.getElementById('stage-content').innerHTML = content;
+        console.log(`Content received, length: ${content.length}`);
+
+        const stageContentElement = document.getElementById('stage-content');
+        if (stageContentElement) {
+            stageContentElement.innerHTML = content;
+            console.log(`Stage ${stage} content loaded successfully`);
+        } else {
+            console.error('Stage content element not found!');
+        }
 
         // Initialize stage-specific functionality
         this.initializeStageFunctionality(stage);
+        console.log(`=== loadStageContent completed for stage ${stage} ===`);
     }
 
     canAccessStage(stage) {
@@ -384,15 +402,40 @@ class WorkflowManager {
     }
 
     canProgressToNextStage() {
-        if (!this.workflowState) return this.currentStage === 1;
+        if (!this.workflowState) {
+            console.log('No workflow state, allowing progression from stage 1');
+            return this.currentStage === 1;
+        }
+
+        console.log(`Checking if can progress from stage ${this.currentStage}`);
+        console.log('Requirements approved:', this.workflowState.requirementsAnalysis?.isApproved);
+        console.log('Planning approved:', this.workflowState.projectPlanning?.isApproved);
+        console.log('Stories approved:', this.workflowState.storyGeneration?.isApproved);
+        console.log('Prompt completion:', this.workflowState.promptGeneration?.completionPercentage);
 
         switch (this.currentStage) {
-            case 1: return this.workflowState.requirementsAnalysis?.isApproved === true;
-            case 2: return this.workflowState.projectPlanning?.isApproved === true;
-            case 3: return this.workflowState.storyGeneration?.isApproved === true;
-            case 4: return this.workflowState.promptGeneration?.completionPercentage >= 100;
-            case 5: return true; // Can always "complete" the final stage
-            default: return false;
+            case 1:
+                const canProgress = this.workflowState.requirementsAnalysis?.isApproved === true;
+                console.log(`Stage 1 can progress: ${canProgress}`);
+                return canProgress;
+            case 2:
+                const canProgress2 = this.workflowState.projectPlanning?.isApproved === true;
+                console.log(`Stage 2 can progress: ${canProgress2}`);
+                return canProgress2;
+            case 3:
+                const canProgress3 = this.workflowState.storyGeneration?.isApproved === true;
+                console.log(`Stage 3 can progress: ${canProgress3}`);
+                return canProgress3;
+            case 4:
+                const canProgress4 = this.workflowState.promptGeneration?.completionPercentage >= 100;
+                console.log(`Stage 4 can progress: ${canProgress4}`);
+                return canProgress4;
+            case 5:
+                console.log('Stage 5 can always progress');
+                return true; // Can always "complete" the final stage
+            default:
+                console.log(`Unknown stage ${this.currentStage}, cannot progress`);
+                return false;
         }
     }
 
@@ -410,16 +453,28 @@ class WorkflowManager {
 
     async getRequirementsStage() {
         try {
+            console.log('=== getRequirementsStage called ===');
+            console.log('Workflow state:', this.workflowState);
+            console.log('Requirements analysis:', this.workflowState?.requirementsAnalysis);
+
             // Check if we have an analysis ID from the workflow state
             const analysisId = this.workflowState?.requirementsAnalysis?.analysisId;
+            const status = this.workflowState?.requirementsAnalysis?.status;
+            const isApproved = this.workflowState?.requirementsAnalysis?.isApproved === true;
+
+            console.log('Analysis ID:', analysisId);
+            console.log('Status:', status);
+            console.log('Is Approved:', isApproved);
 
             if (analysisId) {
+                console.log('Found analysis ID, trying to load requirements details');
                 // Try to get the actual requirements analysis results
                 try {
                     const requirements = await APIClient.getRequirements(analysisId);
-                    const isApproved = this.workflowState?.requirementsAnalysis?.isApproved === true;
+                    console.log('Loaded requirements:', requirements);
 
                     if (isApproved && requirements) {
+                        console.log('Requirements are approved, showing completed state');
                         return this.getRequirementsCompletedState(requirements);
                     }
                 } catch (apiError) {
@@ -428,7 +483,11 @@ class WorkflowManager {
                 }
             }
 
-            return this.getRequirementsActiveState();
+            console.log('No analysis ID or requirements not approved, determining state based on workflow');
+            const content = this.getRequirementsActiveState();
+            console.log('Generated content length:', content.length);
+            console.log('Content preview:', content.substring(0, 200) + '...');
+            return content;
         } catch (error) {
             console.error('Error in getRequirementsStage:', error);
             return this.getRequirementsEmptyState();
@@ -436,11 +495,18 @@ class WorkflowManager {
     }
 
     getRequirementsActiveState() {
+        console.log('=== getRequirementsActiveState called ===');
         const hasAnalysis = this.workflowState?.requirementsAnalysis?.status !== 'NotStarted';
         const isPending = this.workflowState?.requirementsAnalysis?.status === 'PendingReview';
         const isApproved = this.workflowState?.requirementsAnalysis?.isApproved === true;
 
         console.log(`Requirements state - hasAnalysis: ${hasAnalysis}, isPending: ${isPending}, isApproved: ${isApproved}`);
+        console.log('Raw requirements analysis:', this.workflowState?.requirementsAnalysis);
+
+        if (isApproved) {
+            console.log('Requirements are approved, showing completed state');
+            return this.getRequirementsCompletedState(null);
+        }
 
         if (isPending) {
             return `
@@ -460,8 +526,37 @@ class WorkflowManager {
             `;
         }
 
-        if (hasAnalysis && isApproved) {
-            return this.getRequirementsCompletedState(null);
+        // For new projects or when requirements exist but need to be regenerated
+        if (hasAnalysis) {
+            console.log('Requirements exist but not approved, showing active state with regenerate option');
+            return `
+                <div class="stage-container">
+                    <h2>Requirements Analysis</h2>
+                    <div class="stage-status active">
+                        <div class="status-icon">📋</div>
+                        <h3>Analysis in Progress</h3>
+                        <p>Your requirements analysis is being processed. Check the Review Queue for status updates.</p>
+                        <div class="stage-actions">
+                            <button class="btn btn-primary" onclick="workflowManager.viewRequirementsReview()">
+                                📋 View Review Details
+                            </button>
+                            <button class="btn btn-secondary" onclick="workflowManager.analyzeRequirements()">
+                                🚀 Start New Analysis
+                            </button>
+                            <button class="btn btn-success" onclick="workflowManager.analyzeRequirements()" style="background: #28a745; border-color: #28a745;">
+                                🚀 Start Requirements Analysis
+                            </button>
+                        </div>
+                    </div>
+                    <div class="manual-trigger-section" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #28a745;">
+                        <h4>Manual Trigger</h4>
+                        <p>If the automatic analysis hasn't started, you can manually trigger it:</p>
+                        <button class="btn btn-success btn-lg" onclick="workflowManager.analyzeRequirements()" style="background: #28a745; border-color: #28a745; font-size: 16px; padding: 12px 24px;">
+                            🚀 Start Requirements Analysis Now
+                        </button>
+                    </div>
+                </div>
+            `;
         }
 
         return this.getRequirementsEmptyState();
@@ -497,8 +592,23 @@ class WorkflowManager {
                     <div class="empty-icon">📋</div>
                     <h3>No Requirements Found</h3>
                     <p>Start by analyzing your project requirements.</p>
-                    <button class="btn btn-primary" onclick="workflowManager.analyzeRequirements()">
-                        🚀 Start Analysis
+                    <div class="stage-actions">
+                        <button class="btn btn-primary btn-lg" onclick="workflowManager.analyzeRequirements()" style="font-size: 16px; padding: 12px 24px;">
+                            🚀 Start Requirements Analysis
+                        </button>
+                    </div>
+                </div>
+                <div class="getting-started-section" style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196f3;">
+                    <h4>Getting Started</h4>
+                    <p>Click the button above to begin requirements analysis. You'll be prompted to describe:</p>
+                    <ul style="text-align: left; margin: 10px 0;">
+                        <li>What problem your project solves</li>
+                        <li>Key features and functionality</li>
+                        <li>Technology constraints or preferences</li>
+                        <li>Timeline and budget considerations</li>
+                    </ul>
+                    <button class="btn btn-success" onclick="workflowManager.analyzeRequirements()" style="background: #28a745; border-color: #28a745;">
+                        🚀 Start Analysis Now
                     </button>
                 </div>
             </div>
@@ -1082,10 +1192,23 @@ class WorkflowManager {
                 }
             }
 
-            // If no pre-populated input, prompt user
+            // If no pre-populated input, prompt user for manual input
             if (!requirementsInput) {
                 hideLoading(loadingOverlay);
-                return;
+
+                // Show a prompt for manual requirements input
+                requirementsInput = prompt('Please describe your project requirements:\n\n' +
+                    'What problem are you trying to solve? What features do you need? ' +
+                    'What technology constraints do you have?');
+
+                // If user cancels the prompt, don't proceed
+                if (!requirementsInput) {
+                    window.App.showNotification('Requirements analysis cancelled. You can try again later.', 'info');
+                    return;
+                }
+
+                // Re-show loading overlay since we're proceeding
+                loadingOverlay = showLoading('Preparing requirements analysis...');
             }
 
             // Create the requirements analysis request
@@ -1268,7 +1391,13 @@ class WorkflowManager {
 
     // Utility methods
     viewRequirementsReview() {
-        window.App.showNotification('View requirements review functionality coming soon', 'info');
+        // Navigate to the review queue with the current review ID
+        const reviewId = this.workflowState?.requirementsAnalysis?.reviewId;
+        if (reviewId) {
+            window.location.href = `/Reviews/Queue?reviewId=${reviewId}`;
+        } else {
+            window.location.href = '/Reviews/Queue';
+        }
     }
 
     editRequirements() {
@@ -1378,6 +1507,82 @@ class WorkflowManager {
         } catch (error) {
             console.error('Error updating workflow UI:', error);
         }
+    }
+}
+
+// Initialize workflow manager when DOM is loaded
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('=== WORKFLOW INITIALIZATION STARTED ===');
+    console.log('Current URL:', window.location.href);
+    console.log('Full URL with params:', window.location.search);
+    console.log('DOM Content Loaded - starting workflow initialization');
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectId = urlParams.get('projectId');
+    const newProject = urlParams.get('newProject') === 'true';
+
+    console.log('Parsed URL parameters:', {
+        projectId: projectId,
+        newProject: newProject,
+        rawNewProject: urlParams.get('newProject'),
+        allParams: Object.fromEntries(urlParams)
+    });
+
+    if (projectId) {
+        console.log(`Creating WorkflowManager for project ${projectId}, newProject=${newProject}`);
+
+        try {
+            window.workflowManager = new WorkflowManager(projectId, newProject);
+            console.log('WorkflowManager created successfully');
+        } catch (error) {
+            console.error('Failed to create WorkflowManager:', error);
+            // Fallback: show basic content
+            showFallbackContent();
+        }
+    } else {
+        console.error('No project ID found for workflow initialization');
+        window.App.showNotification('No project ID found', 'error');
+        showFallbackContent();
+    }
+
+    console.log('=== WORKFLOW INITIALIZATION COMPLETED ===');
+});
+
+// Fallback function to show basic content if workflow manager fails
+function showFallbackContent() {
+    console.log('Showing fallback content due to workflow initialization failure');
+    const stageContent = document.getElementById('stage-content');
+    if (stageContent) {
+        stageContent.innerHTML = `
+            <div class="stage-container">
+                <h2>Requirements Analysis</h2>
+                <div class="empty-stage">
+                    <div class="empty-icon">📋</div>
+                    <h3>Workflow Loading Issue</h3>
+                    <p>There was an issue loading the workflow. Please try refreshing the page.</p>
+                    <div class="stage-actions">
+                        <button class="btn btn-primary" onclick="location.reload()">
+                            🔄 Refresh Page
+                        </button>
+                        <button class="btn btn-secondary" onclick="startManualAnalysis()">
+                            🚀 Start Analysis Manually
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+}
+
+// Manual analysis function for fallback
+function startManualAnalysis() {
+    const requirements = prompt('Please describe your project requirements:\n\n' +
+        'What problem are you trying to solve? What features do you need? ' +
+        'What technology constraints do you have?');
+
+    if (requirements) {
+        alert('Requirements received: ' + requirements.substring(0, 100) + '...\n\n' +
+            'This is a fallback function. The full workflow will be available once the page is refreshed.');
     }
 }
 

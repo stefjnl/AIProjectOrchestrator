@@ -91,6 +91,36 @@
     <!-- Stage Content -->
     <div class="stage-content" id="stage-content">
         <!-- Dynamic content will be loaded here based on current stage -->
+        <!-- Fallback content for new projects - shown immediately -->
+        <div id="fallback-content" style="display: block;">
+            <div class="stage-container">
+                <h2>Requirements Analysis</h2>
+                <div class="empty-stage">
+                    <div class="empty-icon">🚀</div>
+                    <h3>Welcome to Your New Project!</h3>
+                    <p>Let's start by analyzing your project requirements. Click the button below to begin.</p>
+                    <div class="stage-actions">
+                        <button class="btn btn-success btn-lg" onclick="startManualRequirementsAnalysis()" style="font-size: 18px; padding: 15px 30px; background: #28a745; border-color: #28a745;">
+                            🚀 Start Requirements Analysis
+                        </button>
+                        <button class="btn btn-secondary" onclick="location.reload()">
+                            🔄 Refresh if Workflow Doesn't Load
+                        </button>
+                    </div>
+                </div>
+                <div class="getting-started-tips" style="margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
+                    <h4>💡 Getting Started Tips</h4>
+                    <p>When you start requirements analysis, be prepared to describe:</p>
+                    <ul style="text-align: left; margin: 15px 0;">
+                        <li>🎯 The main problem your project solves</li>
+                        <li>✨ Key features and functionality you need</li>
+                        <li>🔧 Technology preferences or constraints</li>
+                        <li>⏰ Timeline and budget considerations</li>
+                    </ul>
+                    <p style="margin-top: 15px; font-style: italic;">Don't worry about being perfect - our AI will help refine your requirements!</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Stage Navigation -->
@@ -120,6 +150,15 @@
                 return;
             }
 
+            // Show fallback content immediately for new projects
+            if (newProject) {
+                console.log('New project detected, showing fallback content');
+                const fallbackContent = document.getElementById('fallback-content');
+                if (fallbackContent) {
+                    fallbackContent.style.display = 'block';
+                }
+            }
+
             // Initialize the workflow manager with new project flag
             if (window.workflowManager) {
                 // Set the new project flag for the workflow manager
@@ -142,7 +181,14 @@
             }
 
             // Fallback for compatibility
-            showNotification('Please wait for the workflow to initialize...', 'info');
+            const requirements = prompt('Please describe your project requirements:\n\n' +
+                'What problem are you trying to solve? What features do you need? ' +
+                'What technology constraints do you have?');
+
+            if (requirements) {
+                alert('Requirements received: ' + requirements.substring(0, 100) + '...\n\n' +
+                    'This will be processed once the workflow is fully loaded.');
+            }
         }
 
         // Global function to handle project export (called from UI)
@@ -153,6 +199,11 @@
 
             // Fallback
             showNotification('Export functionality coming soon', 'info');
+        }
+
+        // Manual requirements analysis function for fallback
+        function startManualRequirementsAnalysis() {
+            analyzeRequirements();
         }
     </script>
 }
