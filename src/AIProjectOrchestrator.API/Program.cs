@@ -82,6 +82,9 @@ builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IPromptTemplateRepository, PromptTemplateRepository>();
 builder.Services.AddScoped<IPromptTemplateService, PromptTemplateService>();
 
+// Add AI model configuration service
+builder.Services.AddScoped<IAIModelConfigurationService, AIModelConfigurationService>();
+
 // Add code generation specialized services
 builder.Services.AddScoped<ITestGenerator, TestGenerator>();
 builder.Services.AddScoped<IImplementationGenerator, ImplementationGenerator>();

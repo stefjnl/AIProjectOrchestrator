@@ -21,13 +21,20 @@ namespace AIProjectOrchestrator.UnitTests.Code
     {
         private readonly Mock<IAIClientFactory> _mockAiClientFactory;
         private readonly Mock<ILogger<ImplementationGenerator>> _mockLogger;
+        private readonly Mock<IAIModelConfigurationService> _mockModelConfigurationService;
         private readonly ImplementationGenerator _generator;
 
         public ImplementationGeneratorTests()
         {
             _mockAiClientFactory = new Mock<IAIClientFactory>();
             _mockLogger = new Mock<ILogger<ImplementationGenerator>>();
-            _generator = new ImplementationGenerator(_mockAiClientFactory.Object, _mockLogger.Object);
+            _mockModelConfigurationService = new Mock<IAIModelConfigurationService>();
+
+            // Setup the model configuration service to return expected values
+            _mockModelConfigurationService.Setup(x => x.GetModelName(It.IsAny<string>())).Returns("qwen/qwen3-coder");
+            _mockModelConfigurationService.Setup(x => x.GetProviderName(It.IsAny<string>())).Returns("OpenRouter");
+
+            _generator = new ImplementationGenerator(_mockAiClientFactory.Object, _mockLogger.Object, _mockModelConfigurationService.Object);
         }
 
         [Fact]

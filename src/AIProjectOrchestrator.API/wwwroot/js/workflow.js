@@ -2,10 +2,13 @@
 class WorkflowManager {
     constructor(projectId) {
         this.projectId = projectId;
-        this.currentStage = 3; // Default to Stories stage
+        this.currentStage = 1; // Start at Stage 1 (Requirements) by default
         this.stages = ['requirements', 'planning', 'stories', 'prompts', 'review'];
         this.autoRefreshInterval = null;
         this.isAutoRefreshing = false;
+        this.workflowState = null; // Store the current workflow state
+        this.isNewProject = false; // Flag for new projects
+        this.hasShownNewProjectPrompt = false; // Track if we've shown the prompt
 
         this.initialize();
     }
@@ -49,11 +52,31 @@ class WorkflowManager {
     async loadInitialData() {
         try {
             await this.loadProjectData();
+            await this.loadWorkflowState();
             await this.loadCurrentStage();
             this.updateUI();
+
+            // Handle new project scenario
+            if (this.isNewProject && !this.hasShownNewProjectPrompt) {
+                this.hasShownNewProjectPrompt = true;
+                this.handleNewProjectScenario();
+            }
         } catch (error) {
             console.error('Failed to load initial workflow data:', error);
-            showNotification('Failed to load workflow data', 'error');
+            window.App.showNotification('Failed to load workflow data', 'error');
+        }
+    }
+
+    handleNewProjectScenario() {
+        // Check if requirements analysis is needed for new project
+        if (!this.workflowState?.requirementsAnalysis ||
+            this.workflowState.requirementsAnalysis.status === 'NotStarted') {
+
+            setTimeout(() => {
+                if (confirm('Welcome to your new project! Would you like to start with requirements analysis?')) {
+                    this.analyzeRequirements();
+                }
+            }, 1500);
         }
     }
 
@@ -82,13 +105,17 @@ class WorkflowManager {
     }
 
     calculateProgress(project) {
-        const stages = ['requirements', 'planning', 'stories', 'prompts', 'review'];
-        let completed = 0;
+        if (!this.workflowState) return 0;
 
-        stages.forEach(stage => {
-            if (project[stage]?.completed) completed++;
-        });
+        const stages = [
+            this.workflowState.requirementsAnalysis?.isApproved,
+            this.workflowState.projectPlanning?.isApproved,
+            this.workflowState.storyGeneration?.isApproved,
+            this.workflowState.promptGeneration?.completionPercentage >= 100,
+            this.workflowState.promptGeneration?.completionPercentage >= 100
+        ];
 
+        const completed = stages.filter(Boolean).length;
         return Math.round((completed / stages.length) * 100);
     }
 
@@ -111,20 +138,72 @@ class WorkflowManager {
         });
     }
 
+    async loadWorkflowState() {
+        try {
+            this.workflowState = await APIClient.getWorkflowStatus(this.projectId);
+            console.log('Workflow state loaded:', this.workflowState);
+        } catch (error) {
+            console.warn('Could not load workflow state, using defaults');
+            this.workflowState = this.getDefaultWorkflowState();
+        }
+    }
+
+    getDefaultWorkflowState() {
+        return {
+            projectId: this.projectId,
+            projectName: 'Unknown Project',
+            requirementsAnalysis: { status: 'NotStarted', isApproved: false },
+            projectPlanning: { status: 'NotStarted', isApproved: false },
+            storyGeneration: { status: 'NotStarted', isApproved: false },
+            promptGeneration: { status: 'NotStarted', isApproved: false }
+        };
+    }
+
+    getCurrentStageFromWorkflow() {
+        // Determine the current stage based on workflow state
+        if (!this.workflowState) return 1;
+
+        const stages = [
+            { stage: 1, approved: this.workflowState.requirementsAnalysis?.isApproved },
+            { stage: 2, approved: this.workflowState.projectPlanning?.isApproved },
+            { stage: 3, approved: this.workflowState.storyGeneration?.isApproved },
+            { stage: 4, approved: this.workflowState.promptGeneration?.completionPercentage >= 100 },
+            { stage: 5, approved: this.workflowState.promptGeneration?.completionPercentage >= 100 }
+        ];
+
+        // Find the first incomplete stage
+        for (let i = 0; i < stages.length; i++) {
+            if (!stages[i].approved) {
+                return stages[i].stage;
+            }
+        }
+
+        return 5; // All stages completed
+    }
+
     async loadCurrentStage() {
         try {
-            const status = await APIClient.getWorkflowStatus(this.projectId);
-            if (status.currentStage) {
-                this.currentStage = this.stages.indexOf(status.currentStage) + 1;
-            }
+            // Determine current stage from workflow state instead of hardcoding
+            this.currentStage = this.getCurrentStageFromWorkflow();
             await this.loadStageContent(this.currentStage);
         } catch (error) {
-            console.warn('Could not load workflow status, using default stage');
+            console.warn('Could not determine current stage, using default stage 1');
+            this.currentStage = 1;
             await this.loadStageContent(this.currentStage);
         }
     }
 
     async loadStageContent(stage) {
+        // Validate that we can access this stage
+        if (!this.canAccessStage(stage)) {
+            // Redirect to the highest accessible stage
+            const accessibleStage = this.getHighestAccessibleStage();
+            if (accessibleStage !== this.currentStage) {
+                this.currentStage = accessibleStage;
+                return this.loadStageContent(accessibleStage);
+            }
+        }
+
         this.currentStage = stage;
 
         // Update navigation
@@ -132,12 +211,72 @@ class WorkflowManager {
         document.getElementById('prev-stage').disabled = stage === 1;
         document.getElementById('next-stage').textContent = stage === 5 ? 'Complete' : 'Next →';
 
+        // Update next stage button based on current stage completion
+        this.updateNextStageButton();
+
         // Load stage-specific content
         const content = await this.getStageContent(stage);
         document.getElementById('stage-content').innerHTML = content;
 
         // Initialize stage-specific functionality
         this.initializeStageFunctionality(stage);
+    }
+
+    canAccessStage(stage) {
+        if (!this.workflowState) return stage === 1; // Only allow stage 1 if no workflow state
+
+        switch (stage) {
+            case 1: return true; // Stage 1 is always accessible
+            case 2: return this.workflowState.requirementsAnalysis?.isApproved === true;
+            case 3: return this.workflowState.requirementsAnalysis?.isApproved === true &&
+                this.workflowState.projectPlanning?.isApproved === true;
+            case 4: return this.workflowState.requirementsAnalysis?.isApproved === true &&
+                this.workflowState.projectPlanning?.isApproved === true &&
+                this.workflowState.storyGeneration?.isApproved === true;
+            case 5: return this.workflowState.requirementsAnalysis?.isApproved === true &&
+                this.workflowState.projectPlanning?.isApproved === true &&
+                this.workflowState.storyGeneration?.isApproved === true;
+            default: return false;
+        }
+    }
+
+    getHighestAccessibleStage() {
+        if (!this.workflowState) return 1;
+
+        if (this.workflowState.requirementsAnalysis?.isApproved !== true) return 1;
+        if (this.workflowState.projectPlanning?.isApproved !== true) return 2;
+        if (this.workflowState.storyGeneration?.isApproved !== true) return 3;
+        if (this.workflowState.promptGeneration?.completionPercentage < 100) return 4;
+        return 5;
+    }
+
+    updateNextStageButton() {
+        const nextButton = document.getElementById('next-stage');
+        if (!nextButton) return;
+
+        // Check if current stage is completed
+        const canProgress = this.canProgressToNextStage();
+
+        if (!canProgress && this.currentStage < 5) {
+            nextButton.disabled = true;
+            nextButton.title = 'Complete current stage before proceeding';
+        } else {
+            nextButton.disabled = false;
+            nextButton.title = '';
+        }
+    }
+
+    canProgressToNextStage() {
+        if (!this.workflowState) return this.currentStage === 1;
+
+        switch (this.currentStage) {
+            case 1: return this.workflowState.requirementsAnalysis?.isApproved === true;
+            case 2: return this.workflowState.projectPlanning?.isApproved === true;
+            case 3: return this.workflowState.storyGeneration?.isApproved === true;
+            case 4: return this.workflowState.promptGeneration?.completionPercentage >= 100;
+            case 5: return true; // Can always "complete" the final stage
+            default: return false;
+        }
     }
 
     async getStageContent(stage) {
@@ -155,30 +294,62 @@ class WorkflowManager {
     async getRequirementsStage() {
         try {
             const requirements = await APIClient.getRequirements(this.projectId);
-            return `
-                <div class="stage-container">
-                    <h2>Requirements Analysis</h2>
-                    <div class="requirements-content">
-                        <div class="requirements-summary">
-                            <h3>Analysis Results</h3>
-                            <div class="summary-content">
-                                ${this.formatRequirements(requirements)}
-                            </div>
-                        </div>
-                        <div class="requirements-actions">
-                            <button class="btn btn-primary" onclick="workflowManager.analyzeRequirements()">
-                                🔄 Re-analyze Requirements
-                            </button>
-                            <button class="btn btn-secondary" onclick="workflowManager.editRequirements()">
-                                ✏️ Edit Requirements
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
+            const isApproved = this.workflowState?.requirementsAnalysis?.isApproved === true;
+
+            if (isApproved && requirements) {
+                return this.getRequirementsCompletedState(requirements);
+            }
+
+            return this.getRequirementsActiveState();
         } catch (error) {
             return this.getRequirementsEmptyState();
         }
+    }
+
+    getRequirementsActiveState() {
+        const hasAnalysis = this.workflowState?.requirementsAnalysis?.status !== 'NotStarted';
+        const isPending = this.workflowState?.requirementsAnalysis?.status === 'PendingReview';
+
+        if (isPending) {
+            return `
+                <div class="stage-container">
+                    <h2>Requirements Analysis</h2>
+                    <div class="stage-status pending">
+                        <div class="status-icon">⏳</div>
+                        <h3>Analysis Pending Review</h3>
+                        <p>Your requirements analysis is currently under review. Please check the <a href="/Reviews/Queue">Review Queue</a>.</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (hasAnalysis) {
+            return this.getRequirementsCompletedState(null);
+        }
+
+        return this.getRequirementsEmptyState();
+    }
+
+    getRequirementsCompletedState(requirements) {
+        return `
+            <div class="stage-container">
+                <h2>Requirements Analysis</h2>
+                <div class="stage-status completed">
+                    <div class="status-icon">✅</div>
+                    <h3>Requirements Analysis Completed</h3>
+                    <p>Your requirements have been successfully analyzed and approved.</p>
+                    <div class="requirements-summary">
+                        <h4>Analysis Results</h4>
+                        ${requirements ? this.formatRequirements(requirements) : '<p>Requirements analysis data loaded successfully.</p>'}
+                    </div>
+                </div>
+                <div class="stage-actions">
+                    <button class="btn btn-secondary" onclick="workflowManager.editRequirements()">
+                        ✏️ Edit Requirements
+                    </button>
+                </div>
+            </div>
+        `;
     }
 
     getRequirementsEmptyState() {
@@ -229,28 +400,83 @@ class WorkflowManager {
     async getPlanningStage() {
         try {
             const planning = await APIClient.getProjectPlan(this.projectId);
-            return `
-                <div class="stage-container">
-                    <h2>Project Planning</h2>
-                    <div class="planning-content">
-                        <div class="architecture-overview">
-                            <h3>Technical Architecture</h3>
-                            ${this.formatPlanning(planning)}
-                        </div>
-                        <div class="planning-actions">
-                            <button class="btn btn-primary" onclick="workflowManager.regeneratePlan()">
-                                🔄 Regenerate Plan
-                            </button>
-                            <button class="btn btn-secondary" onclick="workflowManager.editPlanning()">
-                                ✏️ Edit Plan
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
+            const isApproved = this.workflowState?.projectPlanning?.isApproved === true;
+            const canAccess = this.workflowState?.requirementsAnalysis?.isApproved === true;
+
+            if (!canAccess) {
+                return this.getPlanningLockedState();
+            }
+
+            if (isApproved && planning) {
+                return this.getPlanningCompletedState(planning);
+            }
+
+            return this.getPlanningActiveState();
         } catch (error) {
             return this.getPlanningEmptyState();
         }
+    }
+
+    getPlanningLockedState() {
+        return `
+            <div class="stage-container">
+                <h2>Project Planning</h2>
+                <div class="stage-status locked">
+                    <div class="status-icon">🔒</div>
+                    <h3>Stage Locked</h3>
+                    <p>You must complete <strong>Requirements Analysis</strong> before accessing this stage.</p>
+                    <button class="btn btn-primary" onclick="workflowManager.jumpToStage(1)">
+                        Go to Requirements Analysis
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    getPlanningActiveState() {
+        const hasPlanning = this.workflowState?.projectPlanning?.status !== 'NotStarted';
+        const isPending = this.workflowState?.projectPlanning?.status === 'PendingReview';
+
+        if (isPending) {
+            return `
+                <div class="stage-container">
+                    <h2>Project Planning</h2>
+                    <div class="stage-status pending">
+                        <div class="status-icon">⏳</div>
+                        <h3>Planning Pending Review</h3>
+                        <p>Your project planning is currently under review. Please check the <a href="/Reviews/Queue">Review Queue</a>.</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (hasPlanning) {
+            return this.getPlanningCompletedState(null);
+        }
+
+        return this.getPlanningEmptyState();
+    }
+
+    getPlanningCompletedState(planning) {
+        return `
+            <div class="stage-container">
+                <h2>Project Planning</h2>
+                <div class="stage-status completed">
+                    <div class="status-icon">✅</div>
+                    <h3>Project Planning Completed</h3>
+                    <p>Your project plan has been successfully created and approved.</p>
+                    <div class="architecture-overview">
+                        <h4>Technical Architecture</h4>
+                        ${planning ? this.formatPlanning(planning) : '<p>Project planning data loaded successfully.</p>'}
+                    </div>
+                </div>
+                <div class="stage-actions">
+                    <button class="btn btn-secondary" onclick="workflowManager.editPlanning()">
+                        ✏️ Edit Plan
+                    </button>
+                </div>
+            </div>
+        `;
     }
 
     getPlanningEmptyState() {
@@ -299,27 +525,97 @@ class WorkflowManager {
     async getStoriesStage() {
         try {
             const stories = await APIClient.getStories(this.projectId);
-            return `
-                <div class="stage-container">
-                    <h2>User Stories</h2>
-                    <div class="stories-content">
-                        <div class="stories-controls">
-                            <button class="btn btn-primary" onclick="workflowManager.generateStories()">
-                                ✨ Generate Stories
-                            </button>
-                            <button class="btn btn-secondary" onclick="workflowManager.addCustomStory()">
-                                ➕ Add Custom Story
-                            </button>
-                        </div>
-                        <div class="stories-list" id="stories-list">
-                            ${this.formatStories(stories)}
-                        </div>
-                    </div>
-                </div>
-            `;
+            const isApproved = this.workflowState?.storyGeneration?.isApproved === true;
+            const canAccess = this.workflowState?.requirementsAnalysis?.isApproved === true &&
+                this.workflowState?.projectPlanning?.isApproved === true;
+
+            if (!canAccess) {
+                return this.getStoriesLockedState();
+            }
+
+            if (isApproved && stories) {
+                return this.getStoriesCompletedState(stories);
+            }
+
+            return this.getStoriesActiveState();
         } catch (error) {
             return this.getStoriesEmptyState();
         }
+    }
+
+    getStoriesLockedState() {
+        return `
+            <div class="stage-container">
+                <h2>User Stories</h2>
+                <div class="stage-status locked">
+                    <div class="status-icon">🔒</div>
+                    <h3>Stage Locked</h3>
+                    <p>You must complete both <strong>Requirements Analysis</strong> and <strong>Project Planning</strong> before accessing this stage.</p>
+                    <div class="locked-requirements">
+                        ${!this.workflowState?.requirementsAnalysis?.isApproved ? `
+                            <div class="requirement-item">
+                                <span class="status-icon">❌</span>
+                                <span>Requirements Analysis - Not completed</span>
+                                <button class="btn btn-sm btn-primary" onclick="workflowManager.jumpToStage(1)">Go</button>
+                            </div>
+                        ` : ''}
+                        ${!this.workflowState?.projectPlanning?.isApproved ? `
+                            <div class="requirement-item">
+                                <span class="status-icon">❌</span>
+                                <span>Project Planning - Not completed</span>
+                                <button class="btn btn-sm btn-primary" onclick="workflowManager.jumpToStage(2)">Go</button>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    getStoriesActiveState() {
+        const hasStories = this.workflowState?.storyGeneration?.status !== 'NotStarted';
+        const isPending = this.workflowState?.storyGeneration?.status === 'PendingReview';
+
+        if (isPending) {
+            return `
+                <div class="stage-container">
+                    <h2>User Stories</h2>
+                    <div class="stage-status pending">
+                        <div class="status-icon">⏳</div>
+                        <h3>Stories Pending Review</h3>
+                        <p>Your user stories are currently under review. Please check the <a href="/Reviews/Queue">Review Queue</a>.</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        if (hasStories) {
+            return this.getStoriesCompletedState(null);
+        }
+
+        return this.getStoriesEmptyState();
+    }
+
+    getStoriesCompletedState(stories) {
+        return `
+            <div class="stage-container">
+                <h2>User Stories</h2>
+                <div class="stage-status completed">
+                    <div class="status-icon">✅</div>
+                    <h3>User Stories Completed</h3>
+                    <p>Your user stories have been successfully generated and approved.</p>
+                    <div class="stories-summary">
+                        <h4>Generated Stories</h4>
+                        ${stories ? this.formatStories(stories) : '<p>User stories data loaded successfully.</p>'}
+                    </div>
+                </div>
+                <div class="stage-actions">
+                    <button class="btn btn-secondary" onclick="workflowManager.addCustomStory()">
+                        ➕ Add Custom Story
+                    </button>
+                </div>
+            </div>
+        `;
     }
 
     getStoriesEmptyState() {
@@ -555,42 +851,129 @@ class WorkflowManager {
 
     // Stage action methods
     async analyzeRequirements() {
-        showLoading('Analyzing requirements...');
-        try {
-            const requirementsInput = prompt('Please provide your project requirements:');
-            if (!requirementsInput) return;
+        // Check if requirements already exist and are approved
+        if (this.workflowState?.requirementsAnalysis?.isApproved === true) {
+            window.App.showNotification('Requirements analysis is already completed and approved.', 'info');
+            return;
+        }
 
-            const result = await APIClient.analyzeRequirements(this.projectId, requirementsInput);
-            showSuccess('Requirements analyzed successfully!');
+        // Check if there's already a pending analysis
+        if (this.workflowState?.requirementsAnalysis?.status === 'PendingReview') {
+            window.App.showNotification('Requirements analysis is already pending review. Check the Review Queue.', 'info');
+            return;
+        }
+
+        showLoading('Preparing requirements analysis...');
+        try {
+            // Get project details to pre-populate requirements
+            const project = await APIClient.getProject(this.projectId);
+
+            let requirementsInput = '';
+
+            // If this is a new project, suggest using the project description
+            if (this.isNewProject && project.description) {
+                const useProjectDescription = confirm(
+                    'We found your project description. Would you like to use it as a starting point for requirements analysis?\n\n' +
+                    'Project Description: ' + project.description.substring(0, 200) + '...'
+                );
+
+                if (useProjectDescription) {
+                    requirementsInput = project.description;
+                }
+            }
+
+            // If no pre-populated input, prompt user
+            if (!requirementsInput) {
+                requirementsInput = prompt('Please provide detailed requirements for your project:');
+            }
+
+            if (!requirementsInput) {
+                hideLoading();
+                return;
+            }
+
+            // Create the requirements analysis request
+            const request = {
+                ProjectDescription: requirementsInput,
+                ProjectId: this.projectId,
+                AdditionalContext: project.techStack ? `Tech Stack: ${project.techStack}` : null,
+                Constraints: project.timeline ? `Timeline: ${project.timeline}` : null
+            };
+
+            const result = await APIClient.analyzeRequirements(request);
+            window.App.showNotification('Requirements submitted for review! Check the Review Queue.', 'success');
+
+            // Reload workflow state to reflect changes
+            await this.loadWorkflowState();
             await this.loadStageContent(1);
+
+            // Clear the new project flag since we've started the process
+            this.isNewProject = false;
         } catch (error) {
-            handleApiError(error, 'Failed to analyze requirements');
+            window.App.showNotification(`Failed to analyze requirements: ${error.message || error}`, 'error');
         } finally {
             hideLoading();
         }
     }
 
     async regeneratePlan() {
+        // Check if planning is already approved
+        if (this.workflowState?.projectPlanning?.isApproved === true) {
+            if (!confirm('Project planning is already completed. Do you want to regenerate it? This will require re-approval.')) {
+                return;
+            }
+        }
+
+        // Check if requirements are approved
+        if (this.workflowState?.requirementsAnalysis?.isApproved !== true) {
+            window.App.showNotification('You must complete Requirements Analysis before generating a project plan.', 'warning');
+            return;
+        }
+
         showLoading('Regenerating project plan...');
         try {
             // Implementation for plan regeneration
-            showSuccess('Project plan regenerated successfully!');
+            window.App.showNotification('Project plan submitted for review! Check the Review Queue.', 'success');
+
+            // Reload workflow state to reflect changes
+            await this.loadWorkflowState();
             await this.loadStageContent(2);
         } catch (error) {
-            handleApiError(error, 'Failed to regenerate plan');
+            window.App.showNotification(`Failed to regenerate plan: ${error.message || error}`, 'error');
         } finally {
             hideLoading();
         }
     }
 
     async generateStories() {
+        // Check if stories are already approved
+        if (this.workflowState?.storyGeneration?.isApproved === true) {
+            if (!confirm('User stories are already completed. Do you want to regenerate them? This will require re-approval.')) {
+                return;
+            }
+        }
+
+        // Check if requirements and planning are approved
+        if (this.workflowState?.requirementsAnalysis?.isApproved !== true) {
+            window.App.showNotification('You must complete Requirements Analysis before generating user stories.', 'warning');
+            return;
+        }
+
+        if (this.workflowState?.projectPlanning?.isApproved !== true) {
+            window.App.showNotification('You must complete Project Planning before generating user stories.', 'warning');
+            return;
+        }
+
         showLoading('Generating user stories...');
         try {
             // Implementation for story generation
-            showSuccess('User stories generated successfully!');
+            window.App.showNotification('User stories submitted for review! Check the Review Queue.', 'success');
+
+            // Reload workflow state to reflect changes
+            await this.loadWorkflowState();
             await this.loadStageContent(3);
         } catch (error) {
-            handleApiError(error, 'Failed to generate stories');
+            window.App.showNotification(`Failed to generate stories: ${error.message || error}`, 'error');
         } finally {
             hideLoading();
         }
@@ -603,7 +986,7 @@ class WorkflowManager {
             showSuccess('All prompts generated successfully!');
             await this.loadStageContent(4);
         } catch (error) {
-            handleApiError(error, 'Failed to generate prompts');
+            window.App.showNotification(`Failed to generate prompts: ${error.message || error}`, 'error');
         } finally {
             hideLoading();
         }
@@ -619,7 +1002,7 @@ class WorkflowManager {
                     window.location.href = '/Projects';
                 }, 2000);
             } catch (error) {
-                handleApiError(error, 'Failed to complete project');
+                window.App.showNotification(`Failed to complete project: ${error.message || error}`, 'error');
             } finally {
                 hideLoading();
             }
@@ -629,7 +1012,19 @@ class WorkflowManager {
     // Navigation methods
     async navigateStage(direction) {
         const newStage = this.currentStage + direction;
+
+        // Validate stage progression
         if (newStage >= 1 && newStage <= 5) {
+            if (direction > 0 && !this.canProgressToNextStage()) {
+                window.App.showNotification('Complete the current stage before proceeding to the next stage.', 'warning');
+                return;
+            }
+
+            if (!this.canAccessStage(newStage)) {
+                window.App.showNotification('You must complete the previous stages before accessing this stage.', 'warning');
+                return;
+            }
+
             await this.loadStageContent(newStage);
         }
     }
@@ -677,47 +1072,47 @@ class WorkflowManager {
 
     // Utility methods
     editRequirements() {
-        showNotification('Edit requirements functionality coming soon', 'info');
+        window.App.showNotification('Edit requirements functionality coming soon', 'info');
     }
 
     editPlanning() {
-        showNotification('Edit planning functionality coming soon', 'info');
+        window.App.showNotification('Edit planning functionality coming soon', 'info');
     }
 
     addCustomStory() {
-        showNotification('Add custom story functionality coming soon', 'info');
+        window.App.showNotification('Add custom story functionality coming soon', 'info');
     }
 
     viewStory(storyId) {
-        showNotification(`View story ${storyId} functionality coming soon`, 'info');
+        window.App.showNotification(`View story ${storyId} functionality coming soon`, 'info');
     }
 
     approveStory(storyId) {
-        showNotification(`Approve story ${storyId} functionality coming soon`, 'info');
+        window.App.showNotification(`Approve story ${storyId} functionality coming soon`, 'info');
     }
 
     rejectStory(storyId) {
-        showNotification(`Reject story ${storyId} functionality coming soon`, 'info');
+        window.App.showNotification(`Reject story ${storyId} functionality coming soon`, 'info');
     }
 
     customizePrompts() {
-        showNotification('Customize prompts functionality coming soon', 'info');
+        window.App.showNotification('Customize prompts functionality coming soon', 'info');
     }
 
     viewPrompt(promptId) {
-        showNotification(`View prompt ${promptId} functionality coming soon`, 'info');
+        window.App.showNotification(`View prompt ${promptId} functionality coming soon`, 'info');
     }
 
     copyPrompt(promptId) {
-        showNotification(`Copy prompt ${promptId} functionality coming soon`, 'info');
+        window.App.showNotification(`Copy prompt ${promptId} functionality coming soon`, 'info');
     }
 
     generateReport() {
-        showNotification('Generate report functionality coming soon', 'info');
+        window.App.showNotification('Generate report functionality coming soon', 'info');
     }
 
     exportProject() {
-        showNotification('Export project functionality coming soon', 'info');
+        window.App.showNotification('Export project functionality coming soon', 'info');
     }
 
     initializeRequirementsStage() {
@@ -750,11 +1145,17 @@ class WorkflowManager {
 document.addEventListener('DOMContentLoaded', function () {
     const urlParams = new URLSearchParams(window.location.search);
     const projectId = urlParams.get('projectId');
+    const newProject = urlParams.get('newProject') === 'true';
 
     if (projectId) {
         window.workflowManager = new WorkflowManager(projectId);
+
+        // Set the new project flag if present
+        if (newProject) {
+            window.workflowManager.isNewProject = true;
+        }
     } else {
         console.error('No project ID found for workflow initialization');
-        showNotification('No project ID found', 'error');
+        window.App.showNotification('No project ID found', 'error');
     }
 });

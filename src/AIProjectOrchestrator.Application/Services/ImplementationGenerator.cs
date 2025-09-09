@@ -19,11 +19,13 @@ public class ImplementationGenerator : IImplementationGenerator
 {
     private readonly IAIClientFactory _aiClientFactory;
     private readonly ILogger<ImplementationGenerator> _logger;
+    private readonly IAIModelConfigurationService _modelConfigurationService;
 
-    public ImplementationGenerator(IAIClientFactory aiClientFactory, ILogger<ImplementationGenerator> logger)
+    public ImplementationGenerator(IAIClientFactory aiClientFactory, ILogger<ImplementationGenerator> logger, IAIModelConfigurationService modelConfigurationService)
     {
         _aiClientFactory = aiClientFactory;
         _logger = logger;
+        _modelConfigurationService = modelConfigurationService;
     }
 
     public async Task<List<CodeArtifact>> GenerateImplementationAsync(
@@ -38,7 +40,7 @@ public class ImplementationGenerator : IImplementationGenerator
         {
             SystemMessage = instructionContent,
             Prompt = CreateImplementationPromptFromContext(context, testFiles),
-            ModelName = GetModelName(selectedModel),
+            ModelName = _modelConfigurationService.GetModelName(selectedModel),
             Temperature = 0.7,
             MaxTokens = 4000
         };
@@ -54,7 +56,7 @@ public class ImplementationGenerator : IImplementationGenerator
         }
 
         // Get AI client
-        var aiClient = _aiClientFactory.GetClient(GetProviderName(selectedModel));
+        var aiClient = _aiClientFactory.GetClient(_modelConfigurationService.GetProviderName(selectedModel));
         if (aiClient == null)
         {
             _logger.LogError("Implementation generation failed: {Model} AI client not available", selectedModel);
@@ -173,25 +175,4 @@ public class ImplementationGenerator : IImplementationGenerator
         return artifacts;
     }
 
-    private string GetModelName(string modelName)
-    {
-        return modelName.ToLower() switch
-        {
-            "claude" => "qwen/qwen3-coder",
-            "qwen3-coder" => "qwen/qwen3-coder",
-            "deepseek" => "qwen/qwen3-coder", // Use Qwen for all models
-            _ => "qwen/qwen3-coder"
-        };
-    }
-
-    private string GetProviderName(string modelName)
-    {
-        return modelName.ToLower() switch
-        {
-            "claude" => "OpenRouter", // Route Claude requests to OpenRouter
-            "qwen3-coder" => "LMStudio",
-            "deepseek" => "OpenRouter",
-            _ => "OpenRouter"
-        };
-    }
 }
