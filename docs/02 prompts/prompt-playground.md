@@ -1,7 +1,7 @@
 
-# **Create “Prompt Playground” with Full CRUD for PostgreSQL-Backed Templates**
+# **Create “Prompt Playground” UI**
 
-> I want you to create a **new standalone HTML page** called `prompt-playground.html` that allows users to:
+> I want you to create a **new standalone razor page** called `PromptPlayground` that allows users to:
 > - Generate prompts independently (not tied to projects),
 > - **Create, Read, Update, and Delete prompt templates** stored in **PostgreSQL** (no localStorage or JS arrays),
 > - Send prompts to the LLM and view responses.
@@ -40,7 +40,7 @@
   - Remove from UI + show success toast.
   - If currently loaded in editor → clear editor or load next template.
 
-### 4. **Backend (PostgreSQL + .NET)**
+### 4. **Backend (PostgreSQL + .NET)** ALREADY IN PLACE
 - Entity: `PromptTemplate`
   - `Id: Guid`
   - `Title: string`
@@ -51,7 +51,7 @@
   - `GET /api/prompt-templates` → returns all
   - `POST /api/prompt-templates` → create or update (if `id` provided)
   - `DELETE /api/prompt-templates/{id}` → delete by ID
-- Use EF Core + Clean Architecture:
+- EF Core + Clean Architecture:
   - Domain → `PromptTemplate.cs`, `IPromptTemplateRepository.cs`
   - Application → `PromptTemplateService.cs`, `IPromptTemplateService.cs`
   - Infrastructure → `PromptTemplateRepository.cs`
@@ -90,10 +90,6 @@ Please generate:
 - Migration to create `PromptTemplates` table
 - Example seed data (optional)
 
-### ➤ Frontend
-- `prompt-playground.html` (semantic HTML, sidebar + editor + response)
-- `prompt-playground.js` (full CRUD logic, LLM call, UI state management)
-- Minimal CSS (if needed — otherwise reuse existing)
 
 ### ➤ API Contract Examples
 ```http
@@ -111,8 +107,6 @@ DELETE /api/prompt-templates/{id}
 ---
 
 ## ✅ Key Principles
-- **Database-first persistence** — nothing stored in browser.
 - **Follow existing architecture** — reuse patterns from Reviews/Projects.
-- **Atomic, safe deletes** — no cascade (templates are standalone).
 - **Optimistic UI updates** — update UI immediately on success, rollback on error.
 - **Clean separation** — backend handles data, frontend handles presentation.
