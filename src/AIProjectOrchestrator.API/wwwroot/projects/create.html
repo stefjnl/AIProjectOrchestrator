@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create New Project</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <!-- Markdown support libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
+    <script src="/js/markdown-utils.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <div class="main-nav-buttons">
+            <a href="/projects/create.html"><button>Create New Project</button></a>
+            <a href="/projects/list.html"><button>View All Projects</button></a>
+            <a href="/reviews/queue.html"><button>Go To Review Queue</button></a>
+            <a href="/prompt-playground.html"><button>Prompt Playground</button></a>
+        </div>
+        <h1>Create New Project</h1>
+        <div class="form-card" role="form" aria-label="Project creation form">
+            <form id="projectForm">
+                <div>
+                    <label for="projectName">Project Name:</label>
+                    <input type="text" id="projectName" required aria-required="true">
+                </div>
+                <div>
+                    <label for="projectDescription">Project Description:</label>
+                    <textarea id="projectDescription" required aria-required="true"
+                        placeholder="Enter project description using Markdown (e.g., # Title, **bold**, - lists)"></textarea>
+                    <!-- Real-time Markdown preview -->
+                    <div class="markdown-preview" id="descriptionPreview"
+                        style="border: 1px solid #ddd; padding: 10px; min-height: 100px; margin-top: 10px; display: none; background: #f8f9fa; border-radius: 4px;">
+                        <strong>Preview:</strong>
+                        <div id="previewContent"></div>
+                    </div>
+                </div>
+                <button type="submit" id="createProjectBtn" class="btn-primary">Create Project</button>
+                <div id="errorMessage" class="alert-error" style="display: none;" role="alert" aria-live="assertive">
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        document.getElementById('projectForm').addEventListener('submit', createProject);
+
+        async function createProject(event) {
+            event.preventDefault();
+
+            const projectNameInput = document.getElementById('projectName');
+            const projectDescriptionInput = document.getElementById('projectDescription');
+            const createProjectBtn = document.getElementById('createProjectBtn');
+            const errorMessageDiv = document.getElementById('errorMessage');
+
+            // Clear previous error messages
+            errorMessageDiv.style.display = 'none';
+            errorMessageDiv.textContent = '';
+
+            // Basic validation
+            if (!projectNameInput.value.trim() || !projectDescriptionInput.value.trim()) {
+                errorMessageDiv.textContent = 'Project Name and Description are required.';
+                errorMessageDiv.style.display = 'block';
+                return;
+            }
+
+            const projectData = {
+                name: projectNameInput.value.trim(),
+                description: projectDescriptionInput.value.trim()
+            };
+
+            createProjectBtn.disabled = true; // Disable button during submission
+            createProjectBtn.textContent = 'Creating...';
+
+            try {
+                const project = await window.APIClient.createProject(projectData);
+                // Critical: Clear any existing workflow state before redirect
+                // Redirect to workflow with clean state
+                window.location.href = `/projects/workflow.html?projectId=${project.id}&newProject=true`;
+            } catch (error) {
+                errorMessageDiv.textContent = 'Error creating project: ' + error.message;
+                errorMessageDiv.style.display = 'block';
+            } finally {
+                createProjectBtn.disabled = false; // Re-enable button
+                createProjectBtn.textContent = 'Create Project';
+            }
+        }
+        // Real-time Markdown preview for project description
+        document.addEventListener('DOMContentLoaded', function () {
+            const descriptionTextarea = document.getElementById('projectDescription');
+            const previewDiv = document.getElementById('descriptionPreview');
+            const previewContent = document.getElementById('previewContent');
+
+            if (descriptionTextarea && previewDiv && previewContent) {
+                descriptionTextarea.addEventListener('input', function () {
+                    const mdText = this.value;
+                    if (mdText.trim()) {
+                        previewContent.innerHTML = renderMarkdownToHTML(mdText);
+                        previewDiv.style.display = 'block';
+                    } else {
+                        previewDiv.style.display = 'none';
+                    }
+                });
+
+                // Initial preview (empty)
+                previewDiv.style.display = 'none';
+            }
+        });
+
+    </script>
+</body>
+
+</html>

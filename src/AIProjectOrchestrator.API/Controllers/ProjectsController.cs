@@ -19,7 +19,9 @@ namespace AIProjectOrchestrator.API.Controllers
         public async Task<ActionResult<IEnumerable<Project>>> GetProjects()
         {
             var projects = await _projectService.GetAllProjectsAsync();
-            return Ok(projects);
+            // Ensure we're returning an array, not an object
+            var projectList = projects.ToList();
+            return Ok(projectList);
         }
 
         [HttpGet("{id}")]

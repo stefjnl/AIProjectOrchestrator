@@ -36,6 +36,7 @@ frontend/
 │   └── workflow.js (WorkflowManager class)
 └── css/
     └── styles.css (application styling)
+├── prompt-playground.html 
 ```
 
 ## **Key Components**
