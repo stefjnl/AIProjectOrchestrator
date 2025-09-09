@@ -9,6 +9,7 @@ class WorkflowManager {
         this.workflowState = null; // Store the current workflow state
         this.isNewProject = isNewProject; // Flag for new projects
         this.hasShownNewProjectPrompt = false; // Track if we've shown the prompt
+        this.projectData = null; // Store project data for UI updates
 
         console.log(`WorkflowManager constructor called with projectId=${projectId}, isNewProject=${isNewProject}`);
         this.initialize();
@@ -97,7 +98,7 @@ class WorkflowManager {
                 }
             }
 
-            this.updateUI();
+            this.updateWorkflowUI();
             console.log(`Initial data loaded. Current stage: ${this.currentStage}`);
             console.log(`Workflow state after loading:`, this.workflowState);
         } catch (error) {
@@ -133,10 +134,12 @@ class WorkflowManager {
     async loadProjectData() {
         try {
             const project = await APIClient.getProject(this.projectId);
+            this.projectData = project; // Store project data for later use
             this.updateProjectOverview(project);
             this.updateProgressIndicators(project);
             return project;
         } catch (error) {
+            console.error('Failed to load project data:', error);
             throw new Error(`Failed to load project data: ${error.message}`);
         }
     }
@@ -407,15 +410,27 @@ class WorkflowManager {
 
     async getRequirementsStage() {
         try {
-            const requirements = await APIClient.getRequirements(this.projectId);
-            const isApproved = this.workflowState?.requirementsAnalysis?.isApproved === true;
+            // Check if we have an analysis ID from the workflow state
+            const analysisId = this.workflowState?.requirementsAnalysis?.analysisId;
 
-            if (isApproved && requirements) {
-                return this.getRequirementsCompletedState(requirements);
+            if (analysisId) {
+                // Try to get the actual requirements analysis results
+                try {
+                    const requirements = await APIClient.getRequirements(analysisId);
+                    const isApproved = this.workflowState?.requirementsAnalysis?.isApproved === true;
+
+                    if (isApproved && requirements) {
+                        return this.getRequirementsCompletedState(requirements);
+                    }
+                } catch (apiError) {
+                    console.warn('Could not load requirements analysis details:', apiError);
+                    // Continue with state-based logic even if API call fails
+                }
             }
 
             return this.getRequirementsActiveState();
         } catch (error) {
+            console.error('Error in getRequirementsStage:', error);
             return this.getRequirementsEmptyState();
         }
     }
@@ -521,20 +536,37 @@ class WorkflowManager {
 
     async getPlanningStage() {
         try {
-            const planning = await APIClient.getProjectPlan(this.projectId);
-            const isApproved = this.workflowState?.projectPlanning?.isApproved === true;
-            const canAccess = this.workflowState?.requirementsAnalysis?.isApproved === true;
+            // Check if we have a planning ID from the workflow state
+            const planningId = this.workflowState?.projectPlanning?.planningId;
 
-            if (!canAccess) {
-                return this.getPlanningLockedState();
-            }
+            if (planningId) {
+                // Try to get the actual planning results
+                try {
+                    const planning = await APIClient.getProjectPlan(planningId);
+                    const isApproved = this.workflowState?.projectPlanning?.isApproved === true;
+                    const canAccess = this.workflowState?.requirementsAnalysis?.isApproved === true;
 
-            if (isApproved && planning) {
-                return this.getPlanningCompletedState(planning);
+                    if (!canAccess) {
+                        return this.getPlanningLockedState();
+                    }
+
+                    if (isApproved && planning) {
+                        return this.getPlanningCompletedState(planning);
+                    }
+                } catch (apiError) {
+                    console.warn('Could not load project planning details:', apiError);
+                    // Continue with state-based logic even if API call fails
+                }
+            } else {
+                const canAccess = this.workflowState?.requirementsAnalysis?.isApproved === true;
+                if (!canAccess) {
+                    return this.getPlanningLockedState();
+                }
             }
 
             return this.getPlanningActiveState();
         } catch (error) {
+            console.error('Error in getPlanningStage:', error);
             return this.getPlanningEmptyState();
         }
     }
@@ -646,8 +678,8 @@ class WorkflowManager {
 
     async getStoriesStage() {
         try {
-            const stories = await APIClient.getStories(this.projectId);
-            const isApproved = this.workflowState?.storyGeneration?.isApproved === true;
+            // Check if we have a generation ID from the workflow state
+            const generationId = this.workflowState?.storyGeneration?.generationId;
             const canAccess = this.workflowState?.requirementsAnalysis?.isApproved === true &&
                 this.workflowState?.projectPlanning?.isApproved === true;
 
@@ -655,12 +687,24 @@ class WorkflowManager {
                 return this.getStoriesLockedState();
             }
 
-            if (isApproved && stories) {
-                return this.getStoriesCompletedState(stories);
+            if (generationId) {
+                // Try to get the actual stories
+                try {
+                    const stories = await APIClient.getStories(generationId);
+                    const isApproved = this.workflowState?.storyGeneration?.isApproved === true;
+
+                    if (isApproved && stories) {
+                        return this.getStoriesCompletedState(stories);
+                    }
+                } catch (apiError) {
+                    console.warn('Could not load story generation details:', apiError);
+                    // Continue with state-based logic even if API call fails
+                }
             }
 
             return this.getStoriesActiveState();
         } catch (error) {
+            console.error('Error in getStoriesStage:', error);
             return this.getStoriesEmptyState();
         }
     }
@@ -795,27 +839,61 @@ class WorkflowManager {
 
     async getPromptsStage() {
         try {
-            const prompts = await APIClient.getPrompts(this.projectId);
-            return `
-                <div class="stage-container">
-                    <h2>Prompt Generation</h2>
-                    <div class="prompts-content">
-                        <div class="prompts-summary">
-                            <h3>Generated Prompts</h3>
-                            ${this.formatPrompts(prompts)}
-                        </div>
-                        <div class="prompts-actions">
-                            <button class="btn btn-primary" onclick="workflowManager.generateAllPrompts()">
-                                🚀 Generate All Prompts
-                            </button>
-                            <button class="btn btn-secondary" onclick="workflowManager.customizePrompts()">
-                                ⚙️ Customize Prompts
-                            </button>
+            // For prompts, we might not have a specific ID, so check if any prompts exist
+            const hasPrompts = this.workflowState?.promptGeneration?.storyPrompts &&
+                this.workflowState.promptGeneration.storyPrompts.length > 0;
+
+            if (hasPrompts) {
+                // Use the existing prompts from workflow state
+                return `
+                    <div class="stage-container">
+                        <h2>Prompt Generation</h2>
+                        <div class="prompts-content">
+                            <div class="prompts-summary">
+                                <h3>Generated Prompts</h3>
+                                ${this.formatPrompts(this.workflowState.promptGeneration.storyPrompts)}
+                            </div>
+                            <div class="prompts-actions">
+                                <button class="btn btn-primary" onclick="workflowManager.generateAllPrompts()">
+                                    🚀 Generate All Prompts
+                                </button>
+                                <button class="btn btn-secondary" onclick="workflowManager.customizePrompts()">
+                                    ⚙️ Customize Prompts
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `;
+                `;
+            } else {
+                // Try to load prompts from API if we have a way to identify them
+                try {
+                    const prompts = await APIClient.getPrompts(this.projectId);
+                    return `
+                        <div class="stage-container">
+                            <h2>Prompt Generation</h2>
+                            <div class="prompts-content">
+                                <div class="prompts-summary">
+                                    <h3>Generated Prompts</h3>
+                                    ${this.formatPrompts(prompts)}
+                                </div>
+                                <div class="prompts-actions">
+                                    <button class="btn btn-primary" onclick="workflowManager.generateAllPrompts()">
+                                        🚀 Generate All Prompts
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="workflowManager.customizePrompts()">
+                                        ⚙️ Customize Prompts
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } catch (apiError) {
+                    console.warn('Could not load prompts:', apiError);
+                    return this.getPromptsEmptyState();
+                }
+            }
         } catch (error) {
+            console.error('Error in getPromptsStage:', error);
             return this.getPromptsEmptyState();
         }
     }
@@ -1105,7 +1183,7 @@ class WorkflowManager {
         showLoading('Generating all prompts...');
         try {
             // Implementation for prompt generation
-            showSuccess('All prompts generated successfully!');
+            window.App.showNotification('All prompts generated successfully!', 'success');
             await this.loadStageContent(4);
         } catch (error) {
             window.App.showNotification(`Failed to generate prompts: ${error.message || error}`, 'error');
@@ -1119,7 +1197,7 @@ class WorkflowManager {
             showLoading('Completing project...');
             try {
                 // Implementation for project completion
-                showSuccess('Project completed successfully!');
+                window.App.showNotification('Project completed successfully!', 'success');
                 setTimeout(() => {
                     window.location.href = '/Projects';
                 }, 2000);
@@ -1296,6 +1374,25 @@ class WorkflowManager {
     initializeReviewStage() {
         // Add review stage specific functionality
         console.log('Review stage initialized');
+    }
+
+    // Add missing updateWorkflowUI method
+    updateWorkflowUI() {
+        try {
+            // Update project overview if project data is available
+            if (this.projectData) {
+                this.updateProjectOverview(this.projectData);
+                this.updateProgressIndicators(this.projectData);
+            }
+
+            // Update pipeline indicators based on current progress
+            const progress = this.calculateProgress(this.projectData || {});
+            this.updatePipelineIndicators(progress);
+
+            console.log('Workflow UI updated successfully');
+        } catch (error) {
+            console.error('Error updating workflow UI:', error);
+        }
     }
 }
 
