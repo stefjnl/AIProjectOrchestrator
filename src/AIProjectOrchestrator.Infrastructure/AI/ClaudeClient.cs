@@ -8,26 +8,39 @@ using AIProjectOrchestrator.Domain.Configuration;
 using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Domain.Services;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace AIProjectOrchestrator.Infrastructure.AI
 {
-    public class ClaudeClient : BaseAIClient, IAIClient
+    public class ClaudeClient : BaseAIClientHandler, IAIClient
     {
+        private readonly AIProviderConfigurationService _configurationService;
         private readonly ClaudeSettings _settings;
-        
+
         public override string ProviderName => "Claude";
 
-        public ClaudeClient(HttpClient httpClient, ILogger<ClaudeClient> logger, IOptions<AIProviderSettings> settings) 
+        public ClaudeClient(HttpClient httpClient, ILogger<ClaudeClient> logger, AIProviderConfigurationService configurationService)
             : base(httpClient, logger)
         {
-            _settings = settings.Value.Claude;
+            _configurationService = configurationService;
+            _settings = _configurationService.GetProviderSettings<ClaudeSettings>(ProviderName);
+
+            // Log settings for debugging
+            AIClientLogger.LogSettings(ProviderName, _settings.BaseUrl, _settings.ApiKey?.Length ?? 0, _settings.DefaultModel);
+
+            // Log the actual API key prefix for debugging (first 10 characters)
+            if (!string.IsNullOrEmpty(_settings.ApiKey))
+            {
+                AIClientLogger.LogApiKeyPrefix(ProviderName, _settings.ApiKey.Substring(0, Math.Min(10, _settings.ApiKey.Length)));
+            }
+
+            // Also log the HttpClient BaseAddress in constructor
+            AIClientLogger.LogRequestUrl(ProviderName, httpClient.BaseAddress?.ToString() ?? "NULL");
         }
 
         public override async Task<AIResponse> CallAsync(AIRequest request, CancellationToken cancellationToken = default)
         {
             var startTime = DateTime.UtcNow;
-            
+
             try
             {
                 var claudeRequest = new
@@ -44,37 +57,48 @@ namespace AIProjectOrchestrator.Infrastructure.AI
 
                 var json = JsonSerializer.Serialize(claudeRequest);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                
+
+                // Log the HttpClient BaseAddress for debugging
+                AIClientLogger.LogRequestUrl(ProviderName, _httpClient.BaseAddress?.ToString() ?? "NULL");
+
+                // Log the full request URL being constructed
+                var fullUrl = _httpClient.BaseAddress != null
+                    ? new Uri(_httpClient.BaseAddress, "v1/messages").ToString()
+                    : "v1/messages";
+                AIClientLogger.LogRequestUrl(ProviderName, fullUrl);
+
                 var response = await SendRequestWithRetryAsync(
-                    () => {
+                    () =>
+                    {
                         var requestMessage = new HttpRequestMessage(HttpMethod.Post, "v1/messages")
                         {
                             Content = content
                         };
-                        
+
+                        // Add required headers for Claude API
                         requestMessage.Headers.Add("x-api-key", _settings.ApiKey);
                         requestMessage.Headers.Add("anthropic-version", "2023-06-01");
-                        
+
                         return requestMessage;
-                    }, 
-                    _settings.MaxRetries, 
+                    },
+                    _settings.MaxRetries,
                     cancellationToken);
 
                 var responseContent = await response.Content.ReadAsStringAsync();
-                
+
                 if (response.IsSuccessStatusCode)
                 {
                     // Parse Claude's response format
                     using var doc = JsonDocument.Parse(responseContent);
                     var root = doc.RootElement;
-                    
+
                     var contentElement = root.GetProperty("content");
                     var firstContent = contentElement[0];
                     var text = firstContent.GetProperty("text").GetString() ?? string.Empty;
-                    
+
                     var usage = root.GetProperty("usage");
                     var tokensUsed = usage.GetProperty("output_tokens").GetInt32();
-                    
+
                     return new AIResponse
                     {
                         Content = text,
@@ -110,7 +134,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                 };
             }
         }
-        
+
         public override async Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
         {
             try

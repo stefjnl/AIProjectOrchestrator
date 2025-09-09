@@ -1,4 +1,3 @@
-
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -62,16 +61,19 @@ namespace AIProjectOrchestrator.Application.Services
 
         public async Task<AIResponse> GeneratePromptFromPlaygroundAsync(string promptContent, CancellationToken cancellationToken = default)
         {
+            _logger.LogInformation("=== PROMPT GENERATION SERVICE STARTING ===");
             _logger.LogInformation("Generating prompt from playground...");
 
             try
             {
-                var aiClient = _aiClientFactory.GetClient("OpenRouter");
+                _logger.LogInformation("About to call AIClientFactory.GetClient('NanoGpt')");
+                var aiClient = _aiClientFactory.GetClient("NanoGpt");
+                _logger.LogInformation("AIClientFactory returned client: {ClientName}", aiClient?.ProviderName ?? "NULL");
 
                 var aiRequest = new AIRequest
                 {
                     Prompt = promptContent,
-                    ModelName = "qwen/qwen3-coder", // or any other model
+                    ModelName = "moonshotai/Kimi-K2-Instruct-0905", // or any other model
                     Temperature = 0.7,
                     MaxTokens = 2000
                 };

@@ -8,39 +8,42 @@ namespace AIProjectOrchestrator.Infrastructure.AI
     public class AIClientFactory : IAIClientFactory
     {
         private readonly IEnumerable<IAIClient> _clients;
+        private readonly AIClientFallbackService _fallbackService;
         private readonly ILogger<AIClientFactory>? _logger;
 
-        public AIClientFactory(IEnumerable<IAIClient> clients, ILogger<AIClientFactory>? logger = null)
+        public AIClientFactory(IEnumerable<IAIClient> clients, AIClientFallbackService fallbackService, ILogger<AIClientFactory>? logger = null)
         {
             _clients = clients;
+            _fallbackService = fallbackService;
             _logger = logger;
         }
 
         public IAIClient? GetClient(string providerName)
         {
+            _logger?.LogInformation("AIClientFactory.GetClient called for provider: {ProviderName}", providerName);
+            
             // Try primary provider first
             var primaryClient = _clients.FirstOrDefault(c => c.ProviderName.Equals(providerName, System.StringComparison.OrdinalIgnoreCase));
             if (primaryClient != null)
             {
+                _logger?.LogInformation("Found primary client: {ProviderName}", primaryClient.ProviderName);
                 return primaryClient;
             }
 
+            _logger?.LogWarning("Primary client {ProviderName} not found, attempting fallback", providerName);
+            
             // Fallback logic: try alternative providers in order of preference
-            var fallbackOrder = new[] { "NanoGpt", "Claude", "LMStudio", "OpenRouter" };
-            foreach (var fallbackProvider in fallbackOrder)
+            var fallbackClient = _fallbackService.GetFallbackClient(providerName);
+            if (fallbackClient != null)
             {
-                if (!fallbackProvider.Equals(providerName, System.StringComparison.OrdinalIgnoreCase))
-                {
-                    var fallbackClient = _clients.FirstOrDefault(c => c.ProviderName.Equals(fallbackProvider, System.StringComparison.OrdinalIgnoreCase));
-                    if (fallbackClient != null)
-                    {
-                        _logger?.LogWarning("Primary provider {Primary} not available, falling back to {Fallback}", providerName, fallbackProvider);
-                        return fallbackClient;
-                    }
-                }
+                _logger?.LogInformation("Fallback client found: {ProviderName}", fallbackClient.ProviderName);
             }
-
-            return null; // No fallback available
+            else
+            {
+                _logger?.LogError("No fallback client available for provider: {ProviderName}", providerName);
+            }
+            
+            return fallbackClient;
         }
 
         public IEnumerable<IAIClient> GetAllClients()

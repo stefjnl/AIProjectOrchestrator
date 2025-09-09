@@ -53,6 +53,7 @@ builder.Services.AddHealthChecks()
     .AddCheck<ClaudeHealthCheck>("claude")
     .AddCheck<LMStudioHealthCheck>("lmstudio")
     .AddCheck<OpenRouterHealthCheck>("openrouter")
+    .AddCheck<NanoGptHealthCheck>("nanogpt")
     .AddCheck<ReviewHealthCheck>("review");
 
 // Add Entity Framework
@@ -84,6 +85,8 @@ builder.Services.AddScoped<IPromptTemplateService, PromptTemplateService>();
 
 // Add AI model configuration service
 builder.Services.AddScoped<IAIModelConfigurationService, AIModelConfigurationService>();
+builder.Services.AddSingleton<AIProviderConfigurationService>();
+builder.Services.AddSingleton<AIClientFallbackService>();
 
 // Add code generation specialized services
 builder.Services.AddScoped<ITestGenerator, TestGenerator>();
@@ -134,15 +137,33 @@ builder.Services.AddHttpClient<OpenRouterClient>()
         client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
     });
 
-// Register AI clients as singletons - OpenRouter uses the named HttpClient
+builder.Services.AddHttpClient<NanoGptClient>()
+    .ConfigureHttpClient((serviceProvider, client) =>
+    {
+        var settings = serviceProvider.GetRequiredService<IOptions<AIProviderSettings>>().Value.NanoGpt;
+        client.BaseAddress = new Uri(settings.BaseUrl);
+        client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
+    });
+
+// Register AI clients as singletons
+builder.Services.AddSingleton<IAIClient>(serviceProvider =>
+{
+    var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+    var httpClient = httpClientFactory.CreateClient(nameof(NanoGptClient));
+    var logger = serviceProvider.GetRequiredService<ILogger<NanoGptClient>>();
+    var configurationService = serviceProvider.GetRequiredService<AIProviderConfigurationService>();
+    logger.LogInformation("Creating NanoGptClient with HttpClient BaseAddress: {BaseAddress}", httpClient.BaseAddress?.ToString() ?? "NULL");
+    return new NanoGptClient(httpClient, logger, configurationService);
+});
+
 builder.Services.AddSingleton<IAIClient>(serviceProvider =>
 {
     var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
     var httpClient = httpClientFactory.CreateClient(nameof(OpenRouterClient));
     var logger = serviceProvider.GetRequiredService<ILogger<OpenRouterClient>>();
-    var settings = serviceProvider.GetRequiredService<IOptions<AIProviderSettings>>();
+    var configurationService = serviceProvider.GetRequiredService<AIProviderConfigurationService>();
     logger.LogInformation("Creating OpenRouterClient with HttpClient BaseAddress: {BaseAddress}", httpClient.BaseAddress?.ToString() ?? "NULL");
-    return new OpenRouterClient(httpClient, logger, settings);
+    return new OpenRouterClient(httpClient, logger, configurationService);
 });
 
 builder.Services.AddSingleton<IAIClient, ClaudeClient>();
@@ -212,4 +233,3 @@ app.MapFallbackToFile("index.html");
 app.Run();
 
 public partial class Program { }
-

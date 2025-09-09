@@ -8,97 +8,114 @@ using AIProjectOrchestrator.Domain.Configuration;
 using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Domain.Services;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace AIProjectOrchestrator.Infrastructure.AI
 {
-    public class NanoGptClient : BaseAIClient, IAIClient
+    public class NanoGptClient : BaseAIClientHandler, IAIClient
     {
+        private readonly AIProviderConfigurationService _configurationService;
         private readonly NanoGptSettings _settings;
-        
+
         public override string ProviderName => "NanoGpt";
 
-        public NanoGptClient(HttpClient httpClient, ILogger<NanoGptClient> logger, IOptions<AIProviderSettings> settings) 
+        public NanoGptClient(HttpClient httpClient, ILogger<NanoGptClient> logger, AIProviderConfigurationService configurationService)
             : base(httpClient, logger)
         {
-            _settings = settings.Value.NanoGpt;
+            _configurationService = configurationService;
+            _settings = _configurationService.GetProviderSettings<NanoGptSettings>(ProviderName);
+
             // Log settings for debugging
-            logger.LogInformation("NanoGpt Settings - BaseUrl: {BaseUrl}, ApiKey Length: {ApiKeyLength}, DefaultModel: {DefaultModel}", 
-                _settings.BaseUrl, _settings.ApiKey?.Length ?? 0, _settings.DefaultModel);
-                
+            AIClientLogger.LogSettings(ProviderName, _settings.BaseUrl, _settings.ApiKey?.Length ?? 0, _settings.DefaultModel);
+
             // Log the actual API key prefix for debugging (first 10 characters)
             if (!string.IsNullOrEmpty(_settings.ApiKey))
             {
-                logger.LogInformation("NanoGpt API Key prefix: {ApiKeyPrefix}", _settings.ApiKey.Substring(0, Math.Min(10, _settings.ApiKey.Length)));
+                AIClientLogger.LogApiKeyPrefix(ProviderName, _settings.ApiKey.Substring(0, Math.Min(10, _settings.ApiKey.Length)));
             }
-                
+
             // Also log the HttpClient BaseAddress in constructor
-            logger.LogInformation("NanoGpt HttpClient BaseAddress in constructor: {BaseAddress}", httpClient.BaseAddress?.ToString() ?? "NULL");
+            AIClientLogger.LogRequestUrl(ProviderName, httpClient.BaseAddress?.ToString() ?? "NULL");
         }
 
         public override async Task<AIResponse> CallAsync(AIRequest request, CancellationToken cancellationToken = default)
         {
             var startTime = DateTime.UtcNow;
-            
+
             try
             {
-                // TODO: Implement actual NanoGpt API request format
-                // This is a placeholder - will need to be updated with real API details
+                // Create OpenAI-compatible request format for NanoGpt API
+                var messages = new object[]
+                {
+                    new { role = "system", content = request.SystemMessage },
+                    new { role = "user", content = request.Prompt }
+                };
+
                 var nanoGptRequest = new
                 {
-                    prompt = request.Prompt,
                     model = string.IsNullOrEmpty(request.ModelName) ? _settings.DefaultModel : request.ModelName,
+                    messages = messages,
                     temperature = request.Temperature,
-                    max_tokens = request.MaxTokens
+                    max_tokens = request.MaxTokens,
+                    stream = false // Disable streaming for this implementation
                 };
 
                 var json = JsonSerializer.Serialize(nanoGptRequest);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                
+
                 // Log the HttpClient BaseAddress for debugging
-                _logger.LogInformation("NanoGpt HttpClient BaseAddress: {BaseAddress}", _httpClient.BaseAddress?.ToString() ?? "NULL");
-                
+                AIClientLogger.LogRequestUrl(ProviderName, _httpClient.BaseAddress?.ToString() ?? "NULL");
+
                 // Log the full request URL being constructed
-                var fullUrl = _httpClient.BaseAddress != null 
-                    ? new Uri(_httpClient.BaseAddress, "completions").ToString()
-                    : "completions";
-                _logger.LogInformation("NanoGpt Full Request URL: {FullUrl}", fullUrl);
-                
+                var fullUrl = _httpClient.BaseAddress != null
+                    ? new Uri(_httpClient.BaseAddress, "v1/chat/completions").ToString()
+                    : "v1/chat/completions";
+                AIClientLogger.LogRequestUrl(ProviderName, fullUrl);
+
                 var response = await SendRequestWithRetryAsync(
-                    () => {
-                        var requestMessage = new HttpRequestMessage(HttpMethod.Post, "completions")
+                    () =>
+                    {
+                        var requestMessage = new HttpRequestMessage(HttpMethod.Post, "v1/chat/completions")
                         {
                             Content = content
                         };
-                        
-                        // Add required headers for NanoGpt API (placeholder - will need real headers)
+
+                        // Add required headers for NanoGpt API
                         requestMessage.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+                        requestMessage.Headers.Add("Accept", "text/event-stream");
                         return requestMessage;
-                    }, 
-                    _settings.MaxRetries, 
+                    },
+                    _settings.MaxRetries,
                     cancellationToken);
 
                 var responseContent = await response.Content.ReadAsStringAsync();
-                
+
                 // Log response details for debugging
-                _logger.LogInformation("NanoGpt API Response - Status: {StatusCode}, Content Length: {ContentLength}, Content Start: {ContentStart}", 
-                    response.StatusCode, responseContent.Length, responseContent.Substring(0, Math.Min(200, responseContent.Length)));
-                
+                AIClientLogger.LogResponse(ProviderName, response.StatusCode, responseContent.Length, responseContent.Substring(0, Math.Min(200, responseContent.Length)));
+
                 if (response.IsSuccessStatusCode)
                 {
                     try
                     {
-                        // TODO: Parse actual NanoGpt response format
-                        // Placeholder - will need to be updated with real response parsing
+                        // Parse OpenAI-compatible response format
                         using var doc = JsonDocument.Parse(responseContent);
                         var root = doc.RootElement;
+
+                        var choices = root.GetProperty("choices");
+                        var firstChoice = choices[0];
+                        var message = firstChoice.GetProperty("message");
+                        var text = message.GetProperty("content").GetString() ?? string.Empty;
                         
-                        var text = root.GetProperty("choices")[0].GetProperty("text").GetString() ?? string.Empty;
-                        
+                        // Extract token usage if available
+                        var tokensUsed = 0;
+                        if (root.TryGetProperty("usage", out var usageElement))
+                        {
+                            tokensUsed = usageElement.GetProperty("completion_tokens").GetInt32();
+                        }
+
                         return new AIResponse
                         {
                             Content = text,
-                            TokensUsed = 0, // TODO: Extract actual token usage
+                            TokensUsed = tokensUsed,
                             ProviderName = ProviderName,
                             IsSuccess = true,
                             ResponseTime = DateTime.UtcNow - startTime
@@ -106,7 +123,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                     }
                     catch (JsonException jsonEx)
                     {
-                        _logger.LogError(jsonEx, "Failed to parse JSON response from NanoGpt. Response content: {ResponseContent}", responseContent);
+                        AIClientLogger.LogException(ProviderName, 0, jsonEx);
                         return new AIResponse
                         {
                             Content = string.Empty,
@@ -144,7 +161,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                 };
             }
         }
-        
+
         public override async Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default)
         {
             try
