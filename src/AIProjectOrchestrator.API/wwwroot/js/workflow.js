@@ -705,8 +705,10 @@ class WorkflowManager {
         const isPending = planningStatus === 'PendingReview';
         const isNotStarted = planningStatus === 'NotStarted' || planningStatus === 0;
         const hasPlanningId = this.workflowState?.projectPlanning?.planningId;
+        const isApproved = this.workflowState?.projectPlanning?.isApproved === true;
 
-        console.log('getPlanningActiveState - status:', planningStatus, 'isPending:', isPending, 'isNotStarted:', isNotStarted, 'hasPlanningId:', hasPlanningId);
+        console.log('getPlanningActiveState - status:', planningStatus, 'isPending:', isPending, 'isNotStarted:', isNotStarted, 'hasPlanningId:', hasPlanningId, 'isApproved:', isApproved);
+        console.log('planningId truthy check:', !!hasPlanningId, 'planningId value:', hasPlanningId);
 
         if (isPending) {
             return `
@@ -721,19 +723,72 @@ class WorkflowManager {
             `;
         }
 
-        // If planning hasn't been generated yet (NotStarted and no planningId), show empty state
-        if (isNotStarted && !hasPlanningId) {
+        // CRITICAL FIX: Check if planning hasn't been generated yet
+        // Empty string ("") is falsy, so !hasPlanningId will be true
+        const hasNoPlanningId = !hasPlanningId || hasPlanningId === '';
+        console.log('hasNoPlanningId:', hasNoPlanningId, 'hasPlanningId:', hasPlanningId);
+
+        if (isNotStarted && hasNoPlanningId) {
             console.log('Planning not started and no planning ID, showing empty state');
             return this.getPlanningEmptyState();
         }
 
-        // If we have a planning ID or it's not NotStarted, show as having planning
-        if (hasPlanningId || !isNotStarted) {
-            console.log('Has planning ID or not NotStarted, showing as having planning');
+        // If planning is approved, show completed state
+        if (isApproved) {
+            console.log('Planning approved, showing completed state');
             return this.getPlanningCompletedState(null);
         }
 
+        // If we have a planning ID but it's not approved, show active state with regenerate option
+        if (hasPlanningId && !isApproved) {
+            console.log('Has planning ID but not approved, showing active state');
+            return this.getPlanningActiveStateWithRegenerate();
+        }
+
+        console.log('Falling back to empty state');
         return this.getPlanningEmptyState();
+    }
+
+    getPlanningActiveStateWithRegenerate() {
+        return `
+            <div class="stage-container">
+                <h2>Project Planning</h2>
+                <div class="stage-status active">
+                    <div class="status-icon">📋</div>
+                    <h3>Analysis in Progress</h3>
+                    <p>Your project planning is being processed. Check the Review Queue for status updates.</p>
+                    <div class="stage-actions">
+                        <button class="btn btn-primary" onclick="workflowManager.viewRequirementsReview()">
+                            📋 View Review Details
+                        </button>
+                        <button class="btn btn-success" onclick="workflowManager.regeneratePlan()">
+                            🚀 Regenerate Plan
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    getPlanningActiveStateWithRegenerate() {
+        return `
+            <div class="stage-container">
+                <h2>Project Planning</h2>
+                <div class="stage-status active">
+                    <div class="status-icon">📋</div>
+                    <h3>Analysis in Progress</h3>
+                    <p>Your project planning is being processed. Check the Review Queue for status updates.</p>
+                    <div class="stage-actions">
+                        <button class="btn btn-primary" onclick="workflowManager.viewRequirementsReview()">
+                            📋 View Review Details
+                        </button>
+                        <button class="btn btn-success" onclick="workflowManager.regeneratePlan()">
+                            🚀 Regenerate Plan
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     getPlanningCompletedState(planning) {
@@ -1272,6 +1327,11 @@ class WorkflowManager {
     }
 
     async generatePlan() {
+        console.log('=== generatePlan() called ===');
+        console.log('Current workflow state:', this.workflowState);
+        console.log('Requirements approved:', this.workflowState?.requirementsAnalysis?.isApproved);
+        console.log('Project planning approved:', this.workflowState?.projectPlanning?.isApproved);
+
         // Check if requirements are approved
         if (this.workflowState?.requirementsAnalysis?.isApproved !== true) {
             window.App.showNotification('You must complete Requirements Analysis before generating a project plan.', 'warning');
@@ -1287,13 +1347,38 @@ class WorkflowManager {
 
         const loadingOverlay = showLoading('Generating project plan...');
         try {
-            // Implementation for plan generation
+            // Get project details for planning generation
+            console.log('Getting project details...');
+            const project = await APIClient.getProject(this.projectId);
+            console.log('Project details:', project);
+
+            // Create the project planning request
+            const request = {
+                ProjectId: this.projectId,
+                RequirementsAnalysisId: this.workflowState?.requirementsAnalysis?.analysisId,
+                ProjectDescription: project.description || 'No description available',
+                TechStack: project.techStack || 'Not specified',
+                Timeline: project.timeline || 'Not specified',
+                AdditionalContext: null // Can be extended later
+            };
+
+            console.log('Generating project plan with request:', request);
+
+            // Make API call to generate project plan
+            console.log('Calling APIClient.createProjectPlan...');
+            const result = await APIClient.createProjectPlan(request);
+            console.log('Project plan generation result:', result);
+
             window.App.showNotification('Project plan submitted for review! Check the Review Queue.', 'success');
 
             // Reload workflow state to reflect changes
+            console.log('Reloading workflow state...');
             await this.loadWorkflowState();
+            console.log('Reloading stage content...');
             await this.loadStageContent(2);
+            console.log('=== generatePlan() completed successfully ===');
         } catch (error) {
+            console.error('Failed to generate project plan:', error);
             window.App.showNotification(`Failed to generate plan: ${error.message || error}`, 'error');
         } finally {
             hideLoading(loadingOverlay);
@@ -1301,6 +1386,8 @@ class WorkflowManager {
     }
 
     async regeneratePlan() {
+        console.log('=== regeneratePlan() called ===');
+
         // Check if planning is already approved
         if (this.workflowState?.projectPlanning?.isApproved === true) {
             if (!confirm('Project planning is already completed. Do you want to regenerate it? This will require re-approval.')) {
@@ -1316,13 +1403,36 @@ class WorkflowManager {
 
         const loadingOverlay = showLoading('Regenerating project plan...');
         try {
-            // Implementation for plan regeneration
+            console.log('Getting project details for regeneration...');
+            const project = await APIClient.getProject(this.projectId);
+
+            // Create the project planning request for regeneration
+            const request = {
+                ProjectId: this.projectId,
+                RequirementsAnalysisId: this.workflowState?.requirementsAnalysis?.analysisId,
+                ProjectDescription: project.description || 'No description available',
+                TechStack: project.techStack || 'Not specified',
+                Timeline: project.timeline || 'Not specified',
+                AdditionalContext: 'Regenerated plan' // Indicate this is a regeneration
+            };
+
+            console.log('Regenerating project plan with request:', request);
+
+            // Make API call to regenerate project plan
+            console.log('Calling APIClient.createProjectPlan for regeneration...');
+            const result = await APIClient.createProjectPlan(request);
+            console.log('Project plan regeneration result:', result);
+
             window.App.showNotification('Project plan submitted for review! Check the Review Queue.', 'success');
 
             // Reload workflow state to reflect changes
+            console.log('Reloading workflow state after regeneration...');
             await this.loadWorkflowState();
+            console.log('Reloading stage content after regeneration...');
             await this.loadStageContent(2);
+            console.log('=== regeneratePlan() completed successfully ===');
         } catch (error) {
+            console.error('Failed to regenerate project plan:', error);
             window.App.showNotification(`Failed to regenerate plan: ${error.message || error}`, 'error');
         } finally {
             hideLoading(loadingOverlay);
