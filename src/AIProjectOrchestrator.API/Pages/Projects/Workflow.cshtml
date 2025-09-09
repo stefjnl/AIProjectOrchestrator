@@ -47,7 +47,7 @@
     <!-- Workflow Pipeline -->
     <div class="workflow-pipeline">
         <div class="pipeline-stage">
-            <div class="stage-indicator completed" id="stage-1">
+            <div class="stage-indicator" id="stage-1">
                 <span>1</span>
             </div>
             <div class="stage-title">Requirements</div>
@@ -55,7 +55,7 @@
         </div>
 
         <div class="pipeline-stage">
-            <div class="stage-indicator completed" id="stage-2">
+            <div class="stage-indicator" id="stage-2">
                 <span>2</span>
             </div>
             <div class="stage-title">Planning</div>
@@ -63,7 +63,7 @@
         </div>
 
         <div class="pipeline-stage">
-            <div class="stage-indicator active" id="stage-3">
+            <div class="stage-indicator" id="stage-3">
                 <span>3</span>
             </div>
             <div class="stage-title">Stories</div>
@@ -97,8 +97,8 @@
         <button class="btn btn-secondary" id="prev-stage" onclick="navigateStage(-1)" disabled>
             ← Previous
         </button>
-        <span class="stage-counter" id="stage-counter">Stage 3 of 5</span>
-        <button class="btn btn-primary" id="next-stage" onclick="navigateStage(1)">
+        <span class="stage-counter" id="stage-counter">Loading stage...</span>
+        <button class="btn btn-primary" id="next-stage" onclick="navigateStage(1)" disabled>
             Next →
         </button>
     </div>

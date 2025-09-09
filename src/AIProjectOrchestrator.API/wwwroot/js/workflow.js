@@ -57,26 +57,59 @@ class WorkflowManager {
 
         try {
             await this.loadProjectData();
-            await this.loadWorkflowState();
-            await this.loadCurrentStage();
-            this.updateUI();
 
+            // Handle API failures gracefully
+            try {
+                await this.loadWorkflowState();
+                await this.loadCurrentStage();
+
+                // Handle new project scenario - NEW PROJECTS ALWAYS START AT STAGE 1
+                if (this.isNewProject) {
+                    console.log('New project detected - forcing stage 1 and showing prompt');
+                    this.hasShownNewProjectPrompt = true;
+                    this.currentStage = 1; // Force new projects to start at stage 1
+                    await this.loadStageContent(1); // Load stage 1 content
+                    this.handleNewProjectScenario();
+                } else {
+                    console.log('Not new project, proceeding with normal workflow');
+                    await this.loadStageContent(this.currentStage);
+                }
+            } catch (workflowError) {
+                console.error('Failed to load workflow state or determine current stage:', workflowError);
+
+                // Fallback for new projects - always start at stage 1
+                if (this.isNewProject) {
+                    console.log('Using fallback for new project - starting at stage 1');
+                    this.currentStage = 1;
+                    this.workflowState = this.getDefaultWorkflowState();
+                    await this.loadStageContent(1);
+                    this.handleNewProjectScenario();
+                } else {
+                    // For existing projects, show error and fallback to stage 1
+                    window.App.showNotification('Failed to load workflow data. Starting at stage 1.', 'warning');
+                    this.currentStage = 1;
+                    this.workflowState = this.getDefaultWorkflowState();
+                    await this.loadStageContent(1);
+                }
+            }
+
+            this.updateUI();
             console.log(`Initial data loaded. Current stage: ${this.currentStage}`);
             console.log(`Workflow state after loading:`, this.workflowState);
-
-            // Handle new project scenario
-            if (this.isNewProject && !this.hasShownNewProjectPrompt) {
-                console.log('Showing new project prompt');
-                this.hasShownNewProjectPrompt = true;
-                this.handleNewProjectScenario();
-            } else {
-                console.log('Not showing new project prompt because:');
-                console.log(`  - isNewProject: ${this.isNewProject}`);
-                console.log(`  - hasShownNewProjectPrompt: ${this.hasShownNewProjectPrompt}`);
-            }
         } catch (error) {
             console.error('Failed to load initial workflow data:', error);
-            window.App.showNotification('Failed to load workflow data', 'error');
+            window.App.showNotification('Failed to load project data', 'error');
+
+            // Final safety net - always show something
+            if (!document.getElementById('stage-content').innerHTML) {
+                document.getElementById('stage-content').innerHTML = `
+                    <div class="empty-stage">
+                        <div class="empty-icon">⚠️</div>
+                        <h3>Workflow Initialization Failed</h3>
+                        <p>We encountered an error loading your workflow. Please try refreshing the page or contact support.</p>
+                    </div>
+                `;
+            }
         }
     }
 
@@ -204,6 +237,12 @@ class WorkflowManager {
         console.log('RequirementsAnalysis - status:', requirementsAnalysis?.status, 'isApproved:', requirementsAnalysis?.isApproved);
         console.log('ProjectPlanning - status:', projectPlanning?.status, 'isApproved:', projectPlanning?.isApproved);
         console.log('StoryGeneration - status:', storyGeneration?.status, 'isApproved:', storyGeneration?.isApproved);
+
+        // NEW: Safety check - if this is a new project, always start at stage 1
+        if (this.isNewProject) {
+            console.log('New project detected in getCurrentStageFromWorkflow - forcing stage 1');
+            return 1;
+        }
 
         // If requirements analysis exists but is not approved, stay at stage 1
         if (requirementsAnalysis && requirementsAnalysis.status !== 'NotStarted' && !requirementsAnalysis.isApproved) {

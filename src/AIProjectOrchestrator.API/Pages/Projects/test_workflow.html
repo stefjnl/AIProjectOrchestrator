@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workflow Test</title>
+    <style>
+        .stage-indicator {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin: 5px;
+        }
+
+        .completed {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .active {
+            background-color: #b8daff;
+            color: #004085;
+        }
+
+        .stage-navigation {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .stage-counter {
+            margin: 0 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Workflow Test</h1>
+
+    <div class="workflow-pipeline">
+        <div class="pipeline-stage">
+            <div class="stage-indicator" id="stage-1">
+                <span>1</span>
+            </div>
+            <div class="stage-title">Requirements</div>
+        </div>
+
+        <div class="pipeline-stage">
+            <div class="stage-indicator" id="stage-2">
+                <span>2</span>
+            </div>
+            <div class="stage-title">Planning</div>
+        </div>
+
+        <div class="pipeline-stage">
+            <div class="stage-indicator" id="stage-3">
+                <span>3</span>
+            </div>
+            <div class="stage-title">Stories</div>
+        </div>
+
+        <div class="pipeline-stage">
+            <div class="stage-indicator" id="stage-4">
+                <span>4</span>
+            </div>
+            <div class="stage-title">Prompts</div>
+        </div>
+
+        <div class="pipeline-stage">
+            <div class="stage-indicator" id="stage-5">
+                <span>5</span>
+            </div>
+            <div class="stage-title">Review</div>
+        </div>
+    </div>
+
+    <div class="stage-content" id="stage-content">
+        <h2>Loading stage content...</h2>
+    </div>
+
+    <div class="stage-navigation">
+        <button class="btn btn-secondary" id="prev-stage" onclick="console.log('Prev clicked')" disabled>
+            ← Previous
+        </button>
+        <span class="stage-counter" id="stage-counter">Loading stage...</span>
+        <button class="btn btn-primary" id="next-stage" onclick="console.log('Next clicked')" disabled>
+            Next →
+        </button>
+    </div>
+
+    <script>
+        // Test the workflow logic
+        console.log('Testing workflow logic...');
+
+        // Simulate the workflow state for different scenarios
+        const testScenarios = [
+            {
+                name: "New Project (should start at stage 1)",
+                workflowState: null,
+                isNewProject: true
+            },
+            {
+                name: "Stage 1 completed, stage 2 pending",
+                workflowState: {
+                    requirementsAnalysis: { status: "Approved", isApproved: true },
+                    projectPlanning: { status: "NotStarted", isApproved: false },
+                    storyGeneration: { status: "NotStarted", isApproved: false }
+                },
+                isNewProject: false
+            },
+            {
+                name: "Stage 2 completed, stage 3 pending",
+                workflowState: {
+                    requirementsAnalysis: { status: "Approved", isApproved: true },
+                    projectPlanning: { status: "Approved", isApproved: true },
+                    storyGeneration: { status: "NotStarted", isApproved: false }
+                },
+                isNewProject: false
+            },
+            {
+                name: "All stages completed",
+                workflowState: {
+                    requirementsAnalysis: { status: "Approved", isApproved: true },
+                    projectPlanning: { status: "Approved", isApproved: true },
+                    storyGeneration: { status: "Approved", isApproved: true },
+                    promptGeneration: { completionPercentage: 100 }
+                },
+                isNewProject: false
+            }
+        ];
+
+        // Test each scenario
+        testScenarios.forEach((scenario, index) => {
+            console.log(`\n=== Testing: ${scenario.name} ===`);
+
+            // Simulate the getCurrentStageFromWorkflow logic
+            let currentStage;
+
+            if (!scenario.workflowState) {
+                currentStage = 1;
+                console.log('No workflow state → stage 1');
+            } else if (scenario.isNewProject) {
+                currentStage = 1;
+                console.log('New project → stage 1');
+            } else {
+                const { requirementsAnalysis, projectPlanning, storyGeneration, promptGeneration } = scenario.workflowState;
+
+                if (requirementsAnalysis && requirementsAnalysis.status !== 'NotStarted' && !requirementsAnalysis.isApproved) {
+                    currentStage = 1;
+                    console.log('Requirements exist but not approved → stage 1');
+                } else if (requirementsAnalysis?.isApproved === true && (!projectPlanning || !projectPlanning.isApproved)) {
+                    currentStage = 2;
+                    console.log('Requirements approved, planning not → stage 2');
+                } else if (requirementsAnalysis?.isApproved === true && projectPlanning?.isApproved === true && (!storyGeneration || !storyGeneration.isApproved)) {
+                    currentStage = 3;
+                    console.log('Requirements and planning approved, stories not → stage 3');
+                } else {
+                    const stages = [
+                        { stage: 1, approved: requirementsAnalysis?.isApproved === true },
+                        { stage: 2, approved: projectPlanning?.isApproved === true },
+                        { stage: 3, approved: storyGeneration?.isApproved === true },
+                        { stage: 4, approved: promptGeneration?.completionPercentage >= 100 },
+                        { stage: 5, approved: promptGeneration?.completionPercentage >= 100 }
+                    ];
+
+                    for (let i = 0; i < stages.length; i++) {
+                        if (!stages[i].approved) {
+                            currentStage = stages[i].stage;
+                            console.log(`First incomplete stage → stage ${currentStage}`);
+                            break;
+                        }
+                    }
+
+                    if (!currentStage) currentStage = 5;
+                }
+            }
+
+            console.log(`Result: currentStage = ${currentStage}`);
+
+            // Update UI to reflect the stage
+            document.querySelectorAll('.stage-indicator').forEach((indicator, i) => {
+                indicator.className = 'stage-indicator';
+                if (i + 1 < currentStage) {
+                    indicator.classList.add('completed');
+                } else if (i + 1 === currentStage) {
+                    indicator.classList.add('active');
+                }
+            });
+
+            document.getElementById('stage-counter').textContent = `Stage ${currentStage} of 5`;
+            document.getElementById('stage-content').textContent = `Current stage: ${currentStage} - ${scenario.name}`;
+
+            // Small delay between tests
+            if (index < testScenarios.length - 1) {
+                setTimeout(() => { }, 1000);
+            }
+        });
+
+        console.log('\n=== All tests completed successfully! ===');
+    </script>
+</body>
+
+</html>
