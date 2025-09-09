@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Workflow Test</title>
+    <script>
+        // Simulate the workflow logic
+        function testWorkflowLogic() {
+            console.log('=== Testing Workflow Logic ===');
+
+            // Test case 1: New project (no workflow state)
+            console.log('\n1. Testing new project (no workflow state):');
+            let workflowState = null;
+            console.log('Result:', getCurrentStageFromWorkflow(workflowState));
+
+            // Test case 2: Project with requirements analysis pending review
+            console.log('\n2. Testing project with requirements pending review:');
+            workflowState = {
+                requirementsAnalysis: { status: 'PendingReview', isApproved: false },
+                projectPlanning: { status: 'NotStarted', isApproved: false },
+                storyGeneration: { status: 'NotStarted', isApproved: false },
+                promptGeneration: { completedCount: 0, totalCount: 0, completionPercentage: 0 }
+            };
+            console.log('Result:', getCurrentStageFromWorkflow(workflowState));
+
+            // Test case 3: Project with approved requirements, no planning
+            console.log('\n3. Testing project with approved requirements, no planning:');
+            workflowState = {
+                requirementsAnalysis: { status: 'Approved', isApproved: true },
+                projectPlanning: { status: 'NotStarted', isApproved: false },
+                storyGeneration: { status: 'NotStarted', isApproved: false },
+                promptGeneration: { completedCount: 0, totalCount: 0, completionPercentage: 0 }
+            };
+            console.log('Result:', getCurrentStageFromWorkflow(workflowState));
+
+            // Test case 4: Project with approved requirements and planning
+            console.log('\n4. Testing project with approved requirements and planning:');
+            workflowState = {
+                requirementsAnalysis: { status: 'Approved', isApproved: true },
+                projectPlanning: { status: 'Approved', isApproved: true },
+                storyGeneration: { status: 'NotStarted', isApproved: false },
+                promptGeneration: { completedCount: 0, totalCount: 0, completionPercentage: 0 }
+            };
+            console.log('Result:', getCurrentStageFromWorkflow(workflowState));
+        }
+
+        function getCurrentStageFromWorkflow(workflowState) {
+            // Determine the current stage based on workflow state
+            if (!workflowState) {
+                console.log('No workflow state, defaulting to stage 1');
+                return 1;
+            }
+
+            console.log('Workflow state:', workflowState);
+            const requirementsAnalysis = workflowState.requirementsAnalysis;
+            const projectPlanning = workflowState.projectPlanning;
+            const storyGeneration = workflowState.storyGeneration;
+            const promptGeneration = workflowState.promptGeneration;
+
+            console.log('Detailed analysis:');
+            console.log('RequirementsAnalysis - status:', requirementsAnalysis?.status, 'isApproved:', requirementsAnalysis?.isApproved);
+            console.log('ProjectPlanning - status:', projectPlanning?.status, 'isApproved:', projectPlanning?.isApproved);
+            console.log('StoryGeneration - status:', storyGeneration?.status, 'isApproved:', storyGeneration?.isApproved);
+
+            // If requirements analysis exists but is not approved, stay at stage 1
+            if (requirementsAnalysis && requirementsAnalysis.status !== 'NotStarted' && !requirementsAnalysis.isApproved) {
+                console.log('Requirements analysis exists but not approved, staying at stage 1');
+                return 1;
+            }
+
+            // If requirements analysis is approved but project planning is not, go to stage 2
+            if (requirementsAnalysis?.isApproved === true &&
+                (!projectPlanning || !projectPlanning.isApproved)) {
+                console.log('Requirements approved, project planning not approved, going to stage 2');
+                return 2;
+            }
+
+            // If both requirements and planning are approved but stories are not, go to stage 3
+            if (requirementsAnalysis?.isApproved === true &&
+                projectPlanning?.isApproved === true &&
+                (!storyGeneration || !storyGeneration.isApproved)) {
+                console.log('Requirements and planning approved, stories not approved, going to stage 3');
+                return 3;
+            }
+
+            // Default logic for remaining stages
+            const stages = [
+                { stage: 1, approved: requirementsAnalysis?.isApproved === true },
+                { stage: 2, approved: projectPlanning?.isApproved === true },
+                { stage: 3, approved: storyGeneration?.isApproved === true },
+                { stage: 4, approved: promptGeneration?.completionPercentage >= 100 },
+                { stage: 5, approved: promptGeneration?.completionPercentage >= 100 }
+            ];
+
+            console.log('Stage evaluation:', stages);
+
+            // Find the first incomplete stage
+            for (let i = 0; i < stages.length; i++) {
+                console.log(`Stage ${i + 1}: approved=${stages[i].approved}`);
+                if (!stages[i].approved) {
+                    console.log(`Returning stage ${stages[i].stage} as first incomplete stage`);
+                    return stages[i].stage;
+                }
+            }
+
+            console.log('All stages completed, returning stage 5');
+            return 5; // All stages completed
+        }
+
+        // Run the test
+        window.onload = function () {
+            testWorkflowLogic();
+        };
+    </script>
+</head>
+
+<body>
+    <h1>Workflow Logic Test</h1>
+    <p>Check the browser console for test results.</p>
+    <button onclick="testWorkflowLogic()">Run Test Again</button>
+</body>
+
+</html>

@@ -1,15 +1,16 @@
 // Advanced Workflow Management JavaScript
 class WorkflowManager {
-    constructor(projectId) {
+    constructor(projectId, isNewProject = false) {
         this.projectId = projectId;
         this.currentStage = 1; // Start at Stage 1 (Requirements) by default
         this.stages = ['requirements', 'planning', 'stories', 'prompts', 'review'];
         this.autoRefreshInterval = null;
         this.isAutoRefreshing = false;
         this.workflowState = null; // Store the current workflow state
-        this.isNewProject = false; // Flag for new projects
+        this.isNewProject = isNewProject; // Flag for new projects
         this.hasShownNewProjectPrompt = false; // Track if we've shown the prompt
 
+        console.log(`WorkflowManager constructor called with projectId=${projectId}, isNewProject=${isNewProject}`);
         this.initialize();
     }
 
@@ -50,16 +51,28 @@ class WorkflowManager {
     }
 
     async loadInitialData() {
+        console.log('loadInitialData: Starting initialization');
+        console.log(`isNewProject: ${this.isNewProject}`);
+        console.log(`hasShownNewProjectPrompt: ${this.hasShownNewProjectPrompt}`);
+
         try {
             await this.loadProjectData();
             await this.loadWorkflowState();
             await this.loadCurrentStage();
             this.updateUI();
 
+            console.log(`Initial data loaded. Current stage: ${this.currentStage}`);
+            console.log(`Workflow state after loading:`, this.workflowState);
+
             // Handle new project scenario
             if (this.isNewProject && !this.hasShownNewProjectPrompt) {
+                console.log('Showing new project prompt');
                 this.hasShownNewProjectPrompt = true;
                 this.handleNewProjectScenario();
+            } else {
+                console.log('Not showing new project prompt because:');
+                console.log(`  - isNewProject: ${this.isNewProject}`);
+                console.log(`  - hasShownNewProjectPrompt: ${this.hasShownNewProjectPrompt}`);
             }
         } catch (error) {
             console.error('Failed to load initial workflow data:', error);
@@ -140,11 +153,21 @@ class WorkflowManager {
 
     async loadWorkflowState() {
         try {
+            console.log(`Loading workflow state for project ${this.projectId}`);
             this.workflowState = await APIClient.getWorkflowStatus(this.projectId);
             console.log('Workflow state loaded:', this.workflowState);
+
+            // Debug the structure
+            if (this.workflowState) {
+                console.log('Requirements analysis:', this.workflowState.requirementsAnalysis);
+                console.log('Project planning:', this.workflowState.projectPlanning);
+                console.log('Story generation:', this.workflowState.storyGeneration);
+                console.log('Prompt generation:', this.workflowState.promptGeneration);
+            }
         } catch (error) {
-            console.warn('Could not load workflow state, using defaults');
+            console.warn('Could not load workflow state, using defaults', error);
             this.workflowState = this.getDefaultWorkflowState();
+            console.log('Using default workflow state:', this.workflowState);
         }
     }
 
@@ -161,33 +184,81 @@ class WorkflowManager {
 
     getCurrentStageFromWorkflow() {
         // Determine the current stage based on workflow state
-        if (!this.workflowState) return 1;
+        if (!this.workflowState) {
+            console.log('No workflow state, defaulting to stage 1');
+            return 1;
+        }
 
+        console.log('Workflow state:', this.workflowState);
+        console.log('Requirements analysis:', this.workflowState.requirementsAnalysis);
+        console.log('Project planning:', this.workflowState.projectPlanning);
+        console.log('Story generation:', this.workflowState.storyGeneration);
+
+        // Handle the case where requirements analysis exists but is not approved
+        const requirementsAnalysis = this.workflowState.requirementsAnalysis;
+        const projectPlanning = this.workflowState.projectPlanning;
+        const storyGeneration = this.workflowState.storyGeneration;
+        const promptGeneration = this.workflowState.promptGeneration;
+
+        console.log('Detailed analysis:');
+        console.log('RequirementsAnalysis - status:', requirementsAnalysis?.status, 'isApproved:', requirementsAnalysis?.isApproved);
+        console.log('ProjectPlanning - status:', projectPlanning?.status, 'isApproved:', projectPlanning?.isApproved);
+        console.log('StoryGeneration - status:', storyGeneration?.status, 'isApproved:', storyGeneration?.isApproved);
+
+        // If requirements analysis exists but is not approved, stay at stage 1
+        if (requirementsAnalysis && requirementsAnalysis.status !== 'NotStarted' && !requirementsAnalysis.isApproved) {
+            console.log('Requirements analysis exists but not approved, staying at stage 1');
+            return 1;
+        }
+
+        // If requirements analysis is approved but project planning is not, go to stage 2
+        if (requirementsAnalysis?.isApproved === true &&
+            (!projectPlanning || !projectPlanning.isApproved)) {
+            console.log('Requirements approved, project planning not approved, going to stage 2');
+            return 2;
+        }
+
+        // If both requirements and planning are approved but stories are not, go to stage 3
+        if (requirementsAnalysis?.isApproved === true &&
+            projectPlanning?.isApproved === true &&
+            (!storyGeneration || !storyGeneration.isApproved)) {
+            console.log('Requirements and planning approved, stories not approved, going to stage 3');
+            return 3;
+        }
+
+        // Default logic for remaining stages
         const stages = [
-            { stage: 1, approved: this.workflowState.requirementsAnalysis?.isApproved },
-            { stage: 2, approved: this.workflowState.projectPlanning?.isApproved },
-            { stage: 3, approved: this.workflowState.storyGeneration?.isApproved },
-            { stage: 4, approved: this.workflowState.promptGeneration?.completionPercentage >= 100 },
-            { stage: 5, approved: this.workflowState.promptGeneration?.completionPercentage >= 100 }
+            { stage: 1, approved: requirementsAnalysis?.isApproved === true },
+            { stage: 2, approved: projectPlanning?.isApproved === true },
+            { stage: 3, approved: storyGeneration?.isApproved === true },
+            { stage: 4, approved: promptGeneration?.completionPercentage >= 100 },
+            { stage: 5, approved: promptGeneration?.completionPercentage >= 100 }
         ];
+
+        console.log('Stage evaluation:', stages);
 
         // Find the first incomplete stage
         for (let i = 0; i < stages.length; i++) {
+            console.log(`Stage ${i + 1}: approved=${stages[i].approved}`);
             if (!stages[i].approved) {
+                console.log(`Returning stage ${stages[i].stage} as first incomplete stage`);
                 return stages[i].stage;
             }
         }
 
+        console.log('All stages completed, returning stage 5');
         return 5; // All stages completed
     }
 
     async loadCurrentStage() {
         try {
+            console.log('loadCurrentStage: Starting stage determination');
             // Determine current stage from workflow state instead of hardcoding
             this.currentStage = this.getCurrentStageFromWorkflow();
+            console.log(`loadCurrentStage: Determined stage ${this.currentStage}`);
             await this.loadStageContent(this.currentStage);
         } catch (error) {
-            console.warn('Could not determine current stage, using default stage 1');
+            console.warn('Could not determine current stage, using default stage 1', error);
             this.currentStage = 1;
             await this.loadStageContent(this.currentStage);
         }
@@ -309,6 +380,9 @@ class WorkflowManager {
     getRequirementsActiveState() {
         const hasAnalysis = this.workflowState?.requirementsAnalysis?.status !== 'NotStarted';
         const isPending = this.workflowState?.requirementsAnalysis?.status === 'PendingReview';
+        const isApproved = this.workflowState?.requirementsAnalysis?.isApproved === true;
+
+        console.log(`Requirements state - hasAnalysis: ${hasAnalysis}, isPending: ${isPending}, isApproved: ${isApproved}`);
 
         if (isPending) {
             return `
@@ -318,12 +392,17 @@ class WorkflowManager {
                         <div class="status-icon">⏳</div>
                         <h3>Analysis Pending Review</h3>
                         <p>Your requirements analysis is currently under review. Please check the <a href="/Reviews/Queue">Review Queue</a>.</p>
+                        <div class="stage-actions">
+                            <button class="btn btn-primary" onclick="workflowManager.viewRequirementsReview()">
+                                📋 View Review Details
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
         }
 
-        if (hasAnalysis) {
+        if (hasAnalysis && isApproved) {
             return this.getRequirementsCompletedState(null);
         }
 
@@ -1071,6 +1150,10 @@ class WorkflowManager {
     }
 
     // Utility methods
+    viewRequirementsReview() {
+        window.App.showNotification('View requirements review functionality coming soon', 'info');
+    }
+
     editRequirements() {
         window.App.showNotification('Edit requirements functionality coming soon', 'info');
     }
@@ -1143,19 +1226,29 @@ class WorkflowManager {
 
 // Initialize workflow manager when DOM is loaded
 document.addEventListener('DOMContentLoaded', function () {
+    console.log('=== WORKFLOW INITIALIZATION STARTED ===');
+    console.log('Current URL:', window.location.href);
+    console.log('Full URL with params:', window.location.search);
+
     const urlParams = new URLSearchParams(window.location.search);
     const projectId = urlParams.get('projectId');
     const newProject = urlParams.get('newProject') === 'true';
 
-    if (projectId) {
-        window.workflowManager = new WorkflowManager(projectId);
+    console.log('Parsed URL parameters:', {
+        projectId: projectId,
+        newProject: newProject,
+        rawNewProject: urlParams.get('newProject'),
+        allParams: Object.fromEntries(urlParams)
+    });
 
-        // Set the new project flag if present
-        if (newProject) {
-            window.workflowManager.isNewProject = true;
-        }
+    if (projectId) {
+        console.log(`Creating WorkflowManager for project ${projectId}, newProject=${newProject}`);
+        window.workflowManager = new WorkflowManager(projectId, newProject);
+        console.log('WorkflowManager created successfully');
     } else {
         console.error('No project ID found for workflow initialization');
         window.App.showNotification('No project ID found', 'error');
     }
+
+    console.log('=== WORKFLOW INITIALIZATION COMPLETED ===');
 });
