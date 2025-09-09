@@ -4,113 +4,412 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Create New Project</title>
+    <title>AI Project Orchestrator - Create Project</title>
     <link rel="stylesheet" href="/css/styles.css">
-    <!-- Markdown support libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.7/dist/purify.min.js"></script>
-    <script src="/js/markdown-utils.js"></script>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
 </head>
 
 <body>
-    <div class="container">
-        <div class="main-nav-buttons">
-            <a href="/projects/create.html"><button>Create New Project</button></a>
-            <a href="/projects/list.html"><button>View All Projects</button></a>
-            <a href="/reviews/queue.html"><button>Go To Review Queue</button></a>
-            <a href="/prompt-playground.html"><button>Prompt Playground</button></a>
+    <!-- Global Navigation Header -->
+    <header class="header">
+        <div class="header-container">
+            <div class="header-brand">
+                <a href="/" class="header-logo">🤖 AI Project Orchestrator</a>
+            </div>
+            <nav class="header-nav">
+                <a href="/projects/create.html" class="header-nav-item active">Create Project</a>
+                <a href="/projects/list.html" class="header-nav-item">View Projects</a>
+                <a href="/reviews/queue.html" class="header-nav-item">Review Queue</a>
+                <a href="/prompt-playground.html" class="header-nav-item">Prompt Playground</a>
+            </nav>
         </div>
-        <h1>Create New Project</h1>
-        <div class="form-card" role="form" aria-label="Project creation form">
-            <form id="projectForm">
-                <div>
-                    <label for="projectName">Project Name:</label>
-                    <input type="text" id="projectName" required aria-required="true">
-                </div>
-                <div>
-                    <label for="projectDescription">Project Description:</label>
-                    <textarea id="projectDescription" required aria-required="true"
-                        placeholder="Enter project description using Markdown (e.g., # Title, **bold**, - lists)"></textarea>
-                    <!-- Real-time Markdown preview -->
-                    <div class="markdown-preview" id="descriptionPreview"
-                        style="border: 1px solid #ddd; padding: 10px; min-height: 100px; margin-top: 10px; display: none; background: #f8f9fa; border-radius: 4px;">
-                        <strong>Preview:</strong>
-                        <div id="previewContent"></div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Page Header -->
+            <div class="page-header mb-8">
+                <h1 class="text-3xl font-bold text-primary mb-2">Create New Project</h1>
+                <p class="text-secondary">Define your project requirements and let AI orchestrate the development
+                    workflow</p>
+            </div>
+
+            <!-- Project Creation Form -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Form Section -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="text-xl font-semibold text-primary">Project Details</h2>
+                    </div>
+                    <div class="card-body">
+                        <form id="project-form" class="space-y-6">
+                            <!-- Project Name -->
+                            <div class="form-group">
+                                <label for="projectName" class="form-label">Project Name *</label>
+                                <input type="text" id="projectName" name="projectName" class="form-control"
+                                    placeholder="Enter a descriptive project name" required>
+                                <div class="form-text">Choose a clear, descriptive name for your project</div>
+                            </div>
+
+                            <!-- Project Description -->
+                            <div class="form-group">
+                                <label for="projectDescription" class="form-label">Project Description *</label>
+                                <textarea id="projectDescription" name="projectDescription" class="form-control"
+                                    rows="4" placeholder="Describe your project in detail..." required></textarea>
+                                <div class="form-text">Provide a comprehensive description of what you want to build
+                                </div>
+                            </div>
+
+                            <!-- Requirements -->
+                            <div class="form-group">
+                                <label for="requirements" class="form-label">Requirements *</label>
+                                <textarea id="requirements" name="requirements" class="form-control" rows="6"
+                                    placeholder="List your project requirements, constraints, and expectations..."
+                                    required></textarea>
+                                <div class="form-text">Be specific about features, constraints, and expectations</div>
+                            </div>
+
+                            <!-- AI Model Selection -->
+                            <div class="form-group">
+                                <label for="aiModel" class="form-label">Preferred AI Model</label>
+                                <select id="aiModel" name="aiModel" class="form-control">
+                                    <option value="claude">Claude (Recommended)</option>
+                                    <option value="openrouter">OpenRouter</option>
+                                    <option value="lmstudio">LM Studio (Local)</option>
+                                    <option value="auto">Auto-select (Best available)</option>
+                                </select>
+                                <div class="form-text">Choose your preferred AI model for this project</div>
+                            </div>
+
+                            <!-- Project Template -->
+                            <div class="form-group">
+                                <label for="project-template" class="form-label">Project Template (Optional)</label>
+                                <select id="project-template" name="projectTemplate" class="form-control">
+                                    <option value="">No template - start from scratch</option>
+                                </select>
+                                <div class="form-text">Select a template to get started faster</div>
+                            </div>
+
+                            <!-- Additional Context -->
+                            <div class="form-group">
+                                <label for="additionalContext" class="form-label">Additional Context</label>
+                                <textarea id="additionalContext" name="additionalContext" class="form-control" rows="3"
+                                    placeholder="Any additional context, preferences, or special requirements..."></textarea>
+                                <div class="form-text">Optional: Add any extra information that might be helpful</div>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <div class="form-group">
+                                <button type="submit" class="btn btn-primary btn-lg w-full">
+                                    Create Project
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
-                <button type="submit" id="createProjectBtn" class="btn-primary">Create Project</button>
-                <div id="errorMessage" class="alert-error" style="display: none;" role="alert" aria-live="assertive">
+
+                <!-- Markdown Preview Section -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="text-xl font-semibold text-primary">Live Preview</h2>
+                        <div class="flex gap-2">
+                            <button class="btn btn-sm btn-secondary" onclick="togglePreview()">Toggle Preview</button>
+                            <button class="btn btn-sm btn-secondary" onclick="clearForm()">Clear Form</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="markdown-preview" class="markdown-content">
+                            <div class="text-secondary text-center py-8">
+                                <div class="text-4xl mb-4">📝</div>
+                                <h3 class="text-lg font-semibold mb-2">Live Markdown Preview</h3>
+                                <p>Start typing in the form to see a live preview of your project description and
+                                    requirements.</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </form>
+            </div>
+
+            <!-- Result Container -->
+            <div id="result-container" class="mt-8"></div>
+
+            <!-- Quick Actions -->
+            <div class="flex justify-between mt-8">
+                <a href="/projects/list.html" class="btn btn-secondary">View All Projects</a>
+                <a href="/" class="btn btn-secondary">Back to Dashboard</a>
+            </div>
         </div>
-    </div>
+    </main>
 
+    <!-- JavaScript Files -->
     <script src="/js/api.js"></script>
+    <script src="/js/markdown-utils.js"></script>
+    <script src="/js/project-form.js"></script>
+    <script src="/js/template-loader.js"></script>
+
     <script>
-        document.getElementById('projectForm').addEventListener('submit', createProject);
+        // Enhanced form handling with live preview
+        document.addEventListener('DOMContentLoaded', function () {
+            const projectForm = document.getElementById('project-form');
+            const projectDescription = document.getElementById('projectDescription');
+            const requirements = document.getElementById('requirements');
+            const additionalContext = document.getElementById('additionalContext');
+            const markdownPreview = document.getElementById('markdown-preview');
 
-        async function createProject(event) {
-            event.preventDefault();
+            // Live preview functionality - make it global so it can be called from other functions
+            window.updatePreview = function () {
+                const description = projectDescription.value;
+                const reqs = requirements.value;
+                const context = additionalContext.value;
 
-            const projectNameInput = document.getElementById('projectName');
-            const projectDescriptionInput = document.getElementById('projectDescription');
-            const createProjectBtn = document.getElementById('createProjectBtn');
-            const errorMessageDiv = document.getElementById('errorMessage');
+                if (!description && !reqs && !context) {
+                    markdownPreview.innerHTML = `
+                        <div class="text-secondary text-center py-8">
+                            <div class="text-4xl mb-4">📝</div>
+                            <h3 class="text-lg font-semibold mb-2">Live Markdown Preview</h3>
+                            <p>Start typing in the form to see a live preview of your project description and requirements.</p>
+                        </div>
+                    `;
+                    return;
+                }
 
-            // Clear previous error messages
-            errorMessageDiv.style.display = 'none';
-            errorMessageDiv.textContent = '';
+                let previewContent = '';
 
-            // Basic validation
-            if (!projectNameInput.value.trim() || !projectDescriptionInput.value.trim()) {
-                errorMessageDiv.textContent = 'Project Name and Description are required.';
-                errorMessageDiv.style.display = 'block';
-                return;
+                if (description) {
+                    previewContent += `## Project Description\n\n${description}\n\n`;
+                }
+
+                if (reqs) {
+                    previewContent += `## Requirements\n\n${reqs}\n\n`;
+                }
+
+                if (context) {
+                    previewContent += `## Additional Context\n\n${context}\n\n`;
+                }
+
+                // Use the existing renderMarkdown function if available
+                if (typeof renderMarkdown === 'function') {
+                    markdownPreview.innerHTML = renderMarkdown(previewContent);
+                } else {
+                    // Fallback to basic markdown rendering
+                    markdownPreview.innerHTML = previewContent
+                        .replace(/\n/g, '<br>')
+                        .replace(/## (.*)/g, '<h3>$1</h3>')
+                        .replace(/\*\*(.*)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\*(.*)\*/g, '<em>$1</em>');
+                }
             }
 
-            const projectData = {
-                name: projectNameInput.value.trim(),
-                description: projectDescriptionInput.value.trim()
-            };
+            // Add event listeners for live preview
+            if (projectDescription) {
+                projectDescription.addEventListener('input', updatePreview);
+            }
+            if (requirements) {
+                requirements.addEventListener('input', updatePreview);
+            }
+            if (additionalContext) {
+                additionalContext.addEventListener('input', updatePreview);
+            }
 
-            createProjectBtn.disabled = true; // Disable button during submission
-            createProjectBtn.textContent = 'Creating...';
+            // Initial preview update
+            updatePreview();
 
-            try {
-                const project = await window.APIClient.createProject(projectData);
-                // Critical: Clear any existing workflow state before redirect
-                // Redirect to workflow with clean state
-                window.location.href = `/projects/workflow.html?projectId=${project.id}&newProject=true`;
-            } catch (error) {
-                errorMessageDiv.textContent = 'Error creating project: ' + error.message;
-                errorMessageDiv.style.display = 'block';
-            } finally {
-                createProjectBtn.disabled = false; // Re-enable button
-                createProjectBtn.textContent = 'Create Project';
+            // Load project templates
+            loadProjectTemplates();
+        });
+
+        // Utility functions
+        function togglePreview() {
+            const preview = document.getElementById('markdown-preview');
+            const isVisible = preview.style.display !== 'none';
+            preview.style.display = isVisible ? 'none' : 'block';
+        }
+
+        function clearForm() {
+            if (confirm('Are you sure you want to clear the form? This action cannot be undone.')) {
+                document.getElementById('project-form').reset();
+                window.updatePreview();
             }
         }
-        // Real-time Markdown preview for project description
-        document.addEventListener('DOMContentLoaded', function () {
-            const descriptionTextarea = document.getElementById('projectDescription');
-            const previewDiv = document.getElementById('descriptionPreview');
-            const previewContent = document.getElementById('previewContent');
 
-            if (descriptionTextarea && previewDiv && previewContent) {
-                descriptionTextarea.addEventListener('input', function () {
-                    const mdText = this.value;
-                    if (mdText.trim()) {
-                        previewContent.innerHTML = renderMarkdownToHTML(mdText);
-                        previewDiv.style.display = 'block';
-                    } else {
-                        previewDiv.style.display = 'none';
-                    }
-                });
+        // Enhanced form submission with better UX
+        document.getElementById('project-form').addEventListener('submit', async function (event) {
+            event.preventDefault();
 
-                // Initial preview (empty)
-                previewDiv.style.display = 'none';
+            const submitButton = this.querySelector('button[type="submit"]');
+            const resultContainer = document.getElementById('result-container');
+
+            try {
+                // Show loading state
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="loading-spinner"></span> Creating Project...';
+
+                // Get form data
+                const formData = new FormData(this);
+                const projectData = {
+                    name: formData.get('projectName'),
+                    description: formData.get('projectDescription'),
+                    aiModel: formData.get('aiModel'),
+                    requirements: formData.get('requirements'),
+                    additionalContext: formData.get('additionalContext')
+                };
+
+                // Validate required fields
+                if (!projectData.name || !projectData.description || !projectData.requirements) {
+                    throw new Error('Please fill in all required fields');
+                }
+
+                // Create project via API
+                const result = await window.APIClient.createProject(projectData);
+
+                // Show success message
+                resultContainer.innerHTML = `
+                    <div class="card border-success">
+                        <div class="card-body">
+                            <div class="flex items-center mb-4">
+                                <div class="text-3xl mr-4">✅</div>
+                                <div>
+                                    <h3 class="text-xl font-semibold text-success">Project Created Successfully!</h3>
+                                    <p class="text-secondary">Your project "${result.name}" has been created and is ready for the workflow.</p>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <div>
+                                    <strong>Project ID:</strong> ${result.id}
+                                </div>
+                                <div>
+                                    <strong>Status:</strong> <span class="status-badge status-ready">Ready to Start</span>
+                                </div>
+                            </div>
+                            <div class="flex gap-3">
+                                <a href="/projects/workflow.html?id=${result.id}" class="btn btn-primary">
+                                    Start Workflow
+                                </a>
+                                <a href="/projects/list.html" class="btn btn-secondary">
+                                    View All Projects
+                                </a>
+                                <a href="/" class="btn btn-secondary">
+                                    Go to Dashboard
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Clear the form
+                this.reset();
+                window.updatePreview();
+
+            } catch (error) {
+                console.error('Error creating project:', error);
+
+                resultContainer.innerHTML = `
+                    <div class="card border-danger">
+                        <div class="card-body">
+                            <div class="flex items-center mb-4">
+                                <div class="text-3xl mr-4">❌</div>
+                                <div>
+                                    <h3 class="text-xl font-semibold text-danger">Error Creating Project</h3>
+                                    <p class="text-secondary">${error.message}</p>
+                                </div>
+                            </div>
+                            <div class="alert alert-warning">
+                                <strong>Troubleshooting Tips:</strong>
+                                <ul class="mt-2 space-y-1">
+                                    <li>• Check that all required fields are filled</li>
+                                    <li>• Ensure the project name is unique</li>
+                                    <li>• Verify your API connection is working</li>
+                                    <li>• Try refreshing the page and trying again</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } finally {
+                // Reset button state
+                submitButton.disabled = false;
+                submitButton.innerHTML = 'Create Project';
             }
         });
 
+        // Enhanced template loading
+        async function loadProjectTemplates() {
+            try {
+                // Use the correct endpoint - check if templates endpoint exists, fallback to prompt templates
+                let templates = [];
+                try {
+                    templates = await window.APIClient.get('/projects/templates');
+                } catch (apiError) {
+                    console.log('Project templates endpoint not available, trying prompt templates');
+                    try {
+                        templates = await window.APIClient.getPromptTemplates();
+                        // Transform prompt templates to project template format
+                        templates = templates.map(template => ({
+                            id: template.id,
+                            name: template.name,
+                            description: template.content || '',
+                            defaultRequirements: template.context || ''
+                        }));
+                    } catch (promptError) {
+                        console.log('Prompt templates also not available, using default templates');
+                        templates = getDefaultTemplates();
+                    }
+                }
+                const templateSelect = document.getElementById('project-template');
+
+                if (templateSelect && templates && templates.length > 0) {
+                    templates.forEach(template => {
+                        const option = document.createElement('option');
+                        option.value = template.id;
+                        option.textContent = template.name;
+                        templateSelect.appendChild(option);
+                    });
+
+                    templateSelect.addEventListener('change', function () {
+                        const selectedTemplate = templates.find(t => t.id === this.value);
+                        if (selectedTemplate) {
+                            document.getElementById('project-description').value = selectedTemplate.description || '';
+                            document.getElementById('requirements').value = selectedTemplate.defaultRequirements || '';
+                            window.updatePreview();
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading project templates:', error);
+                // Silently fail - templates are optional
+            }
+        }
+
+        // Default templates fallback
+        function getDefaultTemplates() {
+            return [
+                {
+                    id: 'ecommerce',
+                    name: 'E-commerce Platform',
+                    description: 'Build an e-commerce platform for small businesses selling handmade goods',
+                    defaultRequirements: 'Focus on inventory management, order processing, and payment integration'
+                },
+                {
+                    id: 'university',
+                    name: 'University Course Management',
+                    description: 'Create a course management system for university professors',
+                    defaultRequirements: 'Integration with Canvas LMS, student grade tracking, assignment management'
+                },
+                {
+                    id: 'task-management',
+                    name: 'Task Management System',
+                    description: 'Build a task management application for software development teams',
+                    defaultRequirements: 'Agile workflow support, time tracking, team collaboration features'
+                },
+                {
+                    id: 'healthcare',
+                    name: 'Healthcare Patient Portal',
+                    description: 'Develop a patient portal for medical practices',
+                    defaultRequirements: 'HIPAA compliance, appointment scheduling, medical record access'
+                }
+            ];
+        }
     </script>
 </body>
 

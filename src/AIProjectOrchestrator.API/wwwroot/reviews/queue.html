@@ -1,193 +1,494 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Review Queue - AI Orchestrator</title>
+    <title>AI Project Orchestrator - Review Queue</title>
     <link rel="stylesheet" href="/css/styles.css">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
 </head>
+
 <body>
-    <div class="container">
-        <div class="main-nav-buttons">
-            <a href="/projects/create.html"><button>Create New Project</button></a>
-            <a href="/projects/list.html"><button>View All Projects</button></a>
-            <a href="/reviews/queue.html"><button>Go To Review Queue</button></a>
-        </div>
-        <a href="/index.html" class="back-link">&larr; Back to Home</a>
-        <h1>Review Queue</h1>
-        <div class="review-container">
-            <div id="reviewList">
-                <p class="no-reviews">Loading pending reviews...</p>
+    <!-- Global Navigation Header -->
+    <header class="header">
+        <div class="header-container">
+            <div class="header-brand">
+                <a href="/" class="header-logo">🤖 AI Project Orchestrator</a>
             </div>
+            <nav class="header-nav">
+                <a href="/projects/create.html" class="header-nav-item">Create Project</a>
+                <a href="/projects/list.html" class="header-nav-item">View Projects</a>
+                <a href="/reviews/queue.html" class="header-nav-item active">Review Queue</a>
+                <a href="/prompt-playground.html" class="header-nav-item">Prompt Playground</a>
+            </nav>
         </div>
-    </div>
+    </header>
 
-    <script src="/js/api.js"></script>
-    <script>
-        window.addEventListener('DOMContentLoaded', loadPendingReviews);
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Page Header -->
+            <div class="page-header mb-8">
+                <h1 class="text-3xl font-bold text-primary mb-2">Review Queue</h1>
+                <p class="text-secondary">Review and approve AI-generated content from your project workflows</p>
+            </div>
 
-        async function loadPendingReviews() {
-            try {
-                const reviews = await window.APIClient.getPendingReviews();
-                const reviewList = document.getElementById('reviewList');
+            <!-- Review Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <div class="text-3xl font-bold text-warning mb-2" id="pendingCount">0</div>
+                        <div class="text-sm text-secondary">Pending Reviews</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-body text-center">
+                        <div class="text-3xl font-bold text-success mb-2" id="approvedCount">0</div>
+                        <div class="text-sm text-secondary">Approved Today</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-body text-center">
+                        <div class="text-3xl font-bold text-danger mb-2" id="rejectedCount">0</div>
+                        <div class="text-sm text-secondary">Rejected Today</div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-body text-center">
+                        <div class="text-3xl font-bold text-primary mb-2" id="totalReviews">0</div>
+                        <div class="text-sm text-secondary">Total Reviews</div>
+                    </div>
+                </div>
+            </div>
 
-                if (reviews.length === 0) {
-                    reviewList.innerHTML = '<p class="no-reviews">No pending reviews at this time.</p>';
-                    return;
-                }
-
-                reviewList.innerHTML = reviews.map(review => `
-                    <div class="review-card" id="review-${review.id}" role="article" aria-label="Review item">
-                        <div class="review-project-info">
-                            <h4>Project: ${review.projectName}</h4>
-                            <p>${review.projectDescription}</p>
-                            <span class="stage-badge">${review.projectStage}</span>
-                            <small>Created: ${new Date(review.projectCreatedDate).toLocaleDateString()}</small>
+            <!-- Filters and Actions -->
+            <div class="card mb-8">
+                <div class="card-body">
+                    <div class="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+                        <!-- Filters -->
+                        <div class="flex flex-col sm:flex-row gap-4 flex-1">
+                            <select id="reviewTypeFilter" class="form-control w-full sm:w-auto">
+                                <option value="">All Review Types</option>
+                                <option value="requirements">Requirements Analysis</option>
+                                <option value="planning">Project Planning</option>
+                                <option value="stories">User Stories</option>
+                                <option value="prompts">Prompt Generation</option>
+                                <option value="code">Code Generation</option>
+                            </select>
+                            <select id="projectFilter" class="form-control w-full sm:w-auto">
+                                <option value="">All Projects</option>
+                            </select>
+                            <select id="dateFilter" class="form-control w-full sm:w-auto">
+                                <option value="all">All Time</option>
+                                <option value="today">Today</option>
+                                <option value="week">This Week</option>
+                                <option value="month">This Month</option>
+                            </select>
                         </div>
-                        <div class="review-header">
-                            <h3>${review.serviceName}</h3>
-                            <span class="pipeline-badge">${review.pipelineStage}</span>
-                        </div>
-                        <div class="review-content">${review.content}</div>
-                        <div class="review-actions">
-                            <button class="btn-primary approve" onclick="approveReview('${review.id}')"
-                                    id="approve-${review.id}">Approve</button>
-                            <button class="btn-secondary reject" onclick="rejectReview('${review.id}')"
-                                    id="reject-${review.id}">Reject</button>
-                            <button class="btn-danger delete" onclick="deleteReview('${review.id}')"
-                                    id="delete-${review.id}">Delete</button>
+
+                        <!-- Actions -->
+                        <div class="flex gap-2">
+                            <button class="btn btn-primary" onclick="refreshReviews()">
+                                Refresh
+                            </button>
+                            <button class="btn btn-secondary" onclick="exportReviews()">
+                                Export
+                            </button>
                         </div>
                     </div>
-                `).join('');
+                </div>
+            </div>
+
+            <!-- Reviews Container -->
+            <div id="reviews-container">
+                <div id="loading" class="text-center py-12">
+                    <div class="loading-spinner mx-auto mb-4"></div>
+                    <p class="text-secondary">Loading reviews...</p>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="empty-state" class="text-center py-12 hidden">
+                <div class="text-6xl mb-4">✅</div>
+                <h3 class="text-xl font-semibold text-success mb-2">All Caught Up!</h3>
+                <p class="text-secondary mb-6">No pending reviews at the moment. Great job keeping up with the workflow!
+                </p>
+                <a href="/projects/list.html" class="btn btn-primary">
+                    View Projects
+                </a>
+            </div>
+        </div>
+    </main>
+
+    <!-- JavaScript Files -->
+    <script src="/js/api.js"></script>
+    <script src="/js/reviews-list.js"></script>
+    <script src="/js/markdown-utils.js"></script>
+    <script src="/js/template-loader.js"></script>
+
+    <script>
+        // Enhanced review management
+        let allReviews = [];
+        let filteredReviews = [];
+        let reviewStats = {
+            pending: 0,
+            approved: 0,
+            rejected: 0,
+            total: 0
+        };
+
+        // Initialize the reviews page
+        document.addEventListener('DOMContentLoaded', function () {
+            loadReviews();
+            setupEventListeners();
+            updateReviewStats();
+        });
+
+        // Load reviews from API
+        async function loadReviews() {
+            const reviewsContainer = document.getElementById('reviews-container');
+            const loadingElement = document.getElementById('loading');
+            const emptyState = document.getElementById('empty-state');
+
+            try {
+                loadingElement.style.display = 'block';
+                emptyState.classList.add('hidden');
+
+                // Fetch pending reviews from API
+                const reviews = await window.APIClient.getPendingReviews();
+                allReviews = reviews || [];
+
+                // Apply filters and render
+                applyFilters();
+                updateReviewStats();
+
+                // Load project filter options
+                loadProjectFilterOptions();
+
             } catch (error) {
                 console.error('Error loading reviews:', error);
-                document.getElementById('reviewList').innerHTML = '<p class="no-reviews">Error loading reviews: ' + error.message + '</p>';
+                reviewsContainer.innerHTML = `
+                    <div class="card border-danger">
+                        <div class="card-body text-center">
+                            <div class="text-3xl mb-4">❌</div>
+                            <h3 class="text-lg font-semibold text-danger mb-2">Error Loading Reviews</h3>
+                            <p class="text-secondary mb-4">${error.message}</p>
+                            <button class="btn btn-primary" onclick="loadReviews()">Try Again</button>
+                        </div>
+                    </div>
+                `;
+            } finally {
+                loadingElement.style.display = 'none';
             }
         }
 
-        async function approveReview(reviewId) {
-            const approveBtn = document.getElementById(`approve-${reviewId}`);
-            const rejectBtn = document.getElementById(`reject-${reviewId}`);
+        // Update review statistics
+        function updateReviewStats() {
+            const today = new Date().toDateString();
 
-            approveBtn.disabled = true;
-            rejectBtn.disabled = true;
-            approveBtn.textContent = 'Approving...';
+            reviewStats = {
+                pending: allReviews.filter(r => r.status === 'Pending').length,
+                approved: allReviews.filter(r => r.status === 'Approved' && new Date(r.updatedAt || r.updated_at || 0).toDateString() === today).length,
+                rejected: allReviews.filter(r => r.status === 'Rejected' && new Date(r.updatedAt || r.updated_at || 0).toDateString() === today).length,
+                total: allReviews.length
+            };
+
+            // Update UI
+            document.getElementById('pendingCount').textContent = reviewStats.pending;
+            document.getElementById('approvedCount').textContent = reviewStats.approved;
+            document.getElementById('rejectedCount').textContent = reviewStats.rejected;
+            document.getElementById('totalReviews').textContent = reviewStats.total;
+        }
+
+        // Apply filters
+        function applyFilters() {
+            const typeFilter = document.getElementById('reviewTypeFilter').value;
+            const projectFilter = document.getElementById('projectFilter').value;
+            const dateFilter = document.getElementById('dateFilter').value;
+
+            // Filter reviews
+            filteredReviews = allReviews.filter(review => {
+                // Type filter
+                let matchesType = !typeFilter || review.reviewType === typeFilter;
+
+                // Project filter
+                let matchesProject = !projectFilter || review.projectId === projectFilter;
+
+                // Date filter
+                let matchesDate = true;
+                if (dateFilter && dateFilter !== 'all') {
+                    const reviewDate = new Date(review.createdAt || review.created_at || 0);
+                    const now = new Date();
+
+                    switch (dateFilter) {
+                        case 'today':
+                            matchesDate = reviewDate.toDateString() === now.toDateString();
+                            break;
+                        case 'week':
+                            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                            matchesDate = reviewDate >= weekAgo;
+                            break;
+                        case 'month':
+                            const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                            matchesDate = reviewDate >= monthAgo;
+                            break;
+                    }
+                }
+
+                return matchesType && matchesProject && matchesDate;
+            });
+
+            renderReviews();
+        }
+
+        // Render reviews
+        function renderReviews() {
+            const reviewsContainer = document.getElementById('reviews-container');
+            const emptyState = document.getElementById('empty-state');
+
+            if (filteredReviews.length === 0) {
+                reviewsContainer.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            reviewsContainer.innerHTML = filteredReviews.map(review => createReviewCard(review)).join('');
+        }
+
+        // Create enhanced review card HTML
+        function createReviewCard(review) {
+            const createdDate = new Date(review.createdAt || review.created_at || 0).toLocaleDateString();
+            const createdTime = new Date(review.createdAt || review.created_at || 0).toLocaleTimeString();
+            const statusClass = `status-${(review.status || 'pending').toLowerCase()}`;
+            const reviewType = review.reviewType || 'Unknown';
+            const projectName = review.projectName || 'Unknown Project';
+
+            // Truncate content for preview
+            const content = review.content || 'No content available';
+            const truncatedContent = content.length > 300 ? content.substring(0, 300) + '...' : content;
+
+            return `
+                <div class="review-card">
+                    <div class="review-header">
+                        <div class="flex-1">
+                            <h3 class="review-title">
+                                <a href="/reviews/details.html?id=${review.id}" class="review-link">
+                                    ${escapeHtml(review.title || `${reviewType} Review`)}
+                                </a>
+                            </h3>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span class="review-status ${statusClass}">${review.status || 'Pending'}</span>
+                                <span class="text-xs text-secondary">•</span>
+                                <span class="text-xs text-secondary">${reviewType}</span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm text-secondary">${createdDate}</div>
+                            <div class="text-xs text-tertiary">${createdTime}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="review-meta">
+                        <div class="meta-item">
+                            <strong>Project:</strong> ${escapeHtml(projectName)}
+                        </div>
+                        <div class="meta-item">
+                            <strong>Review ID:</strong> ${review.id}
+                        </div>
+                        <div class="meta-item">
+                            <strong>Type:</strong> ${escapeHtml(reviewType)}
+                        </div>
+                        <div class="meta-item">
+                            <strong>Created:</strong> ${createdDate} at ${createdTime}
+                        </div>
+                    </div>
+                    
+                    <div class="review-content">
+                        <h4>Review Content</h4>
+                        <div class="markdown-content">
+                            ${renderMarkdown(truncatedContent)}
+                        </div>
+                        ${content.length > 300 ? `<p class="text-sm text-secondary mt-2"><a href="/reviews/details.html?id=${review.id}" class="text-primary">Read more...</a></p>` : ''}
+                    </div>
+                    
+                    ${review.originalRequest ? `
+                        <div class="review-content">
+                            <h4>Original Request</h4>
+                            <div class="markdown-content">
+                                ${renderMarkdown(review.originalRequest)}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="review-actions">
+                        <button class="btn btn-primary" onclick="viewReviewDetails('${review.id}')">
+                            View Details
+                        </button>
+                        ${review.status === 'Pending' ? `
+                            <button class="btn btn-success" onclick="approveReview('${review.id}', '${review.reviewType}')">
+                                Approve
+                            </button>
+                            <button class="btn btn-danger" onclick="rejectReview('${review.id}', '${review.reviewType}')">
+                                Reject
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Load project filter options
+        async function loadProjectFilterOptions() {
+            try {
+                const projects = await window.APIClient.getProjects();
+                const projectFilter = document.getElementById('projectFilter');
+
+                if (projects && projects.length > 0) {
+                    projects.forEach(project => {
+                        const option = document.createElement('option');
+                        option.value = project.id;
+                        option.textContent = project.name;
+                        projectFilter.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading project filter options:', error);
+            }
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Filter event listeners
+            const typeFilter = document.getElementById('reviewTypeFilter');
+            const projectFilter = document.getElementById('projectFilter');
+            const dateFilter = document.getElementById('dateFilter');
+
+            if (typeFilter) typeFilter.addEventListener('change', applyFilters);
+            if (projectFilter) projectFilter.addEventListener('change', applyFilters);
+            if (dateFilter) dateFilter.addEventListener('change', applyFilters);
+        }
+
+        // Review action functions
+        function viewReviewDetails(reviewId) {
+            window.location.href = `/reviews/details.html?id=${reviewId}`;
+        }
+
+        async function approveReview(reviewId, reviewType) {
+            if (!confirm(`Are you sure you want to approve this ${reviewType} review?`)) {
+                return;
+            }
 
             try {
                 await window.APIClient.approveReview(reviewId);
-                alert('Review approved successfully!');
-                
-                // Try to get the review details to determine which project it belongs to
-                let projectId = null;
-                let pipelineStage = null;
-                try {
-                    const review = await window.APIClient.getReview(reviewId);
-                    // Extract project ID from metadata if available
-                    if (review.metadata && review.metadata.ProjectId) {
-                        projectId = review.metadata.ProjectId;
-                    }
-                    // Also capture pipeline stage for conditional redirect
-                    if (review.pipelineStage) {
-                        pipelineStage = review.pipelineStage;
-                    }
-                } catch (e) {
-                    console.error('Error getting review details:', e);
+
+                // Update local data
+                const review = allReviews.find(r => r.id === reviewId);
+                if (review) {
+                    review.status = 'Approved';
+                    review.updatedAt = new Date().toISOString();
                 }
 
-                // Fallback to URL parameter if available
-                if (!projectId) {
-                    const urlParams = new URLSearchParams(window.location.search);
-                    projectId = urlParams.get('projectId');
-                    console.log('Using URL projectId for redirect:', projectId);
-                }
+                // Re-render and update stats
+                applyFilters();
+                updateReviewStats();
 
-                if (projectId && projectId !== 'unknown' && projectId !== 'null') {
-                    // Pipeline-stage-aware redirect
-                    if (pipelineStage === 'User Stories') {
-                        window.location.href = `/projects/stories-overview.html?projectId=${encodeURIComponent(projectId)}`;
-                    } else {
-                        // For other stages, redirect to workflow
-                        window.location.href = `/projects/workflow.html?projectId=${encodeURIComponent(projectId)}`;
-                    }
-                } else {
-                    console.warn('No valid project ID found for redirect, reloading reviews');
-                    await loadPendingReviews();
-                }
+                showNotification('Review approved successfully!', 'success');
+
             } catch (error) {
-                alert('Error approving review: ' + error.message);
-            } finally {
-                approveBtn.disabled = false;
-                rejectBtn.disabled = false;
-                approveBtn.textContent = 'Approve';
+                console.error('Error approving review:', error);
+                showNotification(`Error approving review: ${error.message}`, 'error');
             }
         }
 
-        async function rejectReview(reviewId) {
-            const feedback = prompt('Please provide feedback for rejection:');
-            if (!feedback) return; // User cancelled prompt
-
-            const approveBtn = document.getElementById(`approve-${reviewId}`);
-            const rejectBtn = document.getElementById(`reject-${reviewId}`);
-
-            approveBtn.disabled = true;
-            rejectBtn.disabled = true;
-            rejectBtn.textContent = 'Rejecting...';
+        async function rejectReview(reviewId, reviewType) {
+            const feedback = prompt(`Please provide feedback for rejecting this ${reviewType} review (optional):`);
+            if (feedback === null) return; // User cancelled
 
             try {
-                await window.APIClient.rejectReview(reviewId, feedback);
-                alert('Review rejected with feedback.');
-                await loadPendingReviews(); // Reload reviews after rejection
-            } catch (error) {
-                alert('Error rejecting review: ' + error.message);
-            } finally {
-                approveBtn.disabled = false;
-                rejectBtn.disabled = false;
-                rejectBtn.textContent = 'Reject';
-            }
-        }
+                await window.APIClient.rejectReview(reviewId, feedback || 'No feedback provided');
 
-        async function deleteReview(reviewId) {
-            if (!confirm('Are you sure you want to delete this review? This action cannot be undone.')) return;
-
-            const deleteBtn = document.getElementById(`delete-${reviewId}`);
-            const approveBtn = document.getElementById(`approve-${reviewId}`);
-            const rejectBtn = document.getElementById(`reject-${reviewId}`);
-
-            approveBtn.disabled = true;
-            rejectBtn.disabled = true;
-            deleteBtn.disabled = true;
-            deleteBtn.textContent = 'Deleting...';
-
-            try {
-                await window.APIClient.deleteReview(reviewId);
-                alert('Review deleted successfully!');
-                document.getElementById(`review-${reviewId}`).remove();
-                if (document.querySelectorAll('.review-card').length === 0) {
-                    document.getElementById('reviewList').innerHTML = '<p class="no-reviews">No pending reviews at this time.</p>';
+                // Update local data
+                const review = allReviews.find(r => r.id === reviewId);
+                if (review) {
+                    review.status = 'Rejected';
+                    review.feedback = feedback;
+                    review.updatedAt = new Date().toISOString();
                 }
+
+                // Re-render and update stats
+                applyFilters();
+                updateReviewStats();
+
+                showNotification('Review rejected successfully!', 'success');
+
             } catch (error) {
-                alert('Error deleting review: ' + error.message);
-            } finally {
-                approveBtn.disabled = false;
-                rejectBtn.disabled = false;
-                deleteBtn.disabled = false;
-                deleteBtn.textContent = 'Delete';
+                console.error('Error rejecting review:', error);
+                showNotification(`Error rejecting review: ${error.message}`, 'error');
             }
         }
 
-        // Add init for projectId from URL
-        window.addEventListener('DOMContentLoaded', function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const projectId = urlParams.get('projectId');
-            
-            if (projectId && projectId !== 'unknown' && projectId !== 'null') {
-                console.log('Review queue - Using URL projectId:', projectId);
-                window.currentProjectId = projectId; // Global for use in approveReview
-            } else {
-                console.warn('Review queue - No projectId in URL:', projectId);
-                window.currentProjectId = null;
+        // Utility functions
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function refreshReviews() {
+            loadReviews();
+            showNotification('Reviews refreshed', 'info');
+        }
+
+        function exportReviews() {
+            // Export filtered reviews as JSON
+            const dataStr = JSON.stringify(filteredReviews, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `reviews-export-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+
+            showNotification('Reviews exported successfully', 'success');
+        }
+
+        function showNotification(message, type = 'info') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.className = `notification-toast ${type}`;
+            notification.textContent = message;
+
+            // Add to document
+            document.body.appendChild(notification);
+
+            // Remove after 3 seconds
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 3000);
+        }
+
+        // Enhanced markdown rendering (fallback if not available)
+        function renderMarkdown(text) {
+            if (typeof window.renderMarkdownToHTML === 'function') {
+                return window.renderMarkdownToHTML(text);
             }
-        });
+
+            // Basic markdown rendering fallback
+            return text
+                .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+                .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+                .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+                .replace(/\*\*(.*)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*)\*/g, '<em>$1</em>')
+                .replace(/`(.*)`/g, '<code>$1</code>')
+                .replace(/\n/g, '<br>');
+        }
     </script>
 </body>
+
 </html>
