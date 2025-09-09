@@ -7,6 +7,7 @@ namespace AIProjectOrchestrator.Domain.Configuration
         public ClaudeSettings Claude { get; set; } = new();
         public LMStudioSettings LMStudio { get; set; } = new();
         public OpenRouterSettings OpenRouter { get; set; } = new();
+        public NanoGptSettings NanoGpt { get; set; } = new();
     }
 
     public class ClaudeSettings
@@ -34,4 +35,13 @@ namespace AIProjectOrchestrator.Domain.Configuration
         public int MaxRetries { get; set; } = 3;
         public string DefaultModel { get; set; } = "qwen/qwen3-coder";
     }
+}
+
+public class NanoGptSettings
+{
+    public string ApiKey { get; set; } = string.Empty;
+    public string BaseUrl { get; set; } = "https://nano-gpt.com/api/v1"; // TODO: Update with actual base URL
+    public int TimeoutSeconds { get; set; } = 30;
+    public int MaxRetries { get; set; } = 3;
+    public string DefaultModel { get; set; } = "nano-3"; // TODO: Update with actual default model
 }

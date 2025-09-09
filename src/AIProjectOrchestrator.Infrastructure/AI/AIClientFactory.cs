@@ -26,7 +26,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             }
 
             // Fallback logic: try alternative providers in order of preference
-            var fallbackOrder = new[] { "Claude", "LMStudio", "OpenRouter" };
+            var fallbackOrder = new[] { "NanoGpt", "Claude", "LMStudio", "OpenRouter" };
             foreach (var fallbackProvider in fallbackOrder)
             {
                 if (!fallbackProvider.Equals(providerName, System.StringComparison.OrdinalIgnoreCase))
