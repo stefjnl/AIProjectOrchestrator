@@ -100,7 +100,8 @@
                     <h3>Welcome to Your New Project!</h3>
                     <p>Let's start by analyzing your project requirements. Click the button below to begin.</p>
                     <div class="stage-actions">
-                        <button class="btn btn-success btn-lg" onclick="startManualRequirementsAnalysis()" style="font-size: 18px; padding: 15px 30px; background: #28a745; border-color: #28a745;">
+                        <button class="btn btn-success btn-lg" onclick="startManualRequirementsAnalysis()"
+                            style="font-size: 18px; padding: 15px 30px; background: #28a745; border-color: #28a745;">
                             🚀 Start Requirements Analysis
                         </button>
                         <button class="btn btn-secondary" onclick="location.reload()">
@@ -108,7 +109,8 @@
                         </button>
                     </div>
                 </div>
-                <div class="getting-started-tips" style="margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
+                <div class="getting-started-tips"
+                    style="margin-top: 30px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; color: white;">
                     <h4>💡 Getting Started Tips</h4>
                     <p>When you start requirements analysis, be prepared to describe:</p>
                     <ul style="text-align: left; margin: 15px 0;">
@@ -117,7 +119,8 @@
                         <li>🔧 Technology preferences or constraints</li>
                         <li>⏰ Timeline and budget considerations</li>
                     </ul>
-                    <p style="margin-top: 15px; font-style: italic;">Don't worry about being perfect - our AI will help refine your requirements!</p>
+                    <p style="margin-top: 15px; font-style: italic;">Don't worry about being perfect - our AI will help
+                        refine your requirements!</p>
                 </div>
             </div>
         </div>
@@ -150,19 +153,16 @@
                 return;
             }
 
-            // Show fallback content immediately for new projects
-            if (newProject) {
-                console.log('New project detected, showing fallback content');
-                const fallbackContent = document.getElementById('fallback-content');
-                if (fallbackContent) {
-                    fallbackContent.style.display = 'block';
-                }
-            }
-
             // Initialize the workflow manager with new project flag
             if (window.workflowManager) {
                 // Set the new project flag for the workflow manager
                 window.workflowManager.isNewProject = newProject;
+
+                // Hide fallback content since JavaScript is working
+                const fallbackContent = document.getElementById('fallback-content');
+                if (fallbackContent) {
+                    fallbackContent.style.display = 'none';
+                }
 
                 // If this is a new project, automatically prompt for requirements analysis
                 if (newProject) {
@@ -170,6 +170,12 @@
                         window.App.showNotification('Welcome to your new project! Let\'s start with requirements analysis.', 'info');
                         // The workflow manager will handle the rest
                     }, 1000);
+                }
+            } else {
+                // Show fallback content if workflow manager fails to load
+                const fallbackContent = document.getElementById('fallback-content');
+                if (fallbackContent && newProject) {
+                    fallbackContent.style.display = 'block';
                 }
             }
         });

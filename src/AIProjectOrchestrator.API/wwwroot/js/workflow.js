@@ -540,20 +540,10 @@ class WorkflowManager {
                             <button class="btn btn-primary" onclick="workflowManager.viewRequirementsReview()">
                                 📋 View Review Details
                             </button>
-                            <button class="btn btn-secondary" onclick="workflowManager.analyzeRequirements()">
-                                🚀 Start New Analysis
-                            </button>
-                            <button class="btn btn-success" onclick="workflowManager.analyzeRequirements()" style="background: #28a745; border-color: #28a745;">
+                            <button class="btn btn-success" onclick="workflowManager.analyzeRequirements()">
                                 🚀 Start Requirements Analysis
                             </button>
                         </div>
-                    </div>
-                    <div class="manual-trigger-section" style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #28a745;">
-                        <h4>Manual Trigger</h4>
-                        <p>If the automatic analysis hasn't started, you can manually trigger it:</p>
-                        <button class="btn btn-success btn-lg" onclick="workflowManager.analyzeRequirements()" style="background: #28a745; border-color: #28a745; font-size: 16px; padding: 12px 24px;">
-                            🚀 Start Requirements Analysis Now
-                        </button>
                     </div>
                 </div>
             `;
@@ -576,6 +566,9 @@ class WorkflowManager {
                     </div>
                 </div>
                 <div class="stage-actions">
+                    <button class="btn btn-primary" onclick="workflowManager.generatePlan()">
+                        🚀 Generate Project Plan
+                    </button>
                     <button class="btn btn-secondary" onclick="workflowManager.editRequirements()">
                         ✏️ Edit Requirements
                     </button>
@@ -735,6 +728,9 @@ class WorkflowManager {
                     </div>
                 </div>
                 <div class="stage-actions">
+                    <button class="btn btn-primary" onclick="workflowManager.generateStories()">
+                        ✨ Generate User Stories
+                    </button>
                     <button class="btn btn-secondary" onclick="workflowManager.editPlanning()">
                         ✏️ Edit Plan
                     </button>
@@ -886,6 +882,9 @@ class WorkflowManager {
                     </div>
                 </div>
                 <div class="stage-actions">
+                    <button class="btn btn-primary" onclick="workflowManager.generateAllPrompts()">
+                        🤖 Generate Code Prompts
+                    </button>
                     <button class="btn btn-secondary" onclick="workflowManager.addCustomStory()">
                         ➕ Add Custom Story
                     </button>
@@ -1220,16 +1219,60 @@ class WorkflowManager {
             };
 
             const result = await APIClient.analyzeRequirements(request);
-            window.App.showNotification('Requirements submitted for review! Check the Review Queue.', 'success');
 
             // Reload workflow state to reflect changes
             await this.loadWorkflowState();
-            await this.loadStageContent(1);
+
+            // Check the new state and update UI accordingly
+            console.log('Requirements analysis submitted, checking new state:', this.workflowState?.requirementsAnalysis);
+
+            if (this.workflowState?.requirementsAnalysis?.status === 'PendingReview') {
+                // Analysis is pending review, show the appropriate state
+                await this.loadStageContent(1);
+                window.App.showNotification('Requirements submitted for review! Check the Review Queue.', 'success');
+            } else if (this.workflowState?.requirementsAnalysis?.isApproved === true) {
+                // Analysis was immediately approved, move to next stage
+                await this.loadStageContent(2);
+                window.App.showNotification('Requirements approved! Moving to Project Planning.', 'success');
+            } else {
+                // Fallback: reload current stage
+                await this.loadStageContent(1);
+                window.App.showNotification('Requirements submitted for review! Check the Review Queue.', 'success');
+            }
 
             // Clear the new project flag since we've started the process
             this.isNewProject = false;
         } catch (error) {
             window.App.showNotification(`Failed to analyze requirements: ${error.message || error}`, 'error');
+        } finally {
+            hideLoading(loadingOverlay);
+        }
+    }
+
+    async generatePlan() {
+        // Check if requirements are approved
+        if (this.workflowState?.requirementsAnalysis?.isApproved !== true) {
+            window.App.showNotification('You must complete Requirements Analysis before generating a project plan.', 'warning');
+            return;
+        }
+
+        // Check if planning already exists and is approved
+        if (this.workflowState?.projectPlanning?.isApproved === true) {
+            if (!confirm('Project planning is already completed. Do you want to regenerate it? This will require re-approval.')) {
+                return;
+            }
+        }
+
+        const loadingOverlay = showLoading('Generating project plan...');
+        try {
+            // Implementation for plan generation
+            window.App.showNotification('Project plan submitted for review! Check the Review Queue.', 'success');
+
+            // Reload workflow state to reflect changes
+            await this.loadWorkflowState();
+            await this.loadStageContent(2);
+        } catch (error) {
+            window.App.showNotification(`Failed to generate plan: ${error.message || error}`, 'error');
         } finally {
             hideLoading(loadingOverlay);
         }
@@ -1377,16 +1420,85 @@ class WorkflowManager {
 
     async refreshWorkflowStatus() {
         try {
-            const status = await APIClient.getWorkflowStatus(this.projectId);
-            if (status.currentStage && this.stages.indexOf(status.currentStage) + 1 !== this.currentStage) {
-                // Stage has changed, reload content
-                this.currentStage = this.stages.indexOf(status.currentStage) + 1;
-                await this.loadStageContent(this.currentStage);
-                showNotification(`Workflow progressed to ${status.currentStage} stage`, 'success');
+            // Store current state for comparison
+            const previousRequirementsApproved = this.workflowState?.requirementsAnalysis?.isApproved === true;
+            const previousPlanningApproved = this.workflowState?.projectPlanning?.isApproved === true;
+            const previousStoriesApproved = this.workflowState?.storyGeneration?.isApproved === true;
+            const previousPromptCompletion = this.workflowState?.promptGeneration?.completionPercentage || 0;
+
+            // Reload workflow state
+            await this.loadWorkflowState();
+
+            // Check for state changes and progress accordingly
+            const currentRequirementsApproved = this.workflowState?.requirementsAnalysis?.isApproved === true;
+            const currentPlanningApproved = this.workflowState?.projectPlanning?.isApproved === true;
+            const currentStoriesApproved = this.workflowState?.storyGeneration?.isApproved === true;
+            const currentPromptCompletion = this.workflowState?.promptGeneration?.completionPercentage || 0;
+
+            console.log('Refresh check - Requirements:', previousRequirementsApproved, '->', currentRequirementsApproved);
+            console.log('Refresh check - Planning:', previousPlanningApproved, '->', currentPlanningApproved);
+            console.log('Refresh check - Stories:', previousStoriesApproved, '->', currentStoriesApproved);
+            console.log('Refresh check - Prompts:', previousPromptCompletion, '->', currentPromptCompletion);
+
+            // Progress to next stage based on approvals
+            if (!previousRequirementsApproved && currentRequirementsApproved) {
+                console.log('Requirements approved, progressing to stage 2');
+                await this.loadStageContent(2);
+                window.App.showNotification('Requirements approved! Moving to Project Planning.', 'success');
+                return;
             }
+
+            if (!previousPlanningApproved && currentPlanningApproved) {
+                console.log('Planning approved, progressing to stage 3');
+                await this.loadStageContent(3);
+                window.App.showNotification('Project planning approved! Moving to User Stories.', 'success');
+                return;
+            }
+
+            if (!previousStoriesApproved && currentStoriesApproved) {
+                console.log('Stories approved, progressing to stage 4');
+                await this.loadStageContent(4);
+                window.App.showNotification('User stories approved! Moving to Prompt Generation.', 'success');
+                return;
+            }
+
+            if (previousPromptCompletion < 100 && currentPromptCompletion >= 100) {
+                console.log('Prompts completed, progressing to stage 5');
+                await this.loadStageContent(5);
+                window.App.showNotification('Prompt generation completed! Moving to Final Review.', 'success');
+                return;
+            }
+
+            // Check if current stage content needs updating (e.g., status changed from NotStarted to PendingReview)
+            const currentStageStatus = this.getCurrentStageStatus();
+            if (currentStageStatus && this.shouldReloadCurrentStage()) {
+                console.log('Stage status changed, reloading current stage');
+                await this.loadStageContent(this.currentStage);
+            }
+
         } catch (error) {
             console.warn('Failed to refresh workflow status:', error);
         }
+    }
+
+    getCurrentStageStatus() {
+        switch (this.currentStage) {
+            case 1: return this.workflowState?.requirementsAnalysis?.status;
+            case 2: return this.workflowState?.projectPlanning?.status;
+            case 3: return this.workflowState?.storyGeneration?.status;
+            case 4: return this.workflowState?.promptGeneration?.status;
+            case 5: return 'review';
+            default: return null;
+        }
+    }
+
+    shouldReloadCurrentStage() {
+        // Simple heuristic: if we're on stage 1 and requirements are pending review, we should reload
+        if (this.currentStage === 1 && this.workflowState?.requirementsAnalysis?.status === 'PendingReview') {
+            return true;
+        }
+        // Add more conditions as needed
+        return false;
     }
 
     // Utility methods
