@@ -1,0 +1,80 @@
+@page
+@model AIProjectOrchestrator.API.Pages.PromptPlaygroundModel
+@{
+    ViewData["Title"] = "Prompt Playground";
+}
+
+<div class="container">
+    <div class="playground-container">
+        <div class="d-flex justify-content-between align-items-center mb-lg">
+            <h1>Prompt Playground</h1>
+        </div>
+
+        <div class="playground-layout">
+            <!-- Left Sidebar - Template Manager -->
+            <div class="playground-sidebar">
+                <div class="sidebar-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h3 class="sidebar-title">Prompt Templates</h3>
+                        <button id="newTemplateBtn" class="btn-playground-primary" aria-label="Create new template">
+                            <span>➕</span> New
+                        </button>
+                    </div>
+                </div>
+
+                <div class="template-list-container">
+                    <ul id="templateList" class="list-none p-0" role="list">
+                        <!-- Templates will be populated by JavaScript -->
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Main Editor Area -->
+            <div class="playground-main">
+                <input type="hidden" id="currentTemplateId" />
+
+                <div class="form-group-enhanced">
+                    <label for="templateTitle" class="form-label-enhanced">Template Title</label>
+                    <input type="text" id="templateTitle" class="form-input-enhanced" placeholder="Enter template title"
+                        required />
+                </div>
+
+                <div class="form-group-enhanced flex-grow-1">
+                    <label for="templateContent" class="form-label-enhanced">Prompt Content</label>
+                    <textarea id="templateContent" class="form-textarea-enhanced"
+                        placeholder="Enter your prompt content using {{variables}} for dynamic values"></textarea>
+                </div>
+
+                <div class="action-buttons-group">
+                    <div class="d-flex gap-md">
+                        <button id="saveTemplateBtn" class="btn-playground-primary">💾 Save Template</button>
+                        <button id="cancelBtn" class="btn-playground-secondary hidden">❌ Cancel</button>
+                    </div>
+                    <button id="generateBtn" class="btn-playground-success">⚡ Generate</button>
+                </div>
+
+                <!-- Response Area -->
+                <div class="response-container">
+                    <div class="response-header">
+                        <h3 class="mb-0">Response</h3>
+                        <button id="copyResponseBtn" class="btn-playground-secondary hidden"
+                            aria-label="Copy response to clipboard">📋 Copy</button>
+                    </div>
+                    <div id="responseLoading" class="loading-container hidden">
+                        <div class="loading-enhanced"></div>
+                    </div>
+                    <div id="responseContentWrapper" class="response-content-wrapper">
+                        <p id="responseContent" class="response-content"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div id="toastContainer" class="position-fixed bottom-0 right-0 p-md" style="z-index: 1000;"></div>
+
+@section Scripts {
+    <script src="~/js/prompt-playground.js"></script>
+}

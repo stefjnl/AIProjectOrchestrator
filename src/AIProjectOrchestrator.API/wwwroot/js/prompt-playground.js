@@ -45,15 +45,17 @@ class PromptPlayground {
             li.className = this.currentTemplate?.id === template.id ? 'active' : '';
             li.setAttribute('role', 'listitem');
             li.innerHTML = `
-                <div class="template-item">
-                    <span class="template-title" onclick="promptPlayground.selectTemplate('${template.id}')">${template.title}</span>
-                    <div class="template-actions">
-                        <button class="btn-edit" onclick="promptPlayground.editTemplate('${template.id}')" aria-label="Edit template" title="Edit">
-                            ✏️
-                        </button>
-                        <button class="btn-delete" onclick="promptPlayground.deleteTemplate('${template.id}')" aria-label="Delete template" title="Delete">
-                            🗑️
-                        </button>
+                <div class="template-item" onclick="promptPlayground.selectTemplate('${template.id}')">
+                    <div class="template-header">
+                        <span class="template-title">${template.title}</span>
+                        <div class="template-actions">
+                            <button class="btn-edit" onclick="event.stopPropagation(); promptPlayground.editTemplate('${template.id}')" aria-label="Edit template" title="Edit">
+                                ✏️
+                            </button>
+                            <button class="btn-delete" onclick="event.stopPropagation(); promptPlayground.deleteTemplate('${template.id}')" aria-label="Delete template" title="Delete">
+                                🗑️
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -259,10 +261,11 @@ class PromptPlayground {
             element.disabled = true;
         }
 
-        if (elementId === 'responseArea') {
+        if (elementId === 'responseArea' || elementId === 'generateBtn') {
             document.getElementById('responseLoading').classList.remove('hidden');
             document.getElementById('responseContent').textContent = '';
             document.getElementById('copyResponseBtn').classList.add('hidden');
+            document.getElementById('responseContentWrapper').style.display = 'none';
         }
     }
 
@@ -273,15 +276,16 @@ class PromptPlayground {
             element.disabled = false;
         }
 
-        if (elementId === 'responseArea') {
+        if (elementId === 'responseArea' || elementId === 'generateBtn') {
             document.getElementById('responseLoading').classList.add('hidden');
+            document.getElementById('responseContentWrapper').style.display = 'block';
         }
     }
 
     showToast(message, type = 'info') {
         const container = document.getElementById('toastContainer');
         const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
+        toast.className = `toast-playground toast-${type}`;
         toast.textContent = message;
         container.appendChild(toast);
 
