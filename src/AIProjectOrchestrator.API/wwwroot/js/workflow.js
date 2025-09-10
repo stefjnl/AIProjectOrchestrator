@@ -1607,12 +1607,73 @@ class WorkflowManager {
     }
 
     async generateAllPrompts() {
+        console.log('=== generateAllPrompts() called ===');
+
+        // Check if stories are approved
+        if (this.workflowState?.storyGeneration?.isApproved !== true) {
+            window.App.showNotification('You must complete User Stories before generating prompts.', 'warning');
+            return;
+        }
+
+        // Check if prompts are already generated
+        if (this.workflowState?.promptGeneration?.completionPercentage >= 100) {
+            if (!confirm('Prompts are already generated. Do you want to regenerate them?')) {
+                return;
+            }
+        }
+
         const loadingOverlay = showLoading('Generating all prompts...');
         try {
-            // Implementation for prompt generation
-            window.App.showNotification('All prompts generated successfully!', 'success');
+            console.log('Getting project details for prompt generation...');
+            const project = await APIClient.getProject(this.projectId);
+
+            // Validate that we have required IDs before proceeding
+            if (!this.workflowState?.storyGeneration?.generationId) {
+                console.error('Cannot generate prompts: Story Generation ID is missing');
+                window.App.showNotification('Failed to generate prompts: User Stories not completed.', 'error');
+                return;
+            }
+
+            // Get approved stories to generate prompts for
+            console.log('Getting approved stories...');
+            const approvedStories = await APIClient.getApprovedStories(this.workflowState.storyGeneration.generationId);
+            console.log('Approved stories:', approvedStories);
+
+            if (!approvedStories || approvedStories.length === 0) {
+                window.App.showNotification('No approved stories found. Please approve some stories first.', 'warning');
+                return;
+            }
+
+            // Create the prompt generation request
+            const request = {
+                ProjectId: this.projectId,
+                RequirementsAnalysisId: this.workflowState?.requirementsAnalysis?.analysisId,
+                PlanningId: this.workflowState?.projectPlanning?.planningId,
+                StoryGenerationId: this.workflowState?.storyGeneration?.generationId,
+                Stories: approvedStories,
+                ProjectDescription: project.description || 'No description available',
+                TechStack: project.techStack || 'Not specified',
+                Timeline: project.timeline || 'Not specified',
+                AdditionalContext: null
+            };
+
+            console.log('Generating prompts with request:', request);
+
+            // Make API call to generate prompts
+            console.log('Calling APIClient.generatePrompt...');
+            const result = await APIClient.generatePrompt(request);
+            console.log('Prompt generation result:', result);
+
+            window.App.showNotification('Prompts submitted for review! Check the Review Queue.', 'success');
+
+            // Reload workflow state to reflect changes
+            console.log('Reloading workflow state...');
+            await this.loadWorkflowState();
+            console.log('Reloading stage content...');
             await this.loadStageContent(4);
+            console.log('=== generateAllPrompts() completed successfully ===');
         } catch (error) {
+            console.error('Failed to generate prompts:', error);
             window.App.showNotification(`Failed to generate prompts: ${error.message || error}`, 'error');
         } finally {
             hideLoading(loadingOverlay);
