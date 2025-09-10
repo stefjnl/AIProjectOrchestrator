@@ -135,10 +135,16 @@ a:hover {
 }
 
 /* Layout */
-.container {
-    max-width: 1200px;
+.main-container {
+    max-width: 1500px;
     margin: 0 auto;
-    padding: 0 var(--spacing-md);
+    padding: 0 24px;
+}
+
+@media (min-width: 768px) {
+    .main-container {
+        padding: 0 48px;
+    }
 }
 
 .main-content {
