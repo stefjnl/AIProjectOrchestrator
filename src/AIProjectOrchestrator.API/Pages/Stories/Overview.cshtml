@@ -1,0 +1,272 @@
+@page
+@{
+    ViewData["Title"] = "Stories Overview";
+    var generationId = Request.Query["generationId"];
+    var projectId = Request.Query["projectId"];
+}
+
+<div class="main-container">
+    <div class="page-header">
+        <div>
+            <h1>Stories Overview</h1>
+            <p class="subtitle">Manage and approve individual user stories</p>
+        </div>
+        <div class="workflow-actions">
+            <a href="/Projects/Workflow?projectId=@projectId" class="btn btn-secondary">← Back to Workflow</a>
+            <button class="btn btn-primary" onclick="exportStories()">
+                <span>📥</span> Export Stories
+            </button>
+        </div>
+    </div>
+
+    <!-- Progress Overview -->
+    <div class="progress-overview" id="progress-overview">
+        <div class="progress-card">
+            <h3>Story Approval Progress</h3>
+            <div class="progress-content">
+                <div class="progress-item">
+                    <span class="label">Approved:</span>
+                    <span class="value" id="approved-count">0</span>
+                </div>
+                <div class="progress-item">
+                    <span class="label">Total:</span>
+                    <span class="value" id="total-count">0</span>
+                </div>
+                <div class="progress-item">
+                    <span class="label">Prompts Generated:</span>
+                    <span class="value" id="prompts-count">0</span>
+                </div>
+                <div class="progress-item">
+                    <span class="label">Progress:</span>
+                    <span class="value" id="approval-progress">0%</span>
+                </div>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stories Grid -->
+    <div class="stories-grid-container">
+        <div class="stories-header">
+            <h2>User Stories</h2>
+            <div class="stories-actions">
+                <button class="btn btn-success" id="approve-all-btn" onclick="approveAllStories()">
+                    ✅ Approve All
+                </button>
+                <button class="btn btn-primary" id="generate-prompts-btn" onclick="generatePromptsForApproved()"
+                    disabled>
+                    🤖 Generate Prompts
+                </button>
+                <button class="btn btn-secondary" onclick="refreshStories()">
+                    🔄 Refresh
+                </button>
+                <button class="btn btn-info" id="continue-workflow-btn" onclick="continueToWorkflow()"
+                    style="display: none;">
+                    ➡️ Continue to Workflow
+                </button>
+            </div>
+        </div>
+
+        <div class="stories-grid" id="stories-grid">
+            <!-- Stories will be loaded here dynamically -->
+            <div class="loading-state">
+                <div class="loading-spinner"></div>
+                <p>Loading stories...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Story Detail Modal -->
+    <div class="modal" id="story-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-story-title">Story Details</h3>
+                <button class="modal-close" onclick="closeStoryModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="story-detail">
+                    <div class="detail-section">
+                        <h4>Description</h4>
+                        <p id="modal-story-description"></p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>Acceptance Criteria</h4>
+                        <div id="modal-story-criteria"></div>
+                    </div>
+                    <div class="detail-section">
+                        <h4>Technical Details</h4>
+                        <div class="detail-grid">
+                            <div class="detail-item">
+                                <span class="label">Priority:</span>
+                                <span class="value" id="modal-story-priority"></span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">Story Points:</span>
+                                <span class="value" id="modal-story-points"></span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">Status:</span>
+                                <span class="value" id="modal-story-status"></span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="label">Prompt Generated:</span>
+                                <span class="value" id="modal-story-prompt-status"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="editStory()">✏️ Edit</button>
+                <button class="btn btn-success" id="modal-approve-btn" onclick="approveCurrentStory()">✅
+                    Approve</button>
+                <button class="btn btn-danger" id="modal-reject-btn" onclick="rejectCurrentStory()">❌ Reject</button>
+                <button class="btn btn-primary" id="modal-generate-prompt-btn" onclick="generatePromptForCurrentStory()"
+                    disabled>🤖 Generate Prompt</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Story Modal -->
+    <div class="modal" id="edit-modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Story</h3>
+                <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-story-form">
+                    <div class="form-group">
+                        <label for="edit-title">Title:</label>
+                        <input type="text" id="edit-title" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-description">Description:</label>
+                        <textarea id="edit-description" class="form-control" rows="4" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-criteria">Acceptance Criteria (one per line):</label>
+                        <textarea id="edit-criteria" class="form-control" rows="3"
+                            placeholder="Enter acceptance criteria, one per line"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="edit-priority">Priority:</label>
+                            <select id="edit-priority" class="form-control">
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                                <option value="Critical">Critical</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-points">Story Points:</label>
+                            <input type="number" id="edit-points" class="form-control" min="1" max="21">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveEditedStory()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/stories-overview.js"></script>
+    <script>
+        // Initialize StoriesOverview when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            const generationId = urlParams.get('generationId');
+            const projectId = urlParams.get('projectId');
+
+            if (!generationId || !projectId) {
+                alert('Generation ID and Project ID are required');
+                window.location.href = '/Projects';
+                return;
+            }
+
+            // Initialize the StoriesOverview manager
+            if (window.storiesOverviewManager) {
+                window.storiesOverviewManager.initialize(generationId, projectId);
+            } else {
+                console.error('StoriesOverview manager not loaded');
+                alert('Failed to load StoriesOverview. Please refresh the page.');
+            }
+        });
+
+        // Global functions for UI actions
+        function exportStories() {
+            if (window.storiesOverviewManager) {
+                window.storiesOverviewManager.exportStories();
+            }
+        }
+
+        function approveAllStories() {
+            if (window.storiesOverviewManager) {
+                window.storiesOverviewManager.approveAllStories();
+            }
+        }
+
+        function generatePromptsForApproved() {
+            if (window.storiesOverviewManager) {
+                window.storiesOverviewManager.generatePromptsForApproved();
+            }
+        }
+
+        function refreshStories() {
+            if (window.storiesOverviewManager) {
+                window.storiesOverviewManager.loadStories();
+            }
+        }
+
+        function closeStoryModal() {
+            if (window.storiesOverviewManager) {
+                window.storiesOverviewManager.closeStoryModal();
+            }
+        }
+
+        function closeEditModal() {
+            if (window.storiesOverviewManager) {
+                window.storiesOverviewManager.closeEditModal();
+            }
+        }
+
+        function editStory() {
+            if (window.storiesOverviewManager) {
+                window.storiesOverviewManager.editCurrentStory();
+            }
+        }
+
+        function approveCurrentStory() {
+            if (window.storiesOverviewManager) {
+                window.storiesOverviewManager.approveCurrentStory();
+            }
+        }
+
+        function rejectCurrentStory() {
+            if (window.storiesOverviewManager) {
+                window.storiesOverviewManager.rejectCurrentStory();
+            }
+        }
+
+        function generatePromptForCurrentStory() {
+            if (window.storiesOverviewManager) {
+                window.storiesOverviewManager.generatePromptForCurrentStory();
+            }
+        }
+
+        function saveEditedStory() {
+            if (window.storiesOverviewManager) {
+                window.storiesOverviewManager.saveEditedStory();
+            }
+        }
+    </script>
+}
