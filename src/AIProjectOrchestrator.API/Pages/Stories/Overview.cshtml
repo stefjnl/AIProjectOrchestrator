@@ -183,9 +183,12 @@
     <script>
         // Initialize StoriesOverview when DOM is loaded
         document.addEventListener('DOMContentLoaded', function () {
+            console.log('DOMContentLoaded event fired');
             const urlParams = new URLSearchParams(window.location.search);
             const generationId = urlParams.get('generationId');
             const projectId = urlParams.get('projectId');
+
+            console.log('URL params:', { generationId, projectId });
 
             if (!generationId || !projectId) {
                 alert('Generation ID and Project ID are required');
@@ -194,8 +197,11 @@
             }
 
             // Initialize the StoriesOverview manager
+            console.log('window.storiesOverviewManager:', window.storiesOverviewManager);
             if (window.storiesOverviewManager) {
+                console.log('Initializing StoriesOverview manager...');
                 window.storiesOverviewManager.initialize(generationId, projectId);
+                console.log('StoriesOverview manager initialized successfully');
             } else {
                 console.error('StoriesOverview manager not loaded');
                 alert('Failed to load StoriesOverview. Please refresh the page.');

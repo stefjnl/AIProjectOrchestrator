@@ -355,54 +355,120 @@ class StoriesOverviewManager {
 
     // Modal functions
     viewStory(index) {
-        const story = this.stories[index];
-        if (!story) return;
+        console.log(`viewStory called with index: ${index}`);
+        console.log(`Available stories:`, this.stories);
+        console.log(`StoriesOverviewManager instance:`, this);
+        console.log(`this.stories length:`, this.stories ? this.stories.length : 'undefined');
 
+        // Safety check - ensure stories are loaded
+        if (!this.stories || this.stories.length === 0) {
+            console.error('No stories loaded yet');
+            window.App.showNotification('Stories are still loading. Please wait a moment and try again.', 'warning');
+            return;
+        }
+
+        // Safety check - ensure index is valid
+        if (index < 0 || index >= this.stories.length) {
+            console.error(`Invalid index ${index}. Stories array has ${this.stories.length} items.`);
+            window.App.showNotification('Invalid story index. Please try again.', 'error');
+            return;
+        }
+
+        const story = this.stories[index];
+        if (!story) {
+            console.error(`No story found at index ${index}`);
+            window.App.showNotification('Story not found. Please try again.', 'error');
+            return;
+        }
+
+        console.log(`Found story:`, story);
         this.currentStory = { ...story, index };
         this.showStoryModal(story);
     }
 
     showStoryModal(story) {
+        console.log(`showStoryModal called with story:`, story);
         const modal = document.getElementById('story-modal');
-        if (!modal) return;
+        console.log(`Modal element found:`, modal);
 
-        // Populate modal content
-        document.getElementById('modal-story-title').textContent = story.title || 'Untitled Story';
-        document.getElementById('modal-story-description').textContent = story.description || 'No description available';
-
-        // Format acceptance criteria
-        const criteriaElement = document.getElementById('modal-story-criteria');
-        if (story.acceptanceCriteria && Array.isArray(story.acceptanceCriteria)) {
-            criteriaElement.innerHTML = `
-                <ul>
-                    ${story.acceptanceCriteria.map(criterion => `<li>${criterion}</li>`).join('')}
-                </ul>
-            `;
-        } else {
-            criteriaElement.innerHTML = '<p>No acceptance criteria specified.</p>';
+        if (!modal) {
+            console.error('Story modal element not found!');
+            window.App.showNotification('Story modal not found. Please refresh the page.', 'error');
+            return;
         }
 
-        document.getElementById('modal-story-priority').textContent = story.priority || 'Medium';
-        document.getElementById('modal-story-points').textContent = story.storyPoints || 'N/A';
-        document.getElementById('modal-story-status').textContent = storyStatus;
-        document.getElementById('modal-story-prompt-status').textContent = story.hasPrompt ? 'Yes' : 'No';
+        // Safely handle story status - ensure it's a string
+        const storyStatus = story.status ? String(story.status) : 'pending';
+        console.log(`Story status: ${storyStatus}`);
 
-        // Update button states
-        const approveBtn = document.getElementById('modal-approve-btn');
-        const rejectBtn = document.getElementById('modal-reject-btn');
-        const generatePromptBtn = document.getElementById('modal-generate-prompt-btn');
+        try {
+            // Populate modal content
+            const titleElement = document.getElementById('modal-story-title');
+            const descriptionElement = document.getElementById('modal-story-description');
+            const priorityElement = document.getElementById('modal-story-priority');
+            const pointsElement = document.getElementById('modal-story-points');
+            const statusElement = document.getElementById('modal-story-status');
+            const promptStatusElement = document.getElementById('modal-story-prompt-status');
 
-        if (approveBtn) approveBtn.disabled = storyStatus !== 'pending';
-        if (rejectBtn) rejectBtn.disabled = storyStatus !== 'pending';
-        if (generatePromptBtn) generatePromptBtn.disabled = storyStatus !== 'approved' || story.hasPrompt;
+            console.log('Modal elements found:', {
+                title: titleElement,
+                description: descriptionElement,
+                priority: priorityElement,
+                points: pointsElement,
+                status: statusElement,
+                promptStatus: promptStatusElement
+            });
 
-        modal.style.display = 'block';
+            if (titleElement) titleElement.textContent = story.title || 'Untitled Story';
+            if (descriptionElement) descriptionElement.textContent = story.description || 'No description available';
+            if (priorityElement) priorityElement.textContent = story.priority || 'Medium';
+            if (pointsElement) pointsElement.textContent = story.storyPoints || 'N/A';
+            if (statusElement) statusElement.textContent = storyStatus;
+            if (promptStatusElement) promptStatusElement.textContent = story.hasPrompt ? 'Yes' : 'No';
+
+            // Format acceptance criteria
+            const criteriaElement = document.getElementById('modal-story-criteria');
+            if (criteriaElement) {
+                if (story.acceptanceCriteria && Array.isArray(story.acceptanceCriteria)) {
+                    criteriaElement.innerHTML = `
+                        <ul class="acceptance-criteria-list">
+                            ${story.acceptanceCriteria.map(criterion => `<li class="acceptance-criteria-item">${criterion}</li>`).join('')}
+                        </ul>
+                    `;
+                } else {
+                    criteriaElement.innerHTML = '<p class="text-gray-500">No acceptance criteria specified.</p>';
+                }
+            }
+
+            // Update button states
+            const approveBtn = document.getElementById('modal-approve-btn');
+            const rejectBtn = document.getElementById('modal-reject-btn');
+            const generatePromptBtn = document.getElementById('modal-generate-prompt-btn');
+
+            if (approveBtn) approveBtn.disabled = storyStatus !== 'pending';
+            if (rejectBtn) rejectBtn.disabled = storyStatus !== 'pending';
+            if (generatePromptBtn) generatePromptBtn.disabled = storyStatus !== 'approved' || story.hasPrompt;
+
+            console.log('Showing modal with CSS class...');
+
+            // Use CSS class-based approach for better positioning
+            modal.classList.add('show');
+
+            // Force reflow to ensure styles are applied
+            modal.offsetHeight;
+
+            console.log('Modal should now be visible with proper positioning');
+
+        } catch (error) {
+            console.error('Error in showStoryModal:', error);
+            window.App.showNotification('Error displaying story details. Please try again.', 'error');
+        }
     }
 
     closeStoryModal() {
         const modal = document.getElementById('story-modal');
         if (modal) {
-            modal.style.display = 'none';
+            modal.classList.remove('show');
         }
         this.currentStory = null;
     }
@@ -428,13 +494,13 @@ class StoriesOverviewManager {
 
         // Close story modal and open edit modal
         this.closeStoryModal();
-        editModal.style.display = 'block';
+        editModal.classList.add('show');
     }
 
     closeEditModal() {
         const modal = document.getElementById('edit-modal');
         if (modal) {
-            modal.style.display = 'none';
+            modal.classList.remove('show');
         }
     }
 
