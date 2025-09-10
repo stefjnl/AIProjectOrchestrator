@@ -204,7 +204,7 @@ class WorkflowManager {
             // Debug the structure
             if (this.workflowState) {
                 console.log('Requirements analysis:', this.workflowState.requirementsAnalysis);
-                console.log('Project planning:', this.workflowState.projectPlanning);
+                console.log('Project planning details:', JSON.stringify(this.workflowState.projectPlanning, null, 2));
                 console.log('Story generation:', this.workflowState.storyGeneration);
                 console.log('Prompt generation:', this.workflowState.promptGeneration);
             }
@@ -1479,7 +1479,7 @@ class WorkflowManager {
 
     async generateStories() {
         console.log('=== generateStories() called ===');
-        
+
         // Check if stories are already approved
         if (this.workflowState?.storyGeneration?.isApproved === true) {
             if (!confirm('User stories are already completed. Do you want to regenerate them? This will require re-approval.')) {
@@ -1502,22 +1502,25 @@ class WorkflowManager {
         try {
             console.log('Getting project details for story generation...');
             const project = await APIClient.getProject(this.projectId);
-            
-            // Create the story generation request
+
+            // Validate that we have required IDs before proceeding
+            if (!this.workflowState?.projectPlanning?.planningId) {
+                console.error('Cannot generate stories: Project Planning ID is missing');
+                window.App.showNotification('Failed to generate stories: Project Planning not completed.', 'error');
+                return;
+            }
+
             const request = {
                 ProjectId: this.projectId,
                 RequirementsAnalysisId: this.workflowState?.requirementsAnalysis?.analysisId,
-                ProjectPlanningId: this.workflowState?.projectPlanning?.planningId,
+                PlanningId: this.workflowState?.projectPlanning?.planningId,
                 ProjectDescription: project.description || 'No description available',
                 TechStack: project.techStack || 'Not specified',
                 Timeline: project.timeline || 'Not specified',
-                AdditionalContext: null // Can be extended later
+                AdditionalContext: null
             };
 
             console.log('Generating user stories with request:', request);
-            
-            // Make API call to generate user stories
-            console.log('Calling APIClient.generateStories...');
             const result = await APIClient.generateStories(request);
             console.log('User stories generation result:', result);
 
@@ -1539,7 +1542,7 @@ class WorkflowManager {
 
     async regenerateStories() {
         console.log('=== regenerateStories() called ===');
-        
+
         // Check if stories are already approved
         if (this.workflowState?.storyGeneration?.isApproved === true) {
             if (!confirm('User stories are already completed. Do you want to regenerate them? This will require re-approval.')) {
@@ -1562,20 +1565,26 @@ class WorkflowManager {
         try {
             console.log('Getting project details for story regeneration...');
             const project = await APIClient.getProject(this.projectId);
-            
-            // Create the story generation request for regeneration
+
+            // Validate that we have required IDs before proceeding
+            if (!this.workflowState?.projectPlanning?.planningId) {
+                console.error('Cannot regenerate stories: Project Planning ID is missing');
+                window.App.showNotification('Failed to regenerate stories: Project Planning not completed.', 'error');
+                return;
+            }
+
             const request = {
                 ProjectId: this.projectId,
                 RequirementsAnalysisId: this.workflowState?.requirementsAnalysis?.analysisId,
-                ProjectPlanningId: this.workflowState?.projectPlanning?.planningId,
+                PlanningId: this.workflowState?.projectPlanning?.planningId,
                 ProjectDescription: project.description || 'No description available',
                 TechStack: project.techStack || 'Not specified',
                 Timeline: project.timeline || 'Not specified',
-                AdditionalContext: 'Regenerated stories' // Indicate this is a regeneration
+                AdditionalContext: 'Regenerated stories'
             };
 
             console.log('Regenerating user stories with request:', request);
-            
+
             // Make API call to regenerate user stories
             console.log('Calling APIClient.generateStories for regeneration...');
             const result = await APIClient.generateStories(request);
