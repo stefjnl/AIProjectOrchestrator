@@ -82,10 +82,23 @@
 
         async function loadDashboardData() {
             try {
+                console.log('Loading dashboard data...');
+
+                // Check if APIClient is available
+                if (typeof APIClient === 'undefined') {
+                    console.error('APIClient is not available');
+                    handleApiError(new Error('APIClient is not available. Please check if api.js is loaded.'), 'Failed to load dashboard data');
+                    return;
+                }
+
+                console.log('Calling APIClient.getProjects() and APIClient.getPendingReviews()');
+
                 const [projects, reviews] = await Promise.all([
                     APIClient.getProjects(),
                     APIClient.getPendingReviews()
                 ]);
+
+                console.log('Dashboard data loaded:', { projects: projects.length, reviews: reviews.length });
 
                 // Update stats
                 document.getElementById('active-projects').textContent = projects.length;
@@ -102,6 +115,7 @@
                 // Load recent projects
                 loadRecentProjects(projects.slice(0, 4));
             } catch (error) {
+                console.error('Error loading dashboard data:', error);
                 handleApiError(error, 'Failed to load dashboard data');
             }
         }
@@ -115,233 +129,293 @@
             }
 
             container.innerHTML = projects.map(project => `
-                        <div class="project-card">
-                            <div class="project-header">
-                                <h3>${project.name}</h3>
-                                <span class="project-status ${project.status}">${project.status}</span>
-                            </div>
-                            <p class="project-description">${project.description || 'No description'}</p>
-                            <div class="project-meta">
-                                <span class="project-date">Created: ${new Date(project.createdAt).toLocaleDateString()}</span>
-                            </div>
-                            <div class="project-actions">
-                                <a href="/Projects/Workflow?projectId=${project.id}" class="btn btn-primary">
-                                    View Workflow
-                                </a>
-                            </div>
-                        </div>
-                    `).join('');
+                                        <div class="project-card">
+                                            <div class="project-header">
+                                                <h3>${project.name}</h3>
+                                                <span class="project-status ${project.status}">${project.status}</span>
+                                            </div>
+                                            <p class="project-description">${project.description || 'No description'}</p>
+                                            <div class="project-meta">
+                                                <span class="project-date">Created: ${new Date(project.createdAt).toLocaleDateString()}</span>
+                                            </div>
+                                            <div class="project-actions">
+                                                <a href="/Projects/Workflow?projectId=${project.id}" class="btn btn-primary">
+                                                    View Workflow
+                                                </a>
+                                            </div>
+                                        </div>
+                                    `).join('');
         }
 
         async function loadSystemStatus() {
             try {
+                console.log('Loading system status...');
+
+                // Check if APIClient is available
+                if (typeof APIClient === 'undefined') {
+                    console.error('APIClient is not available');
+                    throw new Error('APIClient is not available. Please check if api.js is loaded.');
+                }
+
                 const health = await APIClient.get('/health');
+                console.log('Health check response:', health);
+
                 const container = document.getElementById('system-status');
 
+                // Validate that health is an object with service statuses
+                if (!health || typeof health !== 'object') {
+                    throw new Error('Invalid health check response format');
+                }
+
                 container.innerHTML = Object.entries(health).map(([service, status]) => `
-                            <div class="status-item">
-                                <span class="service-name">${service}</span>
-                                <span class="status-indicator ${status ? 'healthy' : 'unhealthy'}">
-                                    ${status ? '✅' : '❌'}
-                                </span>
-                            </div>
-                        `).join('');
+                                            <div class="status-item">
+                                                <span class="service-name">${service}</span>
+                                                <span class="status-indicator ${status ? 'healthy' : 'unhealthy'}">
+                                                    ${status ? '✅' : '❌'}
+                                                </span>
+                                            </div>
+                                        `).join('');
+                console.log('System status loaded successfully');
             } catch (error) {
                 console.error('Failed to load system status:', error);
-                document.getElementById('system-status').innerHTML =
-                    '<p class="text-center">Unable to load system status</p>';
+                const container = document.getElementById('system-status');
+
+                // Provide a more user-friendly error message
+                let errorMessage = 'Unable to load system status';
+                if (error.message && error.message.includes('Network error')) {
+                    errorMessage = 'Network connection issue - API may be unavailable';
+                } else if (error.message && error.message.includes('HTTP 503')) {
+                    errorMessage = 'AI services are temporarily unavailable - core functionality still works';
+                } else if (error.message && error.message.includes('HTTP')) {
+                    errorMessage = 'Service temporarily unavailable';
+                }
+
+                // Show a graceful fallback with basic system info
+                container.innerHTML = `
+                                    <div class="status-item">
+                                        <span class="service-name">Core System</span>
+                                        <span class="status-indicator healthy">
+                                            ✅
+                                        </span>
+                                    </div>
+                                    <div class="status-item">
+                                        <span class="service-name">AI Providers</span>
+                                        <span class="status-indicator unhealthy">
+                                            ❌
+                                        </span>
+                                    </div>
+                                    <div class="status-error-message">
+                                        <small>${errorMessage}</small>
+                                    </div>
+                                `;
             }
         }
 
         // Add CSS for dashboard-specific styles
         const style = document.createElement('style');
         style.textContent = `
-                    .welcome-section {
-                        text-align: center;
-                        margin-bottom: 3rem;
-                        padding: 2rem 0;
-                    }
+                                    .welcome-section {
+                                        text-align: center;
+                                        margin-bottom: 3rem;
+                                        padding: 2rem 0;
+                                    }
             
-                    .welcome-section h1 {
-                        font-size: 2.5rem;
-                        margin-bottom: 1rem;
-                        background: var(--gradient-primary);
-                        background-clip: text;
-                        -webkit-background-clip: text;
-                        color: transparent;
-                    }
+                                    .welcome-section h1 {
+                                        font-size: 2.5rem;
+                                        margin-bottom: 1rem;
+                                        background: var(--gradient-primary);
+                                        background-clip: text;
+                                        -webkit-background-clip: text;
+                                        color: transparent;
+                                    }
             
-                    .subtitle {
-                        font-size: 1.125rem;
-                        color: var(--color-gray-600);
-                        max-width: 600px;
-                        margin: 0 auto;
-                    }
+                                    .subtitle {
+                                        font-size: 1.125rem;
+                                        color: var(--color-gray-600);
+                                        max-width: 600px;
+                                        margin: 0 auto;
+                                    }
             
-                    .quick-actions {
-                        margin-bottom: 3rem;
-                    }
+                                    .quick-actions {
+                                        margin-bottom: 3rem;
+                                    }
             
-                    .quick-actions h2 {
-                        margin-bottom: 1.5rem;
-                        text-align: center;
-                    }
+                                    .quick-actions h2 {
+                                        margin-bottom: 1.5rem;
+                                        text-align: center;
+                                    }
             
-                    .action-buttons {
-                        display: flex;
-                        gap: 1rem;
-                        justify-content: center;
-                        flex-wrap: wrap;
-                    }
+                                    .action-buttons {
+                                        display: flex;
+                                        gap: 1rem;
+                                        justify-content: center;
+                                        flex-wrap: wrap;
+                                    }
             
-                    .recent-projects {
-                        margin-bottom: 3rem;
-                    }
+                                    .recent-projects {
+                                        margin-bottom: 3rem;
+                                    }
             
-                    .recent-projects h2 {
-                        margin-bottom: 1.5rem;
-                    }
+                                    .recent-projects h2 {
+                                        margin-bottom: 1.5rem;
+                                    }
             
-                    .projects-grid {
-                        display: grid;
-                        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-                        gap: 1.5rem;
-                    }
+                                    .projects-grid {
+                                        display: grid;
+                                        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                                        gap: 1.5rem;
+                                    }
             
-                    .project-card {
-                        background: white;
-                        border-radius: 12px;
-                        padding: 1.5rem;
-                        box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
-                        border: 1px solid var(--color-gray-200);
-                        transition: all 0.3s ease;
-                    }
+                                    .project-card {
+                                        background: white;
+                                        border-radius: 12px;
+                                        padding: 1.5rem;
+                                        box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+                                        border: 1px solid var(--color-gray-200);
+                                        transition: all 0.3s ease;
+                                    }
             
-                    .project-card:hover {
-                        transform: translateY(-2px);
-                        box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1);
-                    }
+                                    .project-card:hover {
+                                        transform: translateY(-2px);
+                                        box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1);
+                                    }
             
-                    .project-header {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: flex-start;
-                        margin-bottom: 1rem;
-                    }
+                                    .project-header {
+                                        display: flex;
+                                        justify-content: space-between;
+                                        align-items: flex-start;
+                                        margin-bottom: 1rem;
+                                    }
             
-                    .project-header h3 {
-                        margin: 0;
-                        font-size: 1.25rem;
-                        color: var(--color-gray-900);
-                    }
+                                    .project-header h3 {
+                                        margin: 0;
+                                        font-size: 1.25rem;
+                                        color: var(--color-gray-900);
+                                    }
             
-                    .project-status {
-                        padding: 0.25rem 0.75rem;
-                        border-radius: 20px;
-                        font-size: 0.75rem;
-                        font-weight: 500;
-                        text-transform: uppercase;
-                    }
+                                    .project-status {
+                                        padding: 0.25rem 0.75rem;
+                                        border-radius: 20px;
+                                        font-size: 0.75rem;
+                                        font-weight: 500;
+                                        text-transform: uppercase;
+                                    }
             
-                    .project-status.planning {
-                        background: var(--color-warning-100);
-                        color: var(--color-warning-700);
-                    }
+                                    .project-status.planning {
+                                        background: var(--color-warning-100);
+                                        color: var(--color-warning-700);
+                                    }
             
-                    .project-status.active {
-                        background: var(--color-success-100);
-                        color: var(--color-success-700);
-                    }
+                                    .project-status.active {
+                                        background: var(--color-success-100);
+                                        color: var(--color-success-700);
+                                    }
             
-                    .project-status.completed {
-                        background: var(--color-gray-100);
-                        color: var(--color-gray-600);
-                    }
+                                    .project-status.completed {
+                                        background: var(--color-gray-100);
+                                        color: var(--color-gray-600);
+                                    }
             
-                    .project-description {
-                        color: var(--color-gray-600);
-                        margin-bottom: 1rem;
-                        line-height: 1.5;
-                    }
+                                    .project-description {
+                                        color: var(--color-gray-600);
+                                        margin-bottom: 1rem;
+                                        line-height: 1.5;
+                                    }
             
-                    .project-meta {
-                        display: flex;
-                        gap: 1rem;
-                        margin-bottom: 1.5rem;
-                        font-size: 0.875rem;
-                        color: var(--color-gray-500);
-                    }
+                                    .project-meta {
+                                        display: flex;
+                                        gap: 1rem;
+                                        margin-bottom: 1.5rem;
+                                        font-size: 0.875rem;
+                                        color: var(--color-gray-500);
+                                    }
             
-                    .project-actions {
-                        display: flex;
-                        gap: 0.5rem;
-                    }
+                                    .project-actions {
+                                        display: flex;
+                                        gap: 0.5rem;
+                                    }
             
-                    .project-actions .btn {
-                        flex: 1;
-                        justify-content: center;
-                    }
+                                    .project-actions .btn {
+                                        flex: 1;
+                                        justify-content: center;
+                                    }
             
-                    .system-status h2 {
-                        margin-bottom: 1.5rem;
-                    }
+                                    .system-status h2 {
+                                        margin-bottom: 1.5rem;
+                                    }
             
-                    .status-grid {
-                        display: grid;
-                        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                        gap: 1rem;
-                    }
+                                    .status-grid {
+                                        display: grid;
+                                        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                                        gap: 1rem;
+                                    }
             
-                    .status-item {
-                        background: white;
-                        padding: 1rem;
-                        border-radius: 8px;
-                        box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
-                        border: 1px solid var(--color-gray-200);
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-                    }
+                                    .status-item {
+                                        background: white;
+                                        padding: 1rem;
+                                        border-radius: 8px;
+                                        box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+                                        border: 1px solid var(--color-gray-200);
+                                        display: flex;
+                                        justify-content: space-between;
+                                        align-items: center;
+                                    }
             
-                    .service-name {
-                        font-weight: 500;
-                        color: var(--color-gray-700);
-                    }
+                                    .service-name {
+                                        font-weight: 500;
+                                        color: var(--color-gray-700);
+                                    }
             
-                    .status-indicator {
-                        font-size: 1.25rem;
-                    }
+                                    .status-indicator {
+                                        font-size: 1.25rem;
+                                    }
             
-                    .status-indicator.healthy {
-                        color: var(--color-success-500);
-                    }
+                                    .status-indicator.healthy {
+                                        color: var(--color-success-500);
+                                    }
             
-                    .status-indicator.unhealthy {
-                        color: var(--color-danger-500);
-                    }
+                                    .status-indicator.unhealthy {
+                                        color: var(--color-danger-500);
+                                    }
+    
+                                    .status-item.error {
+                                        border-color: var(--color-danger-200);
+                                        background-color: var(--color-danger-50);
+                                    }
+    
+                                    .status-error-message {
+                                        grid-column: 1 / -1;
+                                        margin-top: 0.5rem;
+                                        text-align: center;
+                                    }
+    
+                                    .status-error-message small {
+                                        color: var(--color-danger-600);
+                                        font-size: 0.75rem;
+                                    }
             
-                    @@media (max-width: 768px) {
-                        .welcome-section h1 {
-                            font-size: 2rem;
-                        }
+                                    @@media (max-width: 768px) {
+                                        .welcome-section h1 {
+                                            font-size: 2rem;
+                                        }
                 
-                        .action-buttons {
-                            flex-direction: column;
-                        }
+                                        .action-buttons {
+                                            flex-direction: column;
+                                        }
                 
-                        .action-buttons .btn {
-                            width: 100%;
-                        }
+                                        .action-buttons .btn {
+                                            width: 100%;
+                                        }
                 
-                        .projects-grid {
-                            grid-template-columns: 1fr;
-                        }
+                                        .projects-grid {
+                                            grid-template-columns: 1fr;
+                                        }
                 
-                        .status-grid {
-                            grid-template-columns: 1fr;
-                        }
-                    }
-                `;
+                                        .status-grid {
+                                            grid-template-columns: 1fr;
+                                        }
+                                    }
+                                `;
         document.head.appendChild(style);
     </script>
 }

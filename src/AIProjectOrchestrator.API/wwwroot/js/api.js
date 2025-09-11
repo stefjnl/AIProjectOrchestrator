@@ -85,6 +85,10 @@ window.APIClient = {
             if (error instanceof TypeError && error.message === 'Failed to fetch') {
                 throw new Error('Network error: Could not connect to the API. Please ensure the backend is running and accessible.');
             }
+            // Handle specific HTTP errors more gracefully
+            if (error.message && error.message.includes('HTTP 503')) {
+                throw new Error('Service temporarily unavailable: AI providers are offline but core functionality still works.');
+            }
             throw error;
         }
     },
@@ -112,7 +116,15 @@ window.APIClient = {
     },
 
     async createProject(projectData) {
-        return this.post('/projects', projectData);
+        console.log('APIClient.createProject called with:', projectData);
+        try {
+            const result = await this.post('/projects', projectData);
+            console.log('APIClient.createProject successful:', result);
+            return result;
+        } catch (error) {
+            console.error('APIClient.createProject failed:', error);
+            throw error;
+        }
     },
 
     // Workflow stage APIs

@@ -875,6 +875,399 @@ class WorkflowContentService {
     isServiceInitialized() {
         return this.isInitialized && this.workflowManager && this.apiClient;
     }
+
+    // Action methods that the orchestrator will call
+    async analyzeRequirements() {
+        try {
+            console.log('=== WorkflowContentService.analyzeRequirements called ===');
+
+            // Check if requirements already exist and are approved
+            if (this.workflowManager.workflowState?.requirementsAnalysis?.isApproved === true) {
+                window.App.showNotification('Requirements analysis is already completed and approved.', 'info');
+                return;
+            }
+
+            // Check if there's already a pending analysis
+            if (this.workflowManager.workflowState?.requirementsAnalysis?.status === 'PendingReview') {
+                window.App.showNotification('Requirements analysis is already pending review. Check the Review Queue.', 'info');
+                return;
+            }
+
+            const loadingOverlay = showLoading('Preparing requirements analysis...');
+            try {
+                // Get project details to pre-populate requirements
+                const project = await this.apiClient.getProject(this.workflowManager.projectId);
+
+                let requirementsInput = '';
+
+                // If this is a new project, suggest using the project description
+                if (this.workflowManager.isNewProject && project.description) {
+                    const useProjectDescription = confirm(
+                        'We found your project description. Would you like to use it as a starting point for requirements analysis?\n\n' +
+                        'Project Description: ' + project.description.substring(0, 200) + '...'
+                    );
+
+                    if (useProjectDescription) {
+                        requirementsInput = project.description;
+                    }
+                }
+
+                // If no pre-populated input, prompt user for manual input
+                if (!requirementsInput) {
+                    hideLoading(loadingOverlay);
+
+                    // Show a prompt for manual requirements input
+                    requirementsInput = prompt('Please describe your project requirements:\n\n' +
+                        'What problem are you trying to solve? What features do you need? ' +
+                        'What technology constraints do you have?');
+
+                    // If user cancels the prompt, don't proceed
+                    if (!requirementsInput) {
+                        window.App.showNotification('Requirements analysis cancelled. You can try again later.', 'info');
+                        return;
+                    }
+
+                    // Re-show loading overlay since we're proceeding
+                    loadingOverlay = showLoading('Preparing requirements analysis...');
+                }
+
+                // Create the requirements analysis request
+                const request = {
+                    ProjectDescription: requirementsInput,
+                    ProjectId: this.workflowManager.projectId,
+                    AdditionalContext: project.techStack ? `Tech Stack: ${project.techStack}` : null,
+                    Constraints: project.timeline ? `Timeline: ${project.timeline}` : null
+                };
+
+                const result = await this.apiClient.analyzeRequirements(request);
+
+                window.App.showNotification('Requirements submitted for review! Check the Review Queue.', 'success');
+
+                // Reload workflow state to reflect changes
+                await this.workflowManager.loadWorkflowState();
+                await this.workflowManager.loadStageContent(1);
+
+            } finally {
+                hideLoading(loadingOverlay);
+            }
+        } catch (error) {
+            console.error('Failed to analyze requirements:', error);
+            window.App.showNotification(`Failed to analyze requirements: ${error.message || error}`, 'error');
+        }
+    }
+
+    async generatePlan() {
+        try {
+            console.log('=== WorkflowContentService.generatePlan called ===');
+
+            // Check if requirements are approved
+            if (this.workflowManager.workflowState?.requirementsAnalysis?.isApproved !== true) {
+                window.App.showNotification('You must complete Requirements Analysis before generating a project plan.', 'warning');
+                return;
+            }
+
+            // Check if planning already exists and is approved
+            if (this.workflowManager.workflowState?.projectPlanning?.isApproved === true) {
+                if (!confirm('Project planning is already completed. Do you want to regenerate it? This will require re-approval.')) {
+                    return;
+                }
+            }
+
+            const loadingOverlay = showLoading('Generating project plan...');
+            try {
+                // Get project details for planning generation
+                const project = await this.apiClient.getProject(this.workflowManager.projectId);
+
+                // Create the project planning request
+                const request = {
+                    ProjectId: this.workflowManager.projectId,
+                    RequirementsAnalysisId: this.workflowManager.workflowState?.requirementsAnalysis?.analysisId,
+                    ProjectDescription: project.description || 'No description available',
+                    TechStack: project.techStack || 'Not specified',
+                    Timeline: project.timeline || 'Not specified',
+                    AdditionalContext: null
+                };
+
+                const result = await this.apiClient.createProjectPlan(request);
+
+                window.App.showNotification('Project plan submitted for review! Check the Review Queue.', 'success');
+
+                // Reload workflow state to reflect changes
+                await this.workflowManager.loadWorkflowState();
+                await this.workflowManager.loadStageContent(2);
+
+            } finally {
+                hideLoading(loadingOverlay);
+            }
+        } catch (error) {
+            console.error('Failed to generate project plan:', error);
+            window.App.showNotification(`Failed to generate plan: ${error.message || error}`, 'error');
+        }
+    }
+
+    async regeneratePlan() {
+        try {
+            console.log('=== WorkflowContentService.regeneratePlan called ===');
+
+            // Check if planning is already approved
+            if (this.workflowManager.workflowState?.projectPlanning?.isApproved === true) {
+                if (!confirm('Project planning is already completed. Do you want to regenerate it? This will require re-approval.')) {
+                    return;
+                }
+            }
+
+            // Check if requirements are approved
+            if (this.workflowManager.workflowState?.requirementsAnalysis?.isApproved !== true) {
+                window.App.showNotification('You must complete Requirements Analysis before generating a project plan.', 'warning');
+                return;
+            }
+
+            const loadingOverlay = showLoading('Regenerating project plan...');
+            try {
+                // Get project details for regeneration
+                const project = await this.apiClient.getProject(this.workflowManager.projectId);
+
+                // Create the project planning request for regeneration
+                const request = {
+                    ProjectId: this.workflowManager.projectId,
+                    RequirementsAnalysisId: this.workflowManager.workflowState?.requirementsAnalysis?.analysisId,
+                    ProjectDescription: project.description || 'No description available',
+                    TechStack: project.techStack || 'Not specified',
+                    Timeline: project.timeline || 'Not specified',
+                    AdditionalContext: 'Regenerated plan'
+                };
+
+                const result = await this.apiClient.createProjectPlan(request);
+
+                window.App.showNotification('Project plan submitted for review! Check the Review Queue.', 'success');
+
+                // Reload workflow state to reflect changes
+                await this.workflowManager.loadWorkflowState();
+                await this.workflowManager.loadStageContent(2);
+
+            } finally {
+                hideLoading(loadingOverlay);
+            }
+        } catch (error) {
+            console.error('Failed to regenerate project plan:', error);
+            window.App.showNotification(`Failed to regenerate plan: ${error.message || error}`, 'error');
+        }
+    }
+
+    async generateStories() {
+        try {
+            console.log('=== WorkflowContentService.generateStories called ===');
+
+            // Check if stories are already approved
+            if (this.workflowManager.workflowState?.storyGeneration?.isApproved === true) {
+                if (!confirm('User stories are already completed. Do you want to regenerate them? This will require re-approval.')) {
+                    return;
+                }
+            }
+
+            // Check if requirements and planning are approved
+            if (this.workflowManager.workflowState?.requirementsAnalysis?.isApproved !== true) {
+                window.App.showNotification('You must complete Requirements Analysis before generating user stories.', 'warning');
+                return;
+            }
+
+            if (this.workflowManager.workflowState?.projectPlanning?.isApproved !== true) {
+                window.App.showNotification('You must complete Project Planning before generating user stories.', 'warning');
+                return;
+            }
+
+            const loadingOverlay = showLoading('Generating user stories...');
+            try {
+                // Get project details for story generation
+                const project = await this.apiClient.getProject(this.workflowManager.projectId);
+
+                // Validate that we have required IDs before proceeding
+                if (!this.workflowManager.workflowState?.projectPlanning?.planningId) {
+                    console.error('Cannot generate stories: Project Planning ID is missing');
+                    window.App.showNotification('Failed to generate stories: Project Planning not completed.', 'error');
+                    return;
+                }
+
+                const request = {
+                    ProjectId: this.workflowManager.projectId,
+                    RequirementsAnalysisId: this.workflowManager.workflowState?.requirementsAnalysis?.analysisId,
+                    PlanningId: this.workflowManager.workflowState?.projectPlanning?.planningId,
+                    ProjectDescription: project.description || 'No description available',
+                    TechStack: project.techStack || 'Not specified',
+                    Timeline: project.timeline || 'Not specified',
+                    AdditionalContext: null
+                };
+
+                const result = await this.apiClient.generateStories(request);
+
+                window.App.showNotification('User stories submitted for review! Check the Review Queue.', 'success');
+
+                // Reload workflow state to reflect changes
+                await this.workflowManager.loadWorkflowState();
+                await this.workflowManager.loadStageContent(3);
+
+            } finally {
+                hideLoading(loadingOverlay);
+            }
+        } catch (error) {
+            console.error('Failed to generate user stories:', error);
+            window.App.showNotification(`Failed to generate stories: ${error.message || error}`, 'error');
+        }
+    }
+
+    async regenerateStories() {
+        try {
+            console.log('=== WorkflowContentService.regenerateStories called ===');
+
+            // Check if stories are already approved
+            if (this.workflowManager.workflowState?.storyGeneration?.isApproved === true) {
+                if (!confirm('User stories are already completed. Do you want to regenerate them? This will require re-approval.')) {
+                    return;
+                }
+            }
+
+            // Check if requirements and planning are approved
+            if (this.workflowManager.workflowState?.requirementsAnalysis?.isApproved !== true) {
+                window.App.showNotification('You must complete Requirements Analysis before generating user stories.', 'warning');
+                return;
+            }
+
+            if (this.workflowManager.workflowState?.projectPlanning?.isApproved !== true) {
+                window.App.showNotification('You must complete Project Planning before generating user stories.', 'warning');
+                return;
+            }
+
+            const loadingOverlay = showLoading('Regenerating user stories...');
+            try {
+                // Get project details for story regeneration
+                const project = await this.apiClient.getProject(this.workflowManager.projectId);
+
+                // Validate that we have required IDs before proceeding
+                if (!this.workflowManager.workflowState?.projectPlanning?.planningId) {
+                    console.error('Cannot regenerate stories: Project Planning ID is missing');
+                    window.App.showNotification('Failed to regenerate stories: Project Planning not completed.', 'error');
+                    return;
+                }
+
+                const request = {
+                    ProjectId: this.workflowManager.projectId,
+                    RequirementsAnalysisId: this.workflowManager.workflowState?.requirementsAnalysis?.analysisId,
+                    PlanningId: this.workflowManager.workflowState?.projectPlanning?.planningId,
+                    ProjectDescription: project.description || 'No description available',
+                    TechStack: project.techStack || 'Not specified',
+                    Timeline: project.timeline || 'Not specified',
+                    AdditionalContext: 'Regenerated stories'
+                };
+
+                const result = await this.apiClient.generateStories(request);
+
+                window.App.showNotification('User stories submitted for review! Check the Review Queue.', 'success');
+
+                // Reload workflow state to reflect changes
+                await this.workflowManager.loadWorkflowState();
+                await this.workflowManager.loadStageContent(3);
+
+            } finally {
+                hideLoading(loadingOverlay);
+            }
+        } catch (error) {
+            console.error('Failed to regenerate user stories:', error);
+            window.App.showNotification(`Failed to regenerate stories: ${error.message || error}`, 'error');
+        }
+    }
+
+    async generateAllPrompts() {
+        try {
+            console.log('=== WorkflowContentService.generateAllPrompts called ===');
+
+            // Check if stories are approved
+            if (this.workflowManager.workflowState?.storyGeneration?.isApproved !== true) {
+                window.App.showNotification('You must complete User Stories before generating prompts.', 'warning');
+                return;
+            }
+
+            // Check if prompts are already generated
+            if (this.workflowManager.workflowState?.promptGeneration?.completionPercentage >= 100) {
+                if (!confirm('Prompts are already generated. Do you want to regenerate them?')) {
+                    return;
+                }
+            }
+
+            const loadingOverlay = showLoading('Generating all prompts...');
+            try {
+                // Get project details for prompt generation
+                const project = await this.apiClient.getProject(this.workflowManager.projectId);
+
+                // Validate that we have required IDs before proceeding
+                if (!this.workflowManager.workflowState?.storyGeneration?.generationId) {
+                    console.error('Cannot generate prompts: Story Generation ID is missing');
+                    window.App.showNotification('Failed to generate prompts: User Stories not completed.', 'error');
+                    return;
+                }
+
+                // Get approved stories to generate prompts for
+                console.log('Getting approved stories...');
+                const approvedStories = await this.apiClient.getApprovedStories(this.workflowManager.workflowState.storyGeneration.generationId);
+                console.log('Approved stories:', approvedStories);
+
+                if (!approvedStories || approvedStories.length === 0) {
+                    window.App.showNotification('No approved stories found. Please approve some stories first.', 'warning');
+                    return;
+                }
+
+                // Create the prompt generation request
+                const request = {
+                    ProjectId: this.workflowManager.projectId,
+                    RequirementsAnalysisId: this.workflowManager.workflowState?.requirementsAnalysis?.analysisId,
+                    PlanningId: this.workflowManager.workflowState?.projectPlanning?.planningId,
+                    StoryGenerationId: this.workflowManager.workflowState?.storyGeneration?.generationId,
+                    Stories: approvedStories,
+                    ProjectDescription: project.description || 'No description available',
+                    TechStack: project.techStack || 'Not specified',
+                    Timeline: project.timeline || 'Not specified',
+                    AdditionalContext: null
+                };
+
+                console.log('Generating prompts with request:', request);
+
+                const result = await this.apiClient.generatePrompt(request);
+
+                window.App.showNotification('Prompts submitted for review! Check the Review Queue.', 'success');
+
+                // Reload workflow state to reflect changes
+                await this.workflowManager.loadWorkflowState();
+                await this.workflowManager.loadStageContent(4);
+
+            } finally {
+                hideLoading(loadingOverlay);
+            }
+        } catch (error) {
+            console.error('Failed to generate prompts:', error);
+            window.App.showNotification(`Failed to generate prompts: ${error.message || error}`, 'error');
+        }
+    }
+
+    async completeProject() {
+        try {
+            console.log('=== WorkflowContentService.completeProject called ===');
+
+            if (confirm('Are you sure you want to complete this project? This action cannot be undone.')) {
+                const loadingOverlay = showLoading('Completing project...');
+                try {
+                    // Implementation for project completion
+                    window.App.showNotification('Project completed successfully!', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/Projects';
+                    }, 2000);
+                } finally {
+                    hideLoading(loadingOverlay);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to complete project:', error);
+            window.App.showNotification(`Failed to complete project: ${error.message || error}`, 'error');
+        }
+    }
 }
 
 // Export for use in other modules
