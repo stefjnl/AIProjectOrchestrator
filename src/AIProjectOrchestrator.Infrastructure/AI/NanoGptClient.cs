@@ -15,6 +15,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
     {
         private readonly AIProviderConfigurationService _configurationService;
         private readonly NanoGptSettings _settings;
+        private readonly ILogger<NanoGptClient> _logger;
 
         public override string ProviderName => "NanoGpt";
 
@@ -23,6 +24,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         {
             _configurationService = configurationService;
             _settings = _configurationService.GetProviderSettings<NanoGptSettings>(ProviderName);
+            _logger = logger;
 
             // Log settings for debugging
             AIClientLogger.LogSettings(ProviderName, _settings.BaseUrl, _settings.ApiKey?.Length ?? 0, _settings.DefaultModel);
@@ -43,10 +45,14 @@ namespace AIProjectOrchestrator.Infrastructure.AI
 
             try
             {
+                // Log the request details for debugging
+                _logger.LogInformation("NanoGptClient.CallAsync starting with prompt length: {PromptLength}, model: {Model}",
+                    request.Prompt?.Length ?? 0, request.ModelName ?? _settings.DefaultModel);
+
                 // Create OpenAI-compatible request format for NanoGpt API
                 var messages = new object[]
                 {
-                    new { role = "system", content = request.SystemMessage },
+                    new { role = "system", content = request.SystemMessage ?? "You are a helpful AI assistant." },
                     new { role = "user", content = request.Prompt }
                 };
 
@@ -62,6 +68,9 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                 var json = JsonSerializer.Serialize(nanoGptRequest);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
+                // Log the request size for debugging
+                _logger.LogInformation("NanoGpt request JSON length: {JsonLength} characters", json.Length);
+
                 // Log the HttpClient BaseAddress for debugging
                 AIClientLogger.LogRequestUrl(ProviderName, _httpClient.BaseAddress?.ToString() ?? "NULL");
 
@@ -70,6 +79,9 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                     ? new Uri(_httpClient.BaseAddress, "v1/chat/completions").ToString()
                     : "v1/chat/completions";
                 AIClientLogger.LogRequestUrl(ProviderName, fullUrl);
+
+                // Log timeout information (configured at DI level)
+                _logger.LogInformation("Using HttpClient with timeout: {TimeoutSeconds}s (configured in DI)", _httpClient.Timeout.TotalSeconds);
 
                 var response = await SendRequestWithRetryAsync(
                     () =>
@@ -86,6 +98,11 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                     },
                     _settings.MaxRetries,
                     cancellationToken);
+
+                if (response == null)
+                {
+                    throw new InvalidOperationException("No response received from NanoGpt API");
+                }
 
                 var responseContent = await response.Content.ReadAsStringAsync();
 
@@ -104,13 +121,16 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                         var firstChoice = choices[0];
                         var message = firstChoice.GetProperty("message");
                         var text = message.GetProperty("content").GetString() ?? string.Empty;
-                        
+
                         // Extract token usage if available
                         var tokensUsed = 0;
                         if (root.TryGetProperty("usage", out var usageElement))
                         {
                             tokensUsed = usageElement.GetProperty("completion_tokens").GetInt32();
                         }
+
+                        _logger.LogInformation("NanoGpt response successful, content length: {ContentLength}, tokens used: {TokensUsed}",
+                            text.Length, tokensUsed);
 
                         return new AIResponse
                         {
@@ -124,6 +144,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                     catch (JsonException jsonEx)
                     {
                         AIClientLogger.LogException(ProviderName, 0, jsonEx);
+                        _logger.LogError(jsonEx, "Failed to parse NanoGpt JSON response");
                         return new AIResponse
                         {
                             Content = string.Empty,
@@ -137,6 +158,8 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                 }
                 else
                 {
+                    _logger.LogWarning("NanoGpt API returned error status: {StatusCode}, content: {ResponseContent}",
+                        response.StatusCode, responseContent);
                     return new AIResponse
                     {
                         Content = string.Empty,
@@ -150,6 +173,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error in NanoGptClient.CallAsync");
                 return new AIResponse
                 {
                     Content = string.Empty,

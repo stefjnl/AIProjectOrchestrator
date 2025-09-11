@@ -124,7 +124,8 @@ builder.Services.AddHttpClient<LMStudioClient>()
     {
         var settings = serviceProvider.GetRequiredService<IOptions<AIProviderSettings>>().Value.LMStudio;
         client.BaseAddress = new Uri(settings.BaseUrl);
-        client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
+        // Set a longer base timeout to handle large prompts - we'll manage individual request timeouts in the client
+        client.Timeout = TimeSpan.FromSeconds(Math.Max(settings.TimeoutSeconds, 120)); // Minimum 2 minutes, max from config
     });
 
 builder.Services.AddHttpClient<OpenRouterClient>()
@@ -134,7 +135,8 @@ builder.Services.AddHttpClient<OpenRouterClient>()
         // Ensure BaseAddress ends with trailing slash for proper URL construction
         var baseUrl = settings.BaseUrl.TrimEnd('/') + "/";
         client.BaseAddress = new Uri(baseUrl);
-        client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
+        // Set a longer base timeout to handle large prompts - we'll manage individual request timeouts in the client
+        client.Timeout = TimeSpan.FromSeconds(Math.Max(settings.TimeoutSeconds, 120)); // Minimum 2 minutes, max from config
     });
 
 builder.Services.AddHttpClient<NanoGptClient>()
@@ -142,7 +144,8 @@ builder.Services.AddHttpClient<NanoGptClient>()
     {
         var settings = serviceProvider.GetRequiredService<IOptions<AIProviderSettings>>().Value.NanoGpt;
         client.BaseAddress = new Uri(settings.BaseUrl);
-        client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
+        // Set a longer base timeout to handle large prompts - we'll manage individual request timeouts in the client
+        client.Timeout = TimeSpan.FromSeconds(Math.Max(settings.TimeoutSeconds, 120)); // Minimum 2 minutes, max from config
     });
 
 // Register AI clients as singletons
