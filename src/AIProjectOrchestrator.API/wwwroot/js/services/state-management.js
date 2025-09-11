@@ -482,12 +482,20 @@ class StateManagementService {
         const workflow = this.state.workflow;
         if (!workflow) return;
 
+        // Clear all existing classes first to ensure clean state
+        for (let i = 1; i <= 5; i++) {
+            const element = document.getElementById(`stage-${i}`);
+            if (element) {
+                element.classList.remove('completed', 'active', 'available');
+            }
+        }
+
         // Update stage 1 (requirements)
         const stage1Element = document.getElementById('stage-1');
         if (stage1Element) {
             if (workflow.requirementsAnalysis?.isApproved) {
                 stage1Element.classList.add('completed');
-            } else if (workflow.requirementsAnalysis?.status !== 'NotStarted') {
+            } else if (workflow.requirementsAnalysis?.status === 'InProgress') {
                 stage1Element.classList.add('active');
             }
         }
@@ -497,7 +505,7 @@ class StateManagementService {
         if (stage2Element) {
             if (workflow.projectPlanning?.isApproved) {
                 stage2Element.classList.add('completed');
-            } else if (workflow.projectPlanning?.status !== 'NotStarted') {
+            } else if (workflow.projectPlanning?.status === 'InProgress') {
                 stage2Element.classList.add('active');
             }
         }
@@ -507,7 +515,7 @@ class StateManagementService {
         if (stage3Element) {
             if (workflow.storyGeneration?.isApproved) {
                 stage3Element.classList.add('completed');
-            } else if (workflow.storyGeneration?.status !== 'NotStarted') {
+            } else if (workflow.storyGeneration?.status === 'InProgress') {
                 stage3Element.classList.add('active');
             }
         }
