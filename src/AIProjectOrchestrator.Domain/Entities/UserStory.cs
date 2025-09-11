@@ -27,5 +27,8 @@ namespace AIProjectOrchestrator.Domain.Entities
         // Prompt generation tracking
         public bool HasPrompt { get; set; } = false;
         public string? PromptId { get; set; }
+        
+        // Navigation properties
+        public List<PromptGeneration> PromptGenerations { get; set; } = new();
     }
 }

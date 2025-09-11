@@ -161,9 +161,22 @@ namespace AIProjectOrchestrator.IntegrationTests.Database
             };
 
             var promptId = Guid.NewGuid().ToString();
+            
+            // First create a UserStory to associate with the prompt
+            var userStory = new UserStory
+            {
+                Title = "Test Story for Prompt",
+                Description = "Test Description for Prompt",
+                AcceptanceCriteria = new List<string> { "Criteria 1", "Criteria 2" },
+                Priority = "High",
+                Status = StoryStatus.Approved,
+                StoryGenerationId = storyGeneration.Id
+            };
+
             var promptGeneration = new PromptGeneration
             {
                 PromptId = promptId,
+                UserStoryId = userStory.Id, // Use UserStoryId instead of StoryGenerationId
                 StoryIndex = 0,
                 Status = Domain.Models.PromptGeneration.PromptGenerationStatus.Approved,
                 Content = "Test prompt content",
@@ -174,6 +187,7 @@ namespace AIProjectOrchestrator.IntegrationTests.Database
             // Act
             var projectRepository = scope.ServiceProvider.GetRequiredService<IProjectRepository>();
             var requirementsAnalysisRepository = scope.ServiceProvider.GetRequiredService<IRequirementsAnalysisRepository>();
+            var userStoryRepository = scope.ServiceProvider.GetRequiredService<IStoryGenerationRepository>(); // Use the story repository for user stories
             // Reuse projectPlanningRepository from Arrange
             // Reuse storyGenerationRepository from Arrange
             // Reuse promptGenerationRepository from Arrange
@@ -184,7 +198,8 @@ namespace AIProjectOrchestrator.IntegrationTests.Database
             await projectPlanningRepository.AddAsync(projectPlanning);
             storyGeneration.ProjectPlanningId = projectPlanning.Id;
             await storyGenerationRepository.AddAsync(storyGeneration);
-            promptGeneration.StoryGenerationId = storyGeneration.Id;
+            userStory.StoryGenerationId = storyGeneration.Id;
+            await userStoryRepository.UpdateStoryAsync(userStory); // Add the user story
             await promptGenerationRepository.AddAsync(promptGeneration);
 
             // Retrieve the prompt generation

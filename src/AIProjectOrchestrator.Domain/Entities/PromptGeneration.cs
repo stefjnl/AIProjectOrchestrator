@@ -6,7 +6,7 @@ namespace AIProjectOrchestrator.Domain.Entities
     public class PromptGeneration
     {
         public int Id { get; set; }
-        public int StoryGenerationId { get; set; }
+        public Guid UserStoryId { get; set; }
         public int StoryIndex { get; set; }
         public string PromptId { get; set; } = string.Empty; // Preserve existing string IDs
         public PromptGenerationStatus Status { get; set; }
@@ -15,7 +15,7 @@ namespace AIProjectOrchestrator.Domain.Entities
         public DateTime CreatedDate { get; set; }
         
         // Navigation properties
-        public StoryGeneration StoryGeneration { get; set; } = null!;
+        public UserStory UserStory { get; set; } = null!;
         public Review? Review { get; set; }
     }
 }

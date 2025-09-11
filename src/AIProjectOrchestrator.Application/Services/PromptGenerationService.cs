@@ -234,16 +234,40 @@ namespace AIProjectOrchestrator.Application.Services
                     throw new InvalidOperationException($"AI prompt generation failed: {aiResponse.ErrorMessage}");
                 }
 
+                // Create and save the prompt generation entity
+                var promptGeneration = new PromptGeneration
+                {
+                    UserStoryId = story.Id, // Use the UserStoryId directly
+                    StoryIndex = request.StoryIndex,
+                    PromptId = Guid.NewGuid().ToString(),
+                    Status = PromptGenerationStatus.Approved,
+                    Content = aiResponse.Content ?? promptContent,
+                    ReviewId = Guid.NewGuid().ToString(),
+                    CreatedDate = DateTime.UtcNow
+                };
+
+                try
+                {
+                    _logger.LogInformation("Saving prompt generation to database for story {StoryId}", story.Id);
+                    await _promptGenerationRepository.AddAsync(promptGeneration, cancellationToken);
+                    _logger.LogInformation("Successfully saved prompt generation with ID: {PromptId}", promptGeneration.PromptId);
+                }
+                catch (Exception saveEx)
+                {
+                    _logger.LogError(saveEx, "Failed to save prompt generation to database for story {StoryId}", story.Id);
+                    throw new InvalidOperationException($"Failed to save generated prompt: {saveEx.Message}", saveEx);
+                }
+
                 // Create response
                 var response = new PromptGenerationResponse
                 {
-                    PromptId = Guid.NewGuid(),
+                    PromptId = Guid.Parse(promptGeneration.PromptId),
                     StoryGenerationId = request.StoryGenerationId,
                     StoryIndex = request.StoryIndex,
-                    GeneratedPrompt = aiResponse.Content ?? promptContent,
-                    ReviewId = Guid.NewGuid(), // Create a review for tracking
-                    Status = PromptGenerationStatus.Approved,
-                    CreatedAt = DateTime.UtcNow
+                    GeneratedPrompt = promptGeneration.Content,
+                    ReviewId = Guid.Parse(promptGeneration.ReviewId),
+                    Status = promptGeneration.Status,
+                    CreatedAt = promptGeneration.CreatedDate
                 };
 
                 // Update the UserStory with prompt information
@@ -251,11 +275,11 @@ namespace AIProjectOrchestrator.Application.Services
                 {
                     _logger.LogInformation("Updating UserStory {StoryId} with prompt information", story.Id);
                     story.HasPrompt = true;
-                    story.PromptId = response.PromptId.ToString();
+                    story.PromptId = promptGeneration.PromptId;
 
                     // Update the story in the repository
                     await _storyGenerationRepository.UpdateStoryAsync(story, cancellationToken);
-                    _logger.LogInformation("Successfully updated UserStory {StoryId} with prompt ID: {PromptId}", story.Id, response.PromptId);
+                    _logger.LogInformation("Successfully updated UserStory {StoryId} with prompt ID: {PromptId}", story.Id, promptGeneration.PromptId);
                 }
                 catch (Exception updateEx)
                 {
@@ -263,7 +287,7 @@ namespace AIProjectOrchestrator.Application.Services
                     // Don't fail the entire operation if the update fails
                 }
 
-                _logger.LogInformation("Prompt generated successfully with ID: {PromptId}", response.PromptId);
+                _logger.LogInformation("Prompt generated successfully with ID: {PromptId}", promptGeneration.PromptId);
                 return response;
             }
             catch (Exception ex)
@@ -411,19 +435,27 @@ namespace AIProjectOrchestrator.Application.Services
             {
                 _logger.LogInformation("Getting prompt for ID: {PromptId}", promptId);
 
-                // For now, return a mock response since we don't have database storage implemented
-                // In a real implementation, this would query the database
-                _logger.LogWarning("GetPromptAsync not fully implemented - returning mock response for prompt ID: {PromptId}", promptId);
+                // Query the database for the prompt generation
+                var promptGeneration = await _promptGenerationRepository.GetByPromptIdAsync(promptId.ToString(), cancellationToken);
 
+                if (promptGeneration == null)
+                {
+                    _logger.LogWarning("Prompt not found in database for ID: {PromptId}", promptId);
+                    return null;
+                }
+
+                _logger.LogInformation("Found prompt generation in database with ID: {PromptId}", promptGeneration.PromptId);
+
+                // Map the entity to the response DTO
                 return new PromptGenerationResponse
                 {
-                    PromptId = promptId,
-                    StoryGenerationId = Guid.NewGuid(), // This would come from database
-                    StoryIndex = 0,
-                    GeneratedPrompt = "Prompt content would be retrieved from database here",
-                    ReviewId = Guid.NewGuid(),
-                    Status = PromptGenerationStatus.Approved,
-                    CreatedAt = DateTime.UtcNow
+                    PromptId = Guid.Parse(promptGeneration.PromptId),
+                    StoryGenerationId = Guid.Empty, // We don't have this information in the current entity structure
+                    StoryIndex = promptGeneration.StoryIndex,
+                    GeneratedPrompt = promptGeneration.Content,
+                    ReviewId = Guid.Parse(promptGeneration.ReviewId),
+                    Status = promptGeneration.Status,
+                    CreatedAt = promptGeneration.CreatedDate
                 };
             }
             catch (Exception ex)

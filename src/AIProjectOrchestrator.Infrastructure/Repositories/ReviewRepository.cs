@@ -77,7 +77,7 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
             // Delete reviews associated with PromptGeneration entities for the project
             // We need to join through RequirementsAnalysis -> ProjectPlanning -> StoryGeneration to get to PromptGeneration
             var promptGenerationReviews = await _context.Reviews
-                .Where(r => r.PromptGeneration != null && r.PromptGeneration.StoryGeneration.ProjectPlanning.RequirementsAnalysis.ProjectId == projectId)
+                .Where(r => r.PromptGeneration != null && r.PromptGeneration.UserStory.StoryGeneration.ProjectPlanning.RequirementsAnalysis.ProjectId == projectId)
                 .ToListAsync(cancellationToken);
 
             // Combine all reviews to delete
@@ -105,7 +105,7 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
                 .Include(r => r.RequirementsAnalysis).ThenInclude(ra => ra.Project)
                 .Include(r => r.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
                 .Include(r => r.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
-                .Include(r => r.PromptGeneration).ThenInclude(pg => pg.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
+                .Include(r => r.PromptGeneration).ThenInclude(pg => pg.UserStory).ThenInclude(us => us.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
                 .ToListAsync(cancellationToken);
         }
 
@@ -115,7 +115,7 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
                 .Include(r => r.RequirementsAnalysis)
                 .Include(r => r.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis)
                 .Include(r => r.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis)
-                .Include(r => r.PromptGeneration).ThenInclude(pg => pg.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis)
+                .Include(r => r.PromptGeneration).ThenInclude(pg => pg.UserStory).ThenInclude(us => us.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis)
                 .FirstOrDefaultAsync(r => r.ReviewId == reviewId, cancellationToken);
         }
 
@@ -151,17 +151,17 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
 
             if (review.PromptGeneration != null)
             {
-                if (review.PromptGeneration.StoryGeneration != null)
+                if (review.PromptGeneration.UserStory != null && review.PromptGeneration.UserStory.StoryGeneration != null)
                 {
-                    if (review.PromptGeneration.StoryGeneration.ProjectPlanning != null)
+                    if (review.PromptGeneration.UserStory.StoryGeneration.ProjectPlanning != null)
                     {
-                        if (review.PromptGeneration.StoryGeneration.ProjectPlanning.RequirementsAnalysis != null)
+                        if (review.PromptGeneration.UserStory.StoryGeneration.ProjectPlanning.RequirementsAnalysis != null)
                         {
-                            _context.RequirementsAnalyses.Remove(review.PromptGeneration.StoryGeneration.ProjectPlanning.RequirementsAnalysis);
+                            _context.RequirementsAnalyses.Remove(review.PromptGeneration.UserStory.StoryGeneration.ProjectPlanning.RequirementsAnalysis);
                         }
-                        _context.ProjectPlannings.Remove(review.PromptGeneration.StoryGeneration.ProjectPlanning);
+                        _context.ProjectPlannings.Remove(review.PromptGeneration.UserStory.StoryGeneration.ProjectPlanning);
                     }
-                    _context.StoryGenerations.Remove(review.PromptGeneration.StoryGeneration);
+                    _context.StoryGenerations.Remove(review.PromptGeneration.UserStory.StoryGeneration);
                 }
                 _context.PromptGenerations.Remove(review.PromptGeneration);
             }

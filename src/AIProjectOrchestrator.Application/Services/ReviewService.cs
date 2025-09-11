@@ -520,7 +520,7 @@ namespace AIProjectOrchestrator.Application.Services
             if (review.RequirementsAnalysis?.Project != null) return review.RequirementsAnalysis.Project;
             if (review.ProjectPlanning?.RequirementsAnalysis?.Project != null) return review.ProjectPlanning.RequirementsAnalysis.Project;
             if (review.StoryGeneration?.ProjectPlanning?.RequirementsAnalysis?.Project != null) return review.StoryGeneration.ProjectPlanning.RequirementsAnalysis.Project;
-            if (review.PromptGeneration?.StoryGeneration?.ProjectPlanning?.RequirementsAnalysis?.Project != null) return review.PromptGeneration.StoryGeneration.ProjectPlanning.RequirementsAnalysis.Project;
+            if (review.PromptGeneration?.UserStory?.StoryGeneration?.ProjectPlanning?.RequirementsAnalysis?.Project != null) return review.PromptGeneration.UserStory.StoryGeneration.ProjectPlanning.RequirementsAnalysis.Project;
             return null;
         }
 
