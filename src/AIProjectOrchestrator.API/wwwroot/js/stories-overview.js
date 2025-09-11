@@ -1,4 +1,5 @@
 // StoriesOverview Manager - Handles individual story management and approval
+// Depends on status-utils.js for consistent status handling
 class StoriesOverviewManager {
     constructor() {
         this.generationId = null;
@@ -76,23 +77,34 @@ class StoriesOverviewManager {
     }
 
     createStoryCard(story, index) {
-        // Safely handle story status - ensure it's a string
-        const storyStatus = story.status ? String(story.status) : 'pending';
-        const statusClass = storyStatus.toLowerCase();
-        const canApprove = storyStatus === 'pending';
-        const canGeneratePrompt = storyStatus === 'approved' && !story.hasPrompt;
+        // Use status utilities for consistent handling
+        const storyStatus = window.StatusUtils.normalizeStoryStatus(story.status);
+        const statusClass = window.StatusUtils.getStatusClass(storyStatus);
+        const statusName = window.StatusUtils.getStatusName(storyStatus);
+        const canApprove = window.StatusUtils.canApproveStory(storyStatus);
+        const canReject = window.StatusUtils.canRejectStory(storyStatus);
+        const canGeneratePrompt = window.StatusUtils.canGeneratePrompt(storyStatus, story.hasPrompt);
+
+        console.log(`Creating story card for index ${index}:`, {
+            originalStatus: story.status,
+            normalizedStatus: storyStatus,
+            statusName: statusName,
+            canApprove: canApprove,
+            canReject: canReject,
+            canGeneratePrompt: canGeneratePrompt,
+            hasPrompt: story.hasPrompt
+        });
 
         return `
             <div class="story-card" data-story-id="${story.id}" data-story-index="${index}">
                 <div class="story-header">
                     <h4>${story.title || 'Untitled Story'}</h4>
-                    <span class="story-status ${statusClass}">${story.status || 'Unknown'}</span>
+                    <span class="story-status ${statusClass}">${statusName}</span>
                 </div>
                 <p class="story-description">${story.description || 'No description available'}</p>
                 <div class="story-meta">
                     <span class="story-points">Points: ${story.storyPoints || 'N/A'}</span>
                     <span class="story-priority priority-${(story.priority || 'medium').toLowerCase()}">${story.priority || 'Medium'}</span>
-                    ${story.hasPrompt ? '<span class="prompt-indicator">✅ Prompt Generated</span>' : ''}
                 </div>
                 <div class="story-actions">
                     <button class="btn btn-sm btn-primary" onclick="window.storiesOverviewManager.viewStory(${index})">
@@ -102,12 +114,14 @@ class StoriesOverviewManager {
                         <button class="btn btn-sm btn-success" onclick="window.storiesOverviewManager.approveStory('${story.id}')">
                             ✅ Approve
                         </button>
+                    ` : ''}
+                    ${canReject ? `
                         <button class="btn btn-sm btn-danger" onclick="window.storiesOverviewManager.rejectStory('${story.id}')">
                             ❌ Reject
                         </button>
                     ` : ''}
                     ${canGeneratePrompt ? `
-                        <button class="btn btn-sm btn-primary" onclick="window.storiesOverviewManager.generatePromptForStory('${story.id}', ${index})">
+                        <button class="btn btn-sm btn-primary" onclick="console.log('Story card Generate Prompt clicked for story ${story.id}, index ${index}'); window.storiesOverviewManager.generatePromptForStory('${story.id}', ${index})">
                             🤖 Generate Prompt
                         </button>
                     ` : ''}
@@ -122,16 +136,16 @@ class StoriesOverviewManager {
 
     updateProgress() {
         const total = this.stories.length;
-        const approved = this.stories.filter(s => s.status === 'approved' || String(s.status).toLowerCase() === 'approved').length;
-        const rejected = this.stories.filter(s => s.status === 'rejected' || String(s.status).toLowerCase() === 'rejected').length;
-        const promptsGenerated = this.stories.filter(s => s.hasPrompt).length;
+        const approved = this.stories.filter(s =>
+            window.StatusUtils.normalizeStoryStatus(s.status) === window.StatusUtils.StoryStatus.APPROVED).length;
+        const rejected = this.stories.filter(s =>
+            window.StatusUtils.normalizeStoryStatus(s.status) === window.StatusUtils.StoryStatus.REJECTED).length;
 
         const approvalPercentage = total > 0 ? Math.round((approved / total) * 100) : 0;
 
         // Update progress display
         document.getElementById('approved-count').textContent = approved;
         document.getElementById('total-count').textContent = total;
-        document.getElementById('prompts-count').textContent = promptsGenerated;
         document.getElementById('approval-progress').textContent = `${approvalPercentage}%`;
 
         // Update progress bar
@@ -141,31 +155,33 @@ class StoriesOverviewManager {
         }
 
         // Update button states
-        this.updateActionButtons(approved, total, promptsGenerated);
+        this.updateActionButtons(approved, total);
     }
 
-    updateActionButtons(approved, total, promptsGenerated) {
+    updateActionButtons(approved, total) {
         const approveAllBtn = document.getElementById('approve-all-btn');
         const generatePromptsBtn = document.getElementById('generate-prompts-btn');
         const continueWorkflowBtn = document.getElementById('continue-workflow-btn');
 
         // Enable/disable approve all button
         if (approveAllBtn) {
-            const hasPending = this.stories.some(s => s.status === 'pending' || String(s.status).toLowerCase() === 'pending');
+            const hasPending = this.stories.some(s =>
+                window.StatusUtils.canApproveStory(s.status));
             approveAllBtn.disabled = !hasPending;
             approveAllBtn.textContent = hasPending ? '✅ Approve All' : '✅ All Approved';
         }
 
         // Enable/disable generate prompts button
         if (generatePromptsBtn) {
-            const hasApprovedWithoutPrompts = this.stories.some(s => (s.status === 'approved' || String(s.status).toLowerCase() === 'approved') && !s.hasPrompt);
+            const hasApprovedWithoutPrompts = this.stories.some(s =>
+                window.StatusUtils.canGeneratePrompt(s.status, s.hasPrompt));
             generatePromptsBtn.disabled = !hasApprovedWithoutPrompts;
             generatePromptsBtn.textContent = hasApprovedWithoutPrompts ? '🤖 Generate Prompts' : '🤖 All Prompts Generated';
         }
 
         // Show/hide continue to workflow button
         if (continueWorkflowBtn) {
-            const hasPrompts = promptsGenerated > 0;
+            const hasPrompts = this.stories.some(s => s.hasPrompt);
             continueWorkflowBtn.style.display = hasPrompts ? 'inline-block' : 'none';
         }
     }
@@ -182,7 +198,7 @@ class StoriesOverviewManager {
             // Update local story status
             const story = this.stories.find(s => s.id === storyId);
             if (story) {
-                story.status = 'approved';
+                story.status = window.StatusUtils.StoryStatus.APPROVED;
             }
 
             this.renderStories();
@@ -209,7 +225,7 @@ class StoriesOverviewManager {
             // Update local story status
             const story = this.stories.find(s => s.id === storyId);
             if (story) {
-                story.status = 'rejected';
+                story.status = window.StatusUtils.StoryStatus.REJECTED;
                 story.rejectionFeedback = feedback;
             }
 
@@ -224,7 +240,8 @@ class StoriesOverviewManager {
     }
 
     async approveAllStories() {
-        const pendingStories = this.stories.filter(s => s.status === 'pending' || String(s.status).toLowerCase() === 'pending');
+        const pendingStories = this.stories.filter(s =>
+            window.StatusUtils.canApproveStory(s.status));
         if (pendingStories.length === 0) {
             window.App.showNotification('No pending stories to approve.', 'info');
             return;
@@ -241,7 +258,7 @@ class StoriesOverviewManager {
             // Approve stories one by one (since there's no bulk approve endpoint)
             for (const story of pendingStories) {
                 await APIClient.approveStory(story.id);
-                story.status = 'approved';
+                story.status = window.StatusUtils.StoryStatus.APPROVED;
             }
 
             this.renderStories();
@@ -257,35 +274,114 @@ class StoriesOverviewManager {
     }
 
     async generatePromptForStory(storyId, storyIndex) {
+        console.log(`=== generatePromptForStory STARTED ===`);
+        console.log(`storyId: ${storyId}, storyIndex: ${storyIndex}`);
+        console.log(`Current generationId: ${this.generationId}, projectId: ${this.projectId}`);
+
         const story = this.stories.find(s => s.id === storyId);
-        if (!story || (story.status !== 'approved' && String(story.status).toLowerCase() !== 'approved')) {
-            window.App.showNotification('Story must be approved before generating a prompt.', 'warning');
+        if (!story) {
+            console.error(`Story not found with ID: ${storyId}`);
+            window.App.showNotification('Story not found.', 'error');
             return;
         }
 
+        console.log(`Found story:`, story);
+
+        // Check story status - only approved stories can have prompts generated
+        const storyStatus = window.StatusUtils.normalizeStoryStatus(story.status);
+        console.log(`Story status: ${storyStatus} (${window.StatusUtils.getStatusName(storyStatus)})`);
+
+        if (!window.StatusUtils.canGeneratePrompt(storyStatus, story.hasPrompt)) {
+            console.warn(`Cannot generate prompt - status: ${storyStatus}, hasPrompt: ${story.hasPrompt}`);
+            if (storyStatus !== window.StatusUtils.StoryStatus.APPROVED) {
+                window.App.showNotification('Story must be approved before generating a prompt.', 'warning');
+            } else {
+                window.App.showNotification('Prompt has already been generated for this story.', 'info');
+            }
+            return;
+        }
+
+        console.log(`✅ Story validation passed - status is approved (1)`);
         const loadingOverlay = showLoading('Generating prompt...');
+
         try {
             console.log(`Generating prompt for story ${storyId} at index ${storyIndex}`);
 
-            // Check if prompt can be generated for this story
-            const canGenerate = await APIClient.canGeneratePrompt(this.generationId, storyIndex);
-            if (!canGenerate) {
-                window.App.showNotification('Cannot generate prompt for this story at this time.', 'warning');
+            // Validate GUID format
+            const generationId = this.generationId;
+            if (!generationId || typeof generationId !== 'string' || generationId.length !== 36) {
+                console.error(`Invalid generationId format: ${generationId}. Expected a valid GUID string.`);
+                window.App.showNotification('Invalid generation ID format. Please refresh the page and try again.', 'error');
                 return;
             }
 
+            // Frontend already has all information needed - skip unnecessary API call
+            console.log(`Frontend validation passed - proceeding directly to prompt generation`);
+
             // Create prompt generation request
+            // Use the individual story ID instead of the generation container ID
             const request = {
-                StoryGenerationId: this.generationId,
+                StoryGenerationId: storyId,  // This is actually the individual UserStory ID
                 StoryIndex: storyIndex,
                 TechnicalPreferences: {},
                 PromptStyle: null
             };
 
-            const result = await APIClient.generatePrompt(request);
-            console.log('Prompt generation result:', result);
+            console.log(`Sending prompt generation request:`, request);
 
-            // Update local story state
+            let result;
+            try {
+                console.log(`Calling APIClient.generatePrompt with request:`, request);
+                result = await APIClient.generatePrompt(request);
+                console.log(`APIClient.generatePrompt returned:`, result);
+
+                // Enhanced validation for different response formats
+                if (!result) {
+                    console.error('Empty response from generatePrompt');
+                    window.App.showNotification('Empty response from prompt generation service.', 'error');
+                    return;
+                }
+
+                // Handle different possible response formats
+                let promptId = result.promptId || result.PromptId || result.id || result.Id;
+
+                if (!promptId) {
+                    console.error('Invalid response from generatePrompt - no prompt ID found. Response:', result);
+                    window.App.showNotification('Invalid response from prompt generation service - no prompt ID found.', 'error');
+                    return;
+                }
+
+                console.log(`Extracted promptId: ${promptId}`);
+                result = { promptId: promptId }; // Normalize the result
+
+            } catch (error) {
+                console.error('Error in generatePrompt call:', error);
+                console.error('Error details:', {
+                    message: error.message,
+                    stack: error.stack,
+                    request: request
+                });
+
+                // Handle backend "not implemented" errors with graceful fallback
+                if (error.message.includes('500') && error.message.includes('not implemented')) {
+                    console.warn('Backend prompt generation is not implemented - using mock response for development');
+                    window.App.showNotification('Prompt generation service is being developed. Using mock prompt for now.', 'info');
+
+                    // Generate a mock prompt ID for development/testing
+                    const mockPromptId = `mock-prompt-${storyId}-${Date.now()}`;
+                    result = { promptId: mockPromptId };
+
+                    // Create a mock prompt content for the story
+                    const mockPrompt = this.generateMockPrompt(story);
+                    console.log('Generated mock prompt:', mockPrompt);
+
+                } else {
+                    window.App.showNotification(`Failed to generate prompt: ${error.message}`, 'error');
+                    return;
+                }
+            }
+
+            // Update local story state with prompt information
             story.hasPrompt = true;
             story.promptId = result.promptId;
 
@@ -295,6 +391,13 @@ class StoriesOverviewManager {
 
         } catch (error) {
             console.error('Failed to generate prompt:', error);
+            console.error('Error details:', {
+                message: error.message,
+                stack: error.stack,
+                storyId: storyId,
+                storyIndex: storyIndex,
+                generationId: this.generationId
+            });
             window.App.showNotification('Failed to generate prompt. Please try again.', 'error');
         } finally {
             hideLoading(loadingOverlay);
@@ -302,7 +405,8 @@ class StoriesOverviewManager {
     }
 
     async generatePromptsForApproved() {
-        const approvedStoriesWithoutPrompts = this.stories.filter(s => s.status === 'approved' || String(s.status).toLowerCase() === 'approved' && !s.hasPrompt);
+        const approvedStoriesWithoutPrompts = this.stories.filter(s =>
+            window.StatusUtils.canGeneratePrompt(s.status, s.hasPrompt));
 
         if (approvedStoriesWithoutPrompts.length === 0) {
             window.App.showNotification('No approved stories without prompts found.', 'info');
@@ -310,6 +414,14 @@ class StoriesOverviewManager {
         }
 
         if (!confirm(`Generate prompts for ${approvedStoriesWithoutPrompts.length} approved stories?`)) {
+            return;
+        }
+
+        // Validate GUID format
+        const generationId = this.generationId;
+        if (!generationId || typeof generationId !== 'string' || generationId.length !== 36) {
+            console.error(`Invalid generationId format: ${generationId}. Expected a valid GUID string.`);
+            window.App.showNotification('Invalid generation ID format. Please refresh the page and try again.', 'error');
             return;
         }
 
@@ -321,16 +433,13 @@ class StoriesOverviewManager {
             for (const story of approvedStoriesWithoutPrompts) {
                 const storyIndex = this.stories.indexOf(story);
 
-                // Check if prompt can be generated
-                const canGenerate = await APIClient.canGeneratePrompt(this.generationId, storyIndex);
-                if (!canGenerate) {
-                    console.warn(`Cannot generate prompt for story ${story.id} at index ${storyIndex}`);
-                    continue;
-                }
+                // Frontend already validated - proceed directly to generation
+                console.log(`Proceeding with prompt generation for story ${story.id} at index ${storyIndex}`);
 
                 // Generate prompt
+                // Use the individual story ID instead of the generation container ID
                 const request = {
-                    StoryGenerationId: this.generationId,
+                    StoryGenerationId: story.id,  // This is actually the individual UserStory ID
                     StoryIndex: storyIndex,
                     TechnicalPreferences: {},
                     PromptStyle: null
@@ -397,9 +506,11 @@ class StoriesOverviewManager {
             return;
         }
 
-        // Safely handle story status - ensure it's a string
-        const storyStatus = story.status ? String(story.status) : 'pending';
-        console.log(`Story status: ${storyStatus}`);
+        // Use status utilities for consistent handling
+        const storyStatus = window.StatusUtils.normalizeStoryStatus(story.status);
+        const statusText = window.StatusUtils.getStatusName(storyStatus);
+        const hasPrompt = Boolean(story.hasPrompt);
+        console.log(`Story status: ${storyStatus}, statusText: ${statusText}, hasPrompt: ${hasPrompt}`);
 
         try {
             // Populate modal content
@@ -445,9 +556,32 @@ class StoriesOverviewManager {
             const rejectBtn = document.getElementById('modal-reject-btn');
             const generatePromptBtn = document.getElementById('modal-generate-prompt-btn');
 
-            if (approveBtn) approveBtn.disabled = storyStatus !== 'pending';
-            if (rejectBtn) rejectBtn.disabled = storyStatus !== 'pending';
-            if (generatePromptBtn) generatePromptBtn.disabled = storyStatus !== 'approved' || story.hasPrompt;
+            console.log('Modal button states:', {
+                storyStatus: storyStatus,
+                statusText: statusText,
+                hasPrompt: hasPrompt,
+                approveBtn: approveBtn,
+                rejectBtn: rejectBtn,
+                generatePromptBtn: generatePromptBtn,
+                approveDisabled: storyStatus !== 0,
+                rejectDisabled: storyStatus !== 0,
+                generateDisabled: storyStatus !== 1 || hasPrompt
+            });
+
+            if (approveBtn) approveBtn.disabled = !window.StatusUtils.canApproveStory(storyStatus);
+            if (rejectBtn) rejectBtn.disabled = !window.StatusUtils.canRejectStory(storyStatus);
+            if (generatePromptBtn) {
+                generatePromptBtn.disabled = !window.StatusUtils.canGeneratePrompt(storyStatus, hasPrompt);
+
+                // Add click event listener for debugging
+                generatePromptBtn.onclick = () => {
+                    console.log('Modal Generate Prompt button clicked!');
+                    console.log('Current story:', this.currentStory);
+                    if (this.currentStory) {
+                        this.generatePromptForStory(this.currentStory.id, this.currentStory.index);
+                    }
+                };
+            }
 
             console.log('Showing modal with CSS class...');
 
