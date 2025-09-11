@@ -2,17 +2,13 @@
 class WorkflowManager {
     constructor(projectId, isNewProject = false) {
         this.projectId = projectId;
-        this.currentStage = 1; // Start at Stage 1 (Requirements) by default
         this.stages = ['requirements', 'planning', 'stories', 'prompts', 'review'];
-        this.autoRefreshInterval = null;
-        this.isAutoRefreshing = false;
-        this.workflowState = null; // Store the current workflow state
-        this.isNewProject = isNewProject; // Flag for new projects
-        this.hasShownNewProjectPrompt = false; // Track if we've shown the prompt
-        this.projectData = null; // Store project data for UI updates
 
         // Initialize service instances with fallback to inline implementations
         this.initializeServices();
+
+        // Initialize state management
+        this.initializeStateManagement(isNewProject);
 
         console.log(`WorkflowManager constructor called with projectId=${projectId}, isNewProject=${isNewProject}`);
         this.initialize();
@@ -21,6 +17,9 @@ class WorkflowManager {
     initializeServices() {
         try {
             // Initialize services with fallback to inline implementations
+            this.stateManager = typeof StateManagementService !== 'undefined' ?
+                new StateManagementService(this) : new InlineStateManagementService(this);
+
             this.contentService = typeof WorkflowContentService !== 'undefined' ?
                 new WorkflowContentService(this) : new InlineWorkflowContentService(this);
 
@@ -33,9 +32,111 @@ class WorkflowManager {
             console.log('Services initialized successfully');
         } catch (error) {
             console.warn('Failed to initialize external services, using inline implementations:', error);
+            this.stateManager = new InlineStateManagementService(this);
             this.contentService = new InlineWorkflowContentService(this);
             this.eventHandler = new InlineEventHandlerService(this);
             this.stageInitializer = new InlineStageInitializationService(this);
+        }
+    }
+
+    initializeStateManagement(isNewProject) {
+        try {
+            // Set initial state
+            this.stateManager.setNewProjectFlag(isNewProject);
+
+            // Subscribe to state changes for reactive updates
+            this.setupStateSubscriptions();
+
+            console.log('State management initialized successfully');
+        } catch (error) {
+            console.warn('Failed to initialize state management, using fallback:', error);
+            if (this.stateManager && typeof this.stateManager.resetState === 'function') {
+                this.stateManager.resetState();
+            }
+        }
+    }
+
+    setupStateSubscriptions() {
+        // Subscribe to navigation changes
+        this.stateManager.subscribe((data) => {
+            console.log('Navigation state changed:', data);
+            this.onNavigationStateChanged(data);
+        }, 'navigationChanged');
+
+        // Subscribe to workflow changes
+        this.stateManager.subscribe((data) => {
+            console.log('Workflow state changed:', data);
+            this.onWorkflowStateChanged(data);
+        }, 'workflowChanged');
+
+        // Subscribe to UI changes
+        this.stateManager.subscribe((data) => {
+            console.log('UI state changed:', data);
+            this.onUIStateChanged(data);
+        }, 'uiChanged');
+    }
+
+    onNavigationStateChanged(data) {
+        try {
+            if (data.changes && data.changes.currentStage !== undefined) {
+                this.onStageChanged(data.changes.currentStage);
+            }
+            if (data.changes && data.changes.isAutoRefreshing !== undefined) {
+                this.onAutoRefreshChanged(data.changes.isAutoRefreshing);
+            }
+        } catch (error) {
+            console.error('Error handling navigation state change:', error);
+        }
+    }
+
+    onWorkflowStateChanged(data) {
+        try {
+            // Update progress indicators when workflow state changes
+            this.updateProgressIndicators();
+
+            // Check if current stage needs updating
+            this.checkStageProgression();
+        } catch (error) {
+            console.error('Error handling workflow state change:', error);
+        }
+    }
+
+    onUIStateChanged(data) {
+        try {
+            if (data.changes && data.changes.loadingState !== undefined) {
+                this.onLoadingStateChanged(data.changes.loadingState);
+            }
+            if (data.changes && data.changes.errorMessage !== undefined) {
+                this.onErrorStateChanged(data.changes.errorMessage);
+            }
+        } catch (error) {
+            console.error('Error handling UI state change:', error);
+        }
+    }
+
+    onStageChanged(newStage) {
+        console.log(`Stage changed to ${newStage}`);
+        this.updateWorkflowUI();
+    }
+
+    onAutoRefreshChanged(isRefreshing) {
+        console.log(`Auto-refresh changed to ${isRefreshing}`);
+        if (isRefreshing) {
+            this.startAutoRefresh();
+        } else {
+            this.stopAutoRefresh();
+        }
+    }
+
+    onLoadingStateChanged(loadingState) {
+        console.log(`Loading state changed to ${loadingState}`);
+        // Handle loading state changes if needed
+    }
+
+    onErrorStateChanged(errorMessage) {
+        if (errorMessage) {
+            console.error('Error state changed:', errorMessage);
+            window.App.showNotification(errorMessage, 'error');
         }
     }
 
@@ -96,8 +197,9 @@ class WorkflowManager {
 
     async loadInitialData() {
         console.log('loadInitialData: Starting initialization');
-        console.log(`isNewProject: ${this.isNewProject}`);
-        console.log(`hasShownNewProjectPrompt: ${this.hasShownNewProjectPrompt}`);
+        const state = this.stateManager.getState();
+        console.log(`isNewProject: ${state.ui.isNewProject}`);
+        console.log(`hasShownNewProjectPrompt: ${state.ui.hasShownNewProjectPrompt}`);
 
         try {
             await this.loadProjectData();
@@ -108,11 +210,11 @@ class WorkflowManager {
                 await this.loadCurrentStage();
 
                 // Handle new project scenario - NEW PROJECTS ALWAYS START AT STAGE 1
-                if (this.isNewProject) {
+                if (state.ui.isNewProject) {
                     console.log('=== NEW PROJECT DETECTED ===');
                     console.log('Forcing stage 1 and showing prompt');
-                    this.hasShownNewProjectPrompt = true;
-                    this.currentStage = 1; // Force new projects to start at stage 1
+                    this.stateManager.setNewProjectPromptShown(true);
+                    this.stateManager.setCurrentStage(1); // Force new projects to start at stage 1
                     console.log('Loading stage 1 content for new project...');
                     await this.loadStageContent(1); // Load stage 1 content
                     console.log('Stage 1 content loaded, handling new project scenario...');
@@ -122,32 +224,33 @@ class WorkflowManager {
                     console.log('=== NEW PROJECT SETUP COMPLETE ===');
                 } else {
                     console.log('Not new project, proceeding with normal workflow');
-                    await this.loadStageContent(this.currentStage);
+                    await this.loadStageContent(state.navigation.currentStage);
                     this.hideStartWorkflowButton(); // Hide start button for existing projects
                 }
             } catch (workflowError) {
                 console.error('Failed to load workflow state or determine current stage:', workflowError);
 
                 // Fallback for new projects - always start at stage 1
-                if (this.isNewProject) {
+                if (state.ui.isNewProject) {
                     console.log('Using fallback for new project - starting at stage 1');
-                    this.currentStage = 1;
-                    this.workflowState = this.getDefaultWorkflowState();
+                    this.stateManager.setCurrentStage(1);
+                    this.stateManager.updateWorkflowState(this.stateManager.getDefaultState().workflow);
                     await this.loadStageContent(1);
                     this.handleNewProjectScenario();
                     this.showStartWorkflowButton(); // Show start button in fallback too
                 } else {
                     // For existing projects, show error and fallback to stage 1
                     window.App.showNotification('Failed to load workflow data. Starting at stage 1.', 'warning');
-                    this.currentStage = 1;
-                    this.workflowState = this.getDefaultWorkflowState();
+                    this.stateManager.setCurrentStage(1);
+                    this.stateManager.updateWorkflowState(this.stateManager.getDefaultState().workflow);
                     await this.loadStageContent(1);
                 }
             }
 
             this.updateWorkflowUI();
-            console.log(`Initial data loaded. Current stage: ${this.currentStage}`);
-            console.log(`Workflow state after loading:`, this.workflowState);
+            const currentState = this.stateManager.getState();
+            console.log(`Initial data loaded. Current stage: ${currentState.navigation.currentStage}`);
+            console.log(`Workflow state after loading:`, currentState.workflow);
         } catch (error) {
             console.error('Failed to load initial workflow data:', error);
             window.App.showNotification('Failed to load project data', 'error');
@@ -166,9 +269,11 @@ class WorkflowManager {
     }
 
     handleNewProjectScenario() {
+        const state = this.stateManager.getState();
+
         // Check if requirements analysis is needed for new project
-        if (!this.workflowState?.requirementsAnalysis ||
-            this.workflowState.requirementsAnalysis.status === 'NotStarted') {
+        if (!state.workflow.requirementsAnalysis ||
+            state.workflow.requirementsAnalysis.status === 'NotStarted') {
 
             setTimeout(() => {
                 if (confirm('Welcome to your new project! Would you like to start with requirements analysis?')) {
@@ -181,17 +286,28 @@ class WorkflowManager {
     async loadProjectData() {
         try {
             const project = await APIClient.getProject(this.projectId);
-            this.projectData = project; // Store project data for later use
-            this.updateProjectOverview(project);
-            this.updateProgressIndicators(project);
+
+            // Use state manager to handle project data
+            this.stateManager.setProjectData(project);
+            this.stateManager.updateProjectOverview(project);
+
+            // Update progress based on workflow state
+            const progress = this.stateManager.calculateProgress();
+            this.updatePipelineIndicators(progress);
+
             return project;
         } catch (error) {
             console.error('Failed to load project data:', error);
+            this.stateManager.setError(`Failed to load project data: ${error.message}`);
             throw new Error(`Failed to load project data: ${error.message}`);
         }
     }
 
     updateProjectOverview(project) {
+        // Delegate to state manager
+        this.stateManager.updateProjectOverview(project);
+
+        // Update DOM elements
         document.getElementById('project-name').textContent = project.name;
         document.getElementById('project-status').textContent = project.status;
         document.getElementById('project-created').textContent =
@@ -199,24 +315,15 @@ class WorkflowManager {
     }
 
     updateProgressIndicators(project) {
-        const progress = this.calculateProgress(project);
+        // Use state manager for progress calculation
+        const progress = this.stateManager.calculateProgress();
         document.getElementById('project-progress').textContent = `${progress}%`;
         this.updatePipelineIndicators(progress);
     }
 
     calculateProgress(project) {
-        if (!this.workflowState) return 0;
-
-        const stages = [
-            this.workflowState.requirementsAnalysis?.isApproved,
-            this.workflowState.projectPlanning?.isApproved,
-            this.workflowState.storyGeneration?.isApproved,
-            this.workflowState.promptGeneration?.completionPercentage >= 100,
-            this.workflowState.promptGeneration?.completionPercentage >= 100
-        ];
-
-        const completed = stages.filter(Boolean).length;
-        return Math.round((completed / stages.length) * 100);
+        // Delegate to state manager
+        return this.stateManager.calculateProgress();
     }
 
     updatePipelineIndicators(progress) {
@@ -2141,36 +2248,6 @@ function startManualAnalysis() {
     }
 }
 
-// Initialize workflow manager when DOM is loaded
-document.addEventListener('DOMContentLoaded', function () {
-    console.log('=== WORKFLOW INITIALIZATION STARTED ===');
-    console.log('Current URL:', window.location.href);
-    console.log('Full URL with params:', window.location.search);
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const projectId = urlParams.get('projectId');
-    const newProject = urlParams.get('newProject') === 'true';
-
-    console.log('Parsed URL parameters:', {
-        projectId: projectId,
-        newProject: newProject,
-        rawNewProject: urlParams.get('newProject'),
-        allParams: Object.fromEntries(urlParams)
-    });
-
-    if (projectId) {
-        console.log(`Creating WorkflowManager for project ${projectId}, newProject=${newProject}`);
-        window.workflowManager = new WorkflowManager(projectId, newProject);
-        console.log('WorkflowManager created successfully');
-    } else {
-        console.error('No project ID found for workflow initialization');
-        window.App.showNotification('No project ID found', 'error');
-    }
-
-    console.log('=== WORKFLOW INITIALIZATION COMPLETED ===');
-});
-
-
 // Inline fallback service implementations for backward compatibility
 class InlineWorkflowContentService {
     constructor(workflowManager) {
@@ -2194,6 +2271,363 @@ class InlineWorkflowContentService {
             return `<div class="stage-container"><h2>Error Loading Stage</h2><p>Failed to load stage ${stage} content.</p></div>`;
         }
     }
+}
+
+// Inline fallback service implementations for backward compatibility
+class InlineStateManagementService {
+    constructor(workflowManager) {
+        this.workflowManager = workflowManager;
+        this.projectId = workflowManager.projectId;
+
+        // Initialize with default state (mimicking the original structure)
+        this.state = this.getDefaultState();
+
+        // Simple subscribers for reactive updates
+        this.subscribers = new Map();
+        this.subscriberId = 0;
+
+        console.log('InlineStateManagementService initialized for project:', this.projectId);
+    }
+
+    getDefaultState() {
+        return {
+            workflow: {
+                projectId: this.projectId,
+                projectName: 'Unknown Project',
+                requirementsAnalysis: {
+                    status: 'NotStarted',
+                    isApproved: false,
+                    analysisId: null,
+                    reviewId: null
+                },
+                projectPlanning: {
+                    status: 'NotStarted',
+                    isApproved: false,
+                    planningId: null
+                },
+                storyGeneration: {
+                    status: 'NotStarted',
+                    isApproved: false,
+                    generationId: null
+                },
+                promptGeneration: {
+                    status: 'NotStarted',
+                    isApproved: false,
+                    completionPercentage: 0
+                }
+            },
+            navigation: {
+                currentStage: 1,
+                stages: ['requirements', 'planning', 'stories', 'prompts', 'review'],
+                isAutoRefreshing: false,
+                autoRefreshInterval: null
+            },
+            project: {
+                data: null,
+                name: '',
+                status: '',
+                createdAt: null,
+                description: '',
+                techStack: '',
+                timeline: ''
+            },
+            ui: {
+                isNewProject: false,
+                hasShownNewProjectPrompt: false,
+                loadingState: 'idle',
+                errorMessage: null,
+                notifications: []
+            },
+            cache: {
+                lastUpdated: null,
+                etag: null,
+                isStale: false
+            }
+        };
+    }
+
+    getState() {
+        return JSON.parse(JSON.stringify(this.state));
+    }
+
+    getWorkflowState() {
+        return JSON.parse(JSON.stringify(this.state.workflow));
+    }
+
+    getNavigationState() {
+        return JSON.parse(JSON.stringify(this.state.navigation));
+    }
+
+    getProjectState() {
+        return JSON.parse(JSON.stringify(this.state.project));
+    }
+
+    getUIState() {
+        return JSON.parse(JSON.stringify(this.state.ui));
+    }
+
+    updateWorkflowState(workflowUpdates) {
+        this.state.workflow = { ...this.state.workflow, ...workflowUpdates };
+        console.log('Workflow state updated via InlineStateManagementService');
+        return true;
+    }
+
+    updateNavigationState(navigationUpdates) {
+        this.state.navigation = { ...this.state.navigation, ...navigationUpdates };
+        console.log('Navigation state updated via InlineStateManagementService');
+        return true;
+    }
+
+    updateProjectState(projectUpdates) {
+        this.state.project = { ...this.state.project, ...projectUpdates };
+        console.log('Project state updated via InlineStateManagementService');
+        return true;
+    }
+
+    updateUIState(uiUpdates) {
+        this.state.ui = { ...this.state.ui, ...uiUpdates };
+        console.log('UI state updated via InlineStateManagementService');
+        return true;
+    }
+
+    setNewProjectFlag(isNew) {
+        this.state.ui.isNewProject = isNew;
+        console.log(`New project flag set to ${isNew} via InlineStateManagementService`);
+        return true;
+    }
+
+    setNewProjectPromptShown(shown) {
+        this.state.ui.hasShownNewProjectPrompt = shown;
+        console.log(`New project prompt shown set to ${shown} via InlineStateManagementService`);
+        return true;
+    }
+
+    getCurrentStage() {
+        return this.state.navigation.currentStage;
+    }
+
+    setCurrentStage(stage) {
+        if (stage < 1 || stage > 5) {
+            console.error(`Invalid stage: ${stage}. Must be between 1 and 5.`);
+            return false;
+        }
+        this.state.navigation.currentStage = stage;
+        console.log(`Current stage set to ${stage} via InlineStateManagementService`);
+        return true;
+    }
+
+    canAccessStage(stage) {
+        if (!this.state.workflow) return stage === 1;
+
+        switch (stage) {
+            case 1: return true;
+            case 2: return this.state.workflow.requirementsAnalysis?.isApproved === true;
+            case 3: return this.state.workflow.requirementsAnalysis?.isApproved === true &&
+                this.state.workflow.projectPlanning?.isApproved === true;
+            case 4: return this.state.workflow.requirementsAnalysis?.isApproved === true &&
+                this.state.workflow.projectPlanning?.isApproved === true &&
+                this.state.workflow.storyGeneration?.isApproved === true;
+            case 5: return this.state.workflow.requirementsAnalysis?.isApproved === true &&
+                this.state.workflow.projectPlanning?.isApproved === true &&
+                this.state.workflow.storyGeneration?.isApproved === true;
+            default: return false;
+        }
+    }
+
+    canProgressToNextStage() {
+        if (!this.state.workflow) {
+            return this.state.navigation.currentStage === 1;
+        }
+
+        const currentStage = this.state.navigation.currentStage;
+
+        switch (currentStage) {
+            case 1:
+                return this.state.workflow.requirementsAnalysis?.isApproved === true;
+            case 2:
+                return this.state.workflow.projectPlanning?.isApproved === true;
+            case 3:
+                return this.state.workflow.storyGeneration?.isApproved === true;
+            case 4:
+                return this.state.workflow.promptGeneration?.completionPercentage >= 100;
+            case 5:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    getHighestAccessibleStage() {
+        if (!this.state.workflow) return 1;
+
+        if (this.state.workflow.requirementsAnalysis?.isApproved !== true) return 1;
+        if (this.state.workflow.projectPlanning?.isApproved !== true) return 2;
+        if (this.state.workflow.storyGeneration?.isApproved !== true) return 3;
+        if (this.state.workflow.promptGeneration?.completionPercentage < 100) return 4;
+        return 5;
+    }
+
+    getCurrentStageFromWorkflow() {
+        if (this.state.ui.isNewProject) {
+            console.log('New project detected in getCurrentStageFromWorkflow - forcing stage 1');
+            return 1;
+        }
+
+        if (!this.state.workflow) {
+            console.log('No workflow state, defaulting to stage 1');
+            return 1;
+        }
+
+        const requirementsAnalysis = this.state.workflow.requirementsAnalysis;
+        const projectPlanning = this.state.workflow.projectPlanning;
+        const storyGeneration = this.state.workflow.storyGeneration;
+
+        if (requirementsAnalysis &&
+            requirementsAnalysis.status !== 'NotStarted' &&
+            !requirementsAnalysis.isApproved) {
+            console.log('Requirements analysis exists but not approved, staying at stage 1');
+            return 1;
+        }
+
+        if (requirementsAnalysis?.isApproved === true &&
+            (!projectPlanning || !projectPlanning.isApproved)) {
+            console.log('Requirements approved, project planning not approved, going to stage 2');
+            return 2;
+        }
+
+        if (requirementsAnalysis?.isApproved === true &&
+            projectPlanning?.isApproved === true &&
+            (!storyGeneration || !storyGeneration.isApproved)) {
+            console.log('Requirements and planning approved, stories not approved, going to stage 3');
+            return 3;
+        }
+
+        const stages = [
+            { stage: 1, approved: requirementsAnalysis?.isApproved === true },
+            { stage: 2, approved: projectPlanning?.isApproved === true },
+            { stage: 3, approved: storyGeneration?.isApproved === true },
+            { stage: 4, approved: this.state.workflow.promptGeneration?.completionPercentage >= 100 },
+            { stage: 5, approved: this.state.workflow.promptGeneration?.completionPercentage >= 100 }
+        ];
+
+        for (let i = 0; i < stages.length; i++) {
+            if (!stages[i].approved) {
+                return stages[i].stage;
+            }
+        }
+
+        return 5;
+    }
+
+    calculateProgress() {
+        if (!this.state.workflow) return 0;
+
+        const stages = [
+            this.state.workflow.requirementsAnalysis?.isApproved,
+            this.state.workflow.projectPlanning?.isApproved,
+            this.state.workflow.storyGeneration?.isApproved,
+            this.state.workflow.promptGeneration?.completionPercentage >= 100,
+            this.state.workflow.promptGeneration?.completionPercentage >= 100
+        ];
+
+        const completed = stages.filter(Boolean).length;
+        return Math.round((completed / stages.length) * 100);
+    }
+
+    setProjectData(projectData) {
+        this.state.project.data = projectData;
+        console.log('Project data set via InlineStateManagementService');
+        return true;
+    }
+
+    getProjectData() {
+        return this.state.project.data;
+    }
+
+    updateProjectOverview(project) {
+        this.state.project.name = project.name || '';
+        this.state.project.status = project.status || '';
+        this.state.project.createdAt = project.createdAt || null;
+        this.state.project.description = project.description || '';
+        this.state.project.techStack = project.techStack || '';
+        this.state.project.timeline = project.timeline || '';
+        console.log('Project overview updated via InlineStateManagementService');
+        return true;
+    }
+
+    setLoadingState(state, message = null) {
+        this.state.ui.loadingState = state;
+        this.state.ui.errorMessage = state === 'error' ? message : null;
+        console.log(`Loading state set to ${state} via InlineStateManagementService`);
+        return true;
+    }
+
+    setError(message) {
+        this.state.ui.loadingState = 'error';
+        this.state.ui.errorMessage = message;
+        console.log(`Error set: ${message} via InlineStateManagementService`);
+        return true;
+    }
+
+    clearError() {
+        this.state.ui.loadingState = 'idle';
+        this.state.ui.errorMessage = null;
+        console.log('Error cleared via InlineStateManagementService');
+        return true;
+    }
+
+    setAutoRefreshState(isRefreshing, interval = null) {
+        this.state.navigation.isAutoRefreshing = isRefreshing;
+        this.state.navigation.autoRefreshInterval = interval;
+        console.log(`Auto-refresh state set to ${isRefreshing} via InlineStateManagementService`);
+        return true;
+    }
+
+    isAutoRefreshing() {
+        return this.state.navigation.isAutoRefreshing;
+    }
+
+    subscribe(callback, eventType = 'stateChanged') {
+        const id = ++this.subscriberId;
+
+        if (!this.subscribers.has(eventType)) {
+            this.subscribers.set(eventType, new Map());
+        }
+
+        this.subscribers.get(eventType).set(id, callback);
+
+        console.log(`Subscriber ${id} added for event: ${eventType} via InlineStateManagementService`);
+
+        return () => {
+            if (this.subscribers.has(eventType)) {
+                this.subscribers.get(eventType).delete(id);
+                console.log(`Subscriber ${id} removed for event: ${eventType} via InlineStateManagementService`);
+            }
+        };
+    }
+
+    notifySubscribers(eventType, data) {
+        if (!this.subscribers.has(eventType)) {
+            return;
+        }
+
+        const subscribers = this.subscribers.get(eventType);
+        console.log(`Notifying ${subscribers.size} subscribers for event: ${eventType} via InlineStateManagementService`);
+
+        subscribers.forEach((callback, id) => {
+            try {
+                callback(data);
+            } catch (error) {
+                console.error(`Error in subscriber ${id} for event ${eventType}:`, error);
+            }
+        });
+    }
+
+    dispose() {
+        this.subscribers.clear();
+        console.log('InlineStateManagementService disposed');
+    }
+}
 }
 
 class InlineEventHandlerService {
