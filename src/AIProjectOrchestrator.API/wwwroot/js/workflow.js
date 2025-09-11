@@ -11,8 +11,32 @@ class WorkflowManager {
         this.hasShownNewProjectPrompt = false; // Track if we've shown the prompt
         this.projectData = null; // Store project data for UI updates
 
+        // Initialize service instances with fallback to inline implementations
+        this.initializeServices();
+
         console.log(`WorkflowManager constructor called with projectId=${projectId}, isNewProject=${isNewProject}`);
         this.initialize();
+    }
+
+    initializeServices() {
+        try {
+            // Initialize services with fallback to inline implementations
+            this.contentService = typeof WorkflowContentService !== 'undefined' ?
+                new WorkflowContentService(this) : new InlineWorkflowContentService(this);
+
+            this.eventHandler = typeof EventHandlerService !== 'undefined' ?
+                new EventHandlerService(this) : new InlineEventHandlerService(this);
+
+            this.stageInitializer = typeof StageInitializationService !== 'undefined' ?
+                new StageInitializationService(this) : new InlineStageInitializationService(this);
+
+            console.log('Services initialized successfully');
+        } catch (error) {
+            console.warn('Failed to initialize external services, using inline implementations:', error);
+            this.contentService = new InlineWorkflowContentService(this);
+            this.eventHandler = new InlineEventHandlerService(this);
+            this.stageInitializer = new InlineStageInitializationService(this);
+        }
     }
 
     initialize() {
@@ -23,32 +47,51 @@ class WorkflowManager {
     }
 
     setupEventListeners() {
-        // Navigation buttons
-        document.getElementById('prev-stage')?.addEventListener('click', () => this.navigateStage(-1));
-        document.getElementById('next-stage')?.addEventListener('click', () => this.navigateStage(1));
-
-        // Stage indicators
-        document.querySelectorAll('.stage-indicator').forEach((indicator, index) => {
-            indicator.addEventListener('click', () => this.jumpToStage(index + 1));
-        });
-
-        // Auto-refresh toggle
-        const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
-        if (autoRefreshToggle) {
-            autoRefreshToggle.addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    this.startAutoRefresh();
-                } else {
-                    this.stopAutoRefresh();
-                }
-            });
+        // Delegate to EventHandlerService with fallback
+        try {
+            if (this.eventHandler && typeof this.eventHandler.setupEventListeners === 'function') {
+                this.eventHandler.setupEventListeners();
+            } else {
+                this.setupEventListenersFallback();
+            }
+        } catch (error) {
+            console.warn('EventHandlerService setup failed, using fallback:', error);
+            this.setupEventListenersFallback();
         }
+    }
 
-        // Keyboard navigation
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowLeft') this.navigateStage(-1);
-            if (e.key === 'ArrowRight') this.navigateStage(1);
-        });
+    setupEventListenersFallback() {
+        // Fallback implementation for event listeners
+        try {
+            // Navigation buttons
+            document.getElementById('prev-stage')?.addEventListener('click', () => this.navigateStage(-1));
+            document.getElementById('next-stage')?.addEventListener('click', () => this.navigateStage(1));
+
+            // Stage indicators
+            document.querySelectorAll('.stage-indicator').forEach((indicator, index) => {
+                indicator.addEventListener('click', () => this.jumpToStage(index + 1));
+            });
+
+            // Auto-refresh toggle
+            const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
+            if (autoRefreshToggle) {
+                autoRefreshToggle.addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        this.startAutoRefresh();
+                    } else {
+                        this.stopAutoRefresh();
+                    }
+                });
+            }
+
+            // Keyboard navigation
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft') this.navigateStage(-1);
+                if (e.key === 'ArrowRight') this.navigateStage(1);
+            });
+        } catch (error) {
+            console.error('Fallback event listener setup failed:', error);
+        }
     }
 
     async loadInitialData() {
@@ -1284,7 +1327,21 @@ class WorkflowManager {
     }
 
     initializeStageFunctionality(stage) {
-        // Add stage-specific event listeners and functionality
+        // Delegate to stage initialization service with fallback
+        try {
+            if (this.stageInitializer && typeof this.stageInitializer.initializeStage === 'function') {
+                this.stageInitializer.initializeStage(stage);
+            } else {
+                this.initializeStageFunctionalityInline(stage);
+            }
+        } catch (error) {
+            console.warn('Stage initialization service failed, using inline fallback:', error);
+            this.initializeStageFunctionalityInline(stage);
+        }
+    }
+
+    initializeStageFunctionalityInline(stage) {
+        // Inline fallback implementation for stage initialization
         switch (stage) {
             case 1:
                 this.initializeRequirementsStage();
@@ -2112,3 +2169,113 @@ document.addEventListener('DOMContentLoaded', function () {
 
     console.log('=== WORKFLOW INITIALIZATION COMPLETED ===');
 });
+
+
+// Inline fallback service implementations for backward compatibility
+class InlineWorkflowContentService {
+    constructor(workflowManager) {
+        this.workflowManager = workflowManager;
+        console.log('InlineWorkflowContentService initialized');
+    }
+
+    async getStageContent(stage) {
+        try {
+            const templates = {
+                1: this.workflowManager.getRequirementsStage.bind(this.workflowManager),
+                2: this.workflowManager.getPlanningStage.bind(this.workflowManager),
+                3: this.workflowManager.getStoriesStage.bind(this.workflowManager),
+                4: this.workflowManager.getPromptsStage.bind(this.workflowManager),
+                5: this.workflowManager.getReviewStage.bind(this.workflowManager)
+            };
+
+            return templates[stage] ? await templates[stage]() : '<p>Stage not found</p>';
+        } catch (error) {
+            console.error('InlineWorkflowContentService.getStageContent error:', error);
+            return `<div class="stage-container"><h2>Error Loading Stage</h2><p>Failed to load stage ${stage} content.</p></div>`;
+        }
+    }
+}
+
+class InlineEventHandlerService {
+    constructor(workflowManager) {
+        this.workflowManager = workflowManager;
+        console.log('InlineEventHandlerService initialized');
+    }
+
+    setupEventListeners() {
+        try {
+            // Navigation buttons
+            document.getElementById('prev-stage')?.addEventListener('click', () => this.workflowManager.navigateStage(-1));
+            document.getElementById('next-stage')?.addEventListener('click', () => this.workflowManager.navigateStage(1));
+
+            // Stage indicators
+            document.querySelectorAll('.stage-indicator').forEach((indicator, index) => {
+                indicator.addEventListener('click', () => this.workflowManager.jumpToStage(index + 1));
+            });
+
+            // Auto-refresh toggle
+            const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
+            if (autoRefreshToggle) {
+                autoRefreshToggle.addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        this.workflowManager.startAutoRefresh();
+                    } else {
+                        this.workflowManager.stopAutoRefresh();
+                    }
+                });
+            }
+
+            // Keyboard navigation
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft') this.workflowManager.navigateStage(-1);
+                if (e.key === 'ArrowRight') this.workflowManager.navigateStage(1);
+            });
+
+            console.log('Event listeners setup completed');
+        } catch (error) {
+            console.error('InlineEventHandlerService.setupEventListeners error:', error);
+        }
+    }
+
+    startAutoRefresh() {
+        this.workflowManager.startAutoRefresh();
+    }
+
+    stopAutoRefresh() {
+        this.workflowManager.stopAutoRefresh();
+    }
+}
+
+class InlineStageInitializationService {
+    constructor(workflowManager) {
+        this.workflowManager = workflowManager;
+        console.log('InlineStageInitializationService initialized');
+    }
+
+    initializeStage(stage) {
+        try {
+            switch (stage) {
+                case 1:
+                    this.workflowManager.initializeRequirementsStage();
+                    break;
+                case 2:
+                    this.workflowManager.initializePlanningStage();
+                    break;
+                case 3:
+                    this.workflowManager.initializeStoriesStage();
+                    break;
+                case 4:
+                    this.workflowManager.initializePromptsStage();
+                    break;
+                case 5:
+                    this.workflowManager.initializeReviewStage();
+                    break;
+                default:
+                    console.warn(`Unknown stage ${stage} for initialization`);
+            }
+            console.log(`Stage ${stage} initialized successfully`);
+        } catch (error) {
+            console.error(`InlineStageInitializationService.initializeStage error for stage ${stage}:`, error);
+        }
+    }
+}
