@@ -14,6 +14,7 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         public async Task<PromptGeneration?> GetByPromptIdAsync(string promptId, CancellationToken cancellationToken = default)
         {
             return await _context.PromptGenerations
+                .Include(pg => pg.UserStory)
                 .FirstOrDefaultAsync(pg => pg.PromptId == promptId, cancellationToken);
         }
 

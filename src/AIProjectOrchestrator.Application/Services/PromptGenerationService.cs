@@ -435,7 +435,7 @@ namespace AIProjectOrchestrator.Application.Services
             {
                 _logger.LogInformation("Getting prompt for ID: {PromptId}", promptId);
 
-                // Query the database for the prompt generation
+                // Query the database for the prompt generation with UserStory information
                 var promptGeneration = await _promptGenerationRepository.GetByPromptIdAsync(promptId.ToString(), cancellationToken);
 
                 if (promptGeneration == null)
@@ -444,7 +444,8 @@ namespace AIProjectOrchestrator.Application.Services
                     return null;
                 }
 
-                _logger.LogInformation("Found prompt generation in database with ID: {PromptId}", promptGeneration.PromptId);
+                _logger.LogInformation("Found prompt generation in database with ID: {PromptId} for story: {StoryTitle}",
+                    promptGeneration.PromptId, promptGeneration.UserStory?.Title ?? "Unknown");
 
                 // Map the entity to the response DTO
                 return new PromptGenerationResponse
@@ -455,7 +456,8 @@ namespace AIProjectOrchestrator.Application.Services
                     GeneratedPrompt = promptGeneration.Content,
                     ReviewId = Guid.Parse(promptGeneration.ReviewId),
                     Status = promptGeneration.Status,
-                    CreatedAt = promptGeneration.CreatedDate
+                    CreatedAt = promptGeneration.CreatedDate,
+                    StoryTitle = promptGeneration.UserStory?.Title // Include the story title
                 };
             }
             catch (Exception ex)

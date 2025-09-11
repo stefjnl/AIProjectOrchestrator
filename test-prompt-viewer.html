@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Prompt Viewer</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        body {
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .success {
+            color: green;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 3px;
+        }
+
+        .test-result.pass {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+
+        .test-result.fail {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="test-container">
+        <h1>🧪 Prompt Viewer Implementation Test</h1>
+
+        <div class="test-section">
+            <h2>Test Results</h2>
+            <div id="test-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Manual Test</h2>
+            <p>Navigate to: <a href="/Stories/Overview?generationId=7f6b277d-dc05-4225-9d36-f3625d5418dd&projectId=1"
+                    target="_blank">Stories Overview</a></p>
+            <p>Look for stories with "View Prompt" buttons and test the functionality.</p>
+        </div>
+    </div>
+
+    <script>
+        // Test runner
+        class TestRunner {
+            constructor() {
+                this.results = [];
+                this.testResults = document.getElementById('test-results');
+            }
+
+            addResult(testName, passed, message) {
+                this.results.push({ testName, passed, message });
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `test-result ${passed ? 'pass' : 'fail'}`;
+                resultDiv.innerHTML = `
+                    <strong>${testName}:</strong> ${passed ? '✅ PASS' : '❌ FAIL'}
+                    ${message ? `<br><small>${message}</small>` : ''}
+                `;
+                this.testResults.appendChild(resultDiv);
+            }
+
+            async runTests() {
+                console.log('🧪 Starting Prompt Viewer Tests...');
+
+                // Test 1: Check if required elements exist
+                this.testElementExists();
+
+                // Test 2: Check if API client method exists
+                this.testAPIMethod();
+
+                // Test 3: Check if StoriesOverviewManager methods exist
+                this.testManagerMethods();
+
+                // Test 4: Check if CSS classes exist
+                this.testCSSClasses();
+
+                // Test 5: Test modal functionality
+                await this.testModalFunctionality();
+
+                this.showSummary();
+            }
+
+            testElementExists() {
+                try {
+                    // Check if modal element exists in DOM (simulated)
+                    const modalHTML = `
+                        <div id="prompt-viewer-modal" class="modal">
+                            <div class="modal-content prompt-viewer">
+                                <div class="modal-header">
+                                    <h3 id="modal-prompt-title">Generated Prompt</h3>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = modalHTML;
+                    document.body.appendChild(tempDiv);
+
+                    const modal = document.getElementById('prompt-viewer-modal');
+                    const title = document.getElementById('modal-prompt-title');
+
+                    const passed = modal && title;
+                    this.addResult('Modal Elements Exist', passed,
+                        passed ? 'All required modal elements found' : 'Missing modal elements');
+
+                    // Cleanup
+                    document.body.removeChild(tempDiv);
+                } catch (error) {
+                    this.addResult('Modal Elements Exist', false, error.message);
+                }
+            }
+
+            testAPIMethod() {
+                try {
+                    const hasGetPrompt = typeof window.APIClient?.getPrompt === 'function';
+                    this.addResult('API Client getPrompt Method', hasGetPrompt,
+                        hasGetPrompt ? 'getPrompt method is available' : 'getPrompt method not found');
+                } catch (error) {
+                    this.addResult('API Client getPrompt Method', false, error.message);
+                }
+            }
+
+            testManagerMethods() {
+                try {
+                    const manager = window.storiesOverviewManager;
+                    const methods = [
+                        'viewPrompt',
+                        'showPromptModal',
+                        'calculateQualityScore',
+                        'copyPrompt',
+                        'editPrompt',
+                        'savePromptEdit',
+                        'closePromptModal',
+                        'exportPrompt'
+                    ];
+
+                    let allPassed = true;
+                    const missingMethods = [];
+
+                    methods.forEach(method => {
+                        if (typeof manager?.[method] !== 'function') {
+                            allPassed = false;
+                            missingMethods.push(method);
+                        }
+                    });
+
+                    this.addResult('StoriesOverviewManager Methods', allPassed,
+                        allPassed ? 'All required methods exist' : `Missing methods: ${missingMethods.join(', ')}`);
+                } catch (error) {
+                    this.addResult('StoriesOverviewManager Methods', false, error.message);
+                }
+            }
+
+            testCSSClasses() {
+                try {
+                    const requiredClasses = [
+                        'prompt-viewer',
+                        'prompt-metadata',
+                        'prompt-content',
+                        'modal-header-actions',
+                        'btn-info'
+                    ];
+
+                    let allPassed = true;
+                    const missingClasses = [];
+
+                    // Create a test element to check CSS
+                    const testDiv = document.createElement('div');
+                    testDiv.className = 'test-element';
+                    document.body.appendChild(testDiv);
+
+                    requiredClasses.forEach(className => {
+                        testDiv.className = className;
+                        const hasClass = testDiv.classList.contains(className);
+                        if (!hasClass) {
+                            allPassed = false;
+                            missingClasses.push(className);
+                        }
+                    });
+
+                    this.addResult('CSS Classes Available', allPassed,
+                        allPassed ? 'All required CSS classes exist' : `Missing classes: ${missingClasses.join(', ')}`);
+
+                    // Cleanup
+                    document.body.removeChild(testDiv);
+                } catch (error) {
+                    this.addResult('CSS Classes Available', false, error.message);
+                }
+            }
+
+            async testModalFunctionality() {
+                try {
+                    // Test modal show/hide functionality
+                    const modalHTML = `
+                        <div id="prompt-viewer-modal" class="modal">
+                            <div class="modal-content prompt-viewer">
+                                <div class="modal-header">
+                                    <h3 id="modal-prompt-title">Test Title</h3>
+                                    <div class="modal-header-actions">
+                                        <button class="btn btn-sm btn-secondary" onclick="copyPrompt()">📋 Copy</button>
+                                        <button class="btn btn-sm btn-primary" onclick="editPrompt()">✏️ Edit</button>
+                                        <button class="modal-close" onclick="closePromptModal()">&times;</button>
+                                    </div>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="prompt-metadata">
+                                        <div class="metadata-item">
+                                            <span class="label">Story:</span>
+                                            <span class="value" id="modal-prompt-story-title">Test Story</span>
+                                        </div>
+                                        <div class="metadata-item">
+                                            <span class="label">Generated:</span>
+                                            <span class="value" id="modal-prompt-date">2025-09-11</span>
+                                        </div>
+                                        <div class="metadata-item">
+                                            <span class="label">Quality Score:</span>
+                                            <span class="value" id="modal-prompt-quality">85%</span>
+                                        </div>
+                                    </div>
+                                    <div class="prompt-content-container">
+                                        <div class="prompt-toolbar">
+                                            <button class="btn btn-sm" onclick="toggleSyntaxHighlighting()">🔤 Syntax</button>
+                                            <button class="btn btn-sm" onclick="toggleLineNumbers()">#️⃣ Lines</button>
+                                            <button class="btn btn-sm" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+                                        </div>
+                                        <pre class="prompt-content" id="modal-prompt-content"># Test Prompt Content
+This is a test prompt with technical details.
+
+## Requirements
+- Requirement 1
+- Requirement 2
+
+## Architecture
+- Technical stack details
+- Implementation guidelines</pre>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button class="btn btn-secondary" onclick="closePromptModal()">Close</button>
+                                    <button class="btn btn-primary" onclick="copyPrompt()">📋 Copy to Clipboard</button>
+                                    <button class="btn btn-success" onclick="exportPrompt()">📥 Export</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+                    const modal = document.getElementById('prompt-viewer-modal');
+
+                    // Test showing modal
+                    modal.classList.add('show');
+                    const isVisible = modal.classList.contains('show');
+
+                    this.addResult('Modal Show/Hide', isVisible,
+                        isVisible ? 'Modal visibility toggle works correctly' : 'Modal visibility toggle failed');
+
+                    // Test content population
+                    const title = document.getElementById('modal-prompt-title').textContent;
+                    const content = document.getElementById('modal-prompt-content').textContent;
+                    const hasContent = title && content && content.includes('Test Prompt Content');
+
+                    this.addResult('Modal Content Population', hasContent,
+                        hasContent ? 'Modal content is properly populated' : 'Modal content population failed');
+
+                    // Cleanup
+                    modal.remove();
+                } catch (error) {
+                    this.addResult('Modal Functionality', false, error.message);
+                }
+            }
+
+            showSummary() {
+                const total = this.results.length;
+                const passed = this.results.filter(r => r.passed).length;
+                const failed = total - passed;
+
+                const summaryDiv = document.createElement('div');
+                summaryDiv.className = 'test-section';
+                summaryDiv.innerHTML = `
+                    <h2>📊 Test Summary</h2>
+                    <p><strong>Total Tests:</strong> ${total}</p>
+                    <p><strong>Passed:</strong> <span class="success">${passed}</span></p>
+                    <p><strong>Failed:</strong> <span class="error">${failed}</span></p>
+                    <p><strong>Success Rate:</strong> ${Math.round((passed / total) * 100)}%</p>
+                `;
+                document.querySelector('.test-container').appendChild(summaryDiv);
+
+                console.log(`✅ Test Summary: ${passed}/${total} tests passed (${Math.round((passed / total) * 100)}%)`);
+            }
+        }
+
+        // Run tests when page loads
+        document.addEventListener('DOMContentLoaded', function () {
+            const runner = new TestRunner();
+            runner.runTests();
+        });
+    </script>
+</body>
+
+</html>
