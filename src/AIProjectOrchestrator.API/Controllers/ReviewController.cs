@@ -100,10 +100,10 @@ namespace AIProjectOrchestrator.API.Controllers
         }
 
         [HttpPost("{id:guid}/approve")]
-        [ProducesResponseType(typeof(ReviewResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ReviewSubmission), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<ReviewResponse>> ApproveReview(Guid id, CancellationToken cancellationToken, [FromBody] ReviewDecisionRequest? decision = null)
+        public async Task<ActionResult<ReviewSubmission>> ApproveReview(Guid id, CancellationToken cancellationToken, [FromBody] ReviewDecisionRequest? decision = null)
         {
             try
             {
@@ -170,7 +170,9 @@ namespace AIProjectOrchestrator.API.Controllers
                         // Add cases for other services like CodeGeneration if needed
                 }
 
-                return Ok(response);
+                // Return the full review data instead of just the ReviewResponse
+                // This ensures the frontend gets the complete review information including ProjectId
+                return Ok(review);
             }
             catch (InvalidOperationException ex)
             {
@@ -392,7 +394,7 @@ namespace AIProjectOrchestrator.API.Controllers
                 if (generation == null)
                     return null;
 
-                                var storyCount = await _storyGenerationService.GetStoryCountAsync(Guid.Parse(generation.GenerationId), cancellationToken);
+                var storyCount = await _storyGenerationService.GetStoryCountAsync(Guid.Parse(generation.GenerationId), cancellationToken);
 
                 return new StoryGenerationState
                 {

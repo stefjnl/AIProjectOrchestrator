@@ -112,10 +112,10 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         public async Task<Review?> GetReviewWithWorkflowAsync(Guid reviewId, CancellationToken cancellationToken = default)
         {
             return await _context.Reviews
-                .Include(r => r.RequirementsAnalysis)
-                .Include(r => r.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis)
-                .Include(r => r.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis)
-                .Include(r => r.PromptGeneration).ThenInclude(pg => pg.UserStory).ThenInclude(us => us.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis)
+                .Include(r => r.RequirementsAnalysis).ThenInclude(ra => ra.Project)
+                .Include(r => r.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
+                .Include(r => r.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
+                .Include(r => r.PromptGeneration).ThenInclude(pg => pg.UserStory).ThenInclude(us => us.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
                 .FirstOrDefaultAsync(r => r.ReviewId == reviewId, cancellationToken);
         }
 
