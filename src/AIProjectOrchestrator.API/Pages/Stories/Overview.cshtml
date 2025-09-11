@@ -131,6 +131,49 @@
         </div>
     </div>
 
+    <!-- Prompt Viewer Modal -->
+    <div class="modal" id="prompt-viewer-modal" style="display: none;">
+        <div class="modal-content prompt-viewer">
+            <div class="modal-header">
+                <h3 id="modal-prompt-title">Generated Prompt</h3>
+                <div class="modal-header-actions">
+                    <button class="btn btn-sm btn-secondary" onclick="copyPrompt()">📋 Copy</button>
+                    <button class="btn btn-sm btn-primary" onclick="editPrompt()">✏️ Edit</button>
+                    <button class="modal-close" onclick="closePromptModal()">&times;</button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="prompt-metadata">
+                    <div class="metadata-item">
+                        <span class="label">Story:</span>
+                        <span class="value" id="modal-prompt-story-title"></span>
+                    </div>
+                    <div class="metadata-item">
+                        <span class="label">Generated:</span>
+                        <span class="value" id="modal-prompt-date"></span>
+                    </div>
+                    <div class="metadata-item">
+                        <span class="label">Quality Score:</span>
+                        <span class="value" id="modal-prompt-quality"></span>
+                    </div>
+                </div>
+                <div class="prompt-content-container">
+                    <div class="prompt-toolbar">
+                        <button class="btn btn-sm" onclick="toggleSyntaxHighlighting()">🔤 Syntax</button>
+                        <button class="btn btn-sm" onclick="toggleLineNumbers()">#️⃣ Lines</button>
+                        <button class="btn btn-sm" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+                    </div>
+                    <pre class="prompt-content" id="modal-prompt-content"></pre>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closePromptModal()">Close</button>
+                <button class="btn btn-primary" onclick="copyPrompt()">📋 Copy to Clipboard</button>
+                <button class="btn btn-success" onclick="exportPrompt()">📥 Export</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Edit Story Modal -->
     <div class="modal" id="edit-modal" style="display: none;">
         <div class="modal-content">
@@ -273,6 +316,43 @@
         function saveEditedStory() {
             if (window.storiesOverviewManager) {
                 window.storiesOverviewManager.saveEditedStory();
+            }
+        }
+
+        // Prompt Viewer Modal Functions
+        function copyPrompt() {
+            if (window.storiesOverviewManager) {
+                window.storiesOverviewManager.copyPrompt();
+            }
+        }
+
+        function editPrompt() {
+            if (window.storiesOverviewManager) {
+                window.storiesOverviewManager.editPrompt();
+            }
+        }
+
+        function closePromptModal() {
+            if (window.storiesOverviewManager) {
+                window.storiesOverviewManager.closePromptModal();
+            }
+        }
+
+        function toggleSyntaxHighlighting() {
+            console.log('Syntax highlighting toggle - not implemented yet');
+        }
+
+        function toggleLineNumbers() {
+            console.log('Line numbers toggle - not implemented yet');
+        }
+
+        function toggleFullscreen() {
+            console.log('Fullscreen toggle - not implemented yet');
+        }
+
+        function exportPrompt() {
+            if (window.storiesOverviewManager) {
+                window.storiesOverviewManager.exportPrompt();
             }
         }
     </script>

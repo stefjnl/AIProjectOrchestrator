@@ -96,7 +96,9 @@ namespace AIProjectOrchestrator.API.Controllers
                     StoryPoints = story.StoryPoints,
                     Tags = story.Tags ?? new List<string>(),
                     EstimatedComplexity = story.EstimatedComplexity,
-                    Status = story.Status
+                    Status = story.Status,
+                    HasPrompt = story.HasPrompt,
+                    PromptId = story.PromptId
                 }).ToList();
 
                 return Ok(dtos);
@@ -159,7 +161,9 @@ namespace AIProjectOrchestrator.API.Controllers
                     StoryPoints = story.StoryPoints,
                     Tags = story.Tags ?? new List<string>(),
                     EstimatedComplexity = story.EstimatedComplexity,
-                    Status = story.Status
+                    Status = story.Status,
+                    HasPrompt = story.HasPrompt,
+                    PromptId = story.PromptId
                 }).ToList();
 
                 return Ok(storyDtos);

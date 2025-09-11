@@ -16,5 +16,9 @@ namespace AIProjectOrchestrator.Domain.Models.Stories
         public List<string> Tags { get; set; } = new();
         public string? EstimatedComplexity { get; set; }
         public StoryStatus Status { get; set; } = StoryStatus.Draft;
+        
+        // Prompt generation tracking
+        public bool HasPrompt { get; set; } = false;
+        public string? PromptId { get; set; }
     }
 }

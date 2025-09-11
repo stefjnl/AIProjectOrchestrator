@@ -125,6 +125,11 @@ class StoriesOverviewManager {
                             🤖 Generate Prompt
                         </button>
                     ` : ''}
+                    ${story.hasPrompt ? `
+                        <button class="btn btn-sm btn-info" onclick="window.storiesOverviewManager.viewPrompt('${story.promptId || ''}')">
+                            👁️ View Prompt
+                        </button>
+                    ` : ''}
                 </div>
             </div>
         `;
@@ -704,6 +709,169 @@ class StoriesOverviewManager {
         }
     }
 
+    // Prompt Viewer Methods
+    async viewPrompt(promptId) {
+        if (!promptId) {
+            window.App.showNotification('No prompt ID available.', 'error');
+            return;
+        }
+
+        const loadingOverlay = showLoading('Loading prompt...');
+        try {
+            const response = await APIClient.getPrompt(promptId);
+            if (!response || !response.generatedPrompt) {
+                window.App.showNotification('Prompt not found or empty.', 'error');
+                return;
+            }
+
+            this.showPromptModal(response);
+        } catch (error) {
+            console.error('Failed to load prompt:', error);
+            window.App.showNotification('Failed to load prompt. Please try again.', 'error');
+        } finally {
+            hideLoading(loadingOverlay);
+        }
+    }
+
+    showPromptModal(promptData) {
+        const modal = document.getElementById('prompt-viewer-modal');
+        if (!modal) {
+            console.error('Prompt viewer modal not found');
+            return;
+        }
+
+        // Populate modal content
+        document.getElementById('modal-prompt-title').textContent =
+            `Generated Prompt - ${promptData.storyTitle || 'Untitled Story'}`;
+        
+        document.getElementById('modal-prompt-story-title').textContent =
+            promptData.storyTitle || 'Untitled Story';
+        
+        document.getElementById('modal-prompt-date').textContent =
+            new Date(promptData.createdAt).toLocaleString();
+        
+        document.getElementById('modal-prompt-quality').textContent =
+            this.calculateQualityScore(promptData.generatedPrompt);
+        
+        document.getElementById('modal-prompt-content').textContent =
+            promptData.generatedPrompt;
+
+        // Show modal
+        modal.classList.add('show');
+        
+        // Store current prompt for other operations
+        this.currentPrompt = promptData;
+    }
+
+    calculateQualityScore(prompt) {
+        // Simple quality scoring based on prompt characteristics
+        let score = 0;
+        if (prompt.includes('Context') || prompt.includes('Architecture')) score += 20;
+        if (prompt.includes('Requirements') || prompt.includes('Deliverables')) score += 20;
+        if (prompt.includes('Testing') || prompt.includes('Quality')) score += 15;
+        if (prompt.length > 1000) score += 15;
+        if (prompt.includes('Code') || prompt.includes('Implementation')) score += 10;
+        return `${Math.min(score, 100)}%`;
+    }
+
+    copyPrompt() {
+        if (!this.currentPrompt || !this.currentPrompt.generatedPrompt) {
+            window.App.showNotification('No prompt to copy.', 'warning');
+            return;
+        }
+
+        navigator.clipboard.writeText(this.currentPrompt.generatedPrompt)
+            .then(() => {
+                window.App.showNotification('Prompt copied to clipboard!', 'success');
+            })
+            .catch(err => {
+                console.error('Failed to copy prompt:', err);
+                window.App.showNotification('Failed to copy prompt. Please try again.', 'error');
+            });
+    }
+
+    editPrompt() {
+        if (!this.currentPrompt) {
+            window.App.showNotification('No prompt to edit.', 'warning');
+            return;
+        }
+
+        // Enable inline editing
+        const contentElement = document.getElementById('modal-prompt-content');
+        contentElement.contentEditable = true;
+        contentElement.classList.add('editing');
+        
+        // Change edit button to save button
+        const editBtn = document.querySelector('[onclick="editPrompt()"]');
+        if (editBtn) {
+            editBtn.textContent = '💾 Save';
+            editBtn.onclick = () => this.savePromptEdit();
+        }
+        
+        window.App.showNotification('Prompt is now editable. Make your changes and click Save.', 'info');
+    }
+
+    savePromptEdit() {
+        const contentElement = document.getElementById('modal-prompt-content');
+        const editedContent = contentElement.textContent;
+        
+        if (!this.currentPrompt) {
+            window.App.showNotification('No prompt to save.', 'warning');
+            return;
+        }
+
+        // Update the current prompt
+        this.currentPrompt.generatedPrompt = editedContent;
+        
+        // Disable editing
+        contentElement.contentEditable = false;
+        contentElement.classList.remove('editing');
+        
+        // Change save button back to edit button
+        const saveBtn = document.querySelector('[onclick="savePromptEdit()"]');
+        if (saveBtn) {
+            saveBtn.textContent = '✏️ Edit';
+            saveBtn.onclick = () => this.editPrompt();
+        }
+        
+        window.App.showNotification('Prompt updated successfully!', 'success');
+    }
+
+    closePromptModal() {
+        const modal = document.getElementById('prompt-viewer-modal');
+        if (modal) {
+            modal.classList.remove('show');
+        }
+        this.currentPrompt = null;
+    }
+
+    exportPrompt() {
+        if (!this.currentPrompt || !this.currentPrompt.generatedPrompt) {
+            window.App.showNotification('No prompt to export.', 'warning');
+            return;
+        }
+
+        const data = {
+            promptId: this.currentPrompt.promptId,
+            storyTitle: this.currentPrompt.storyTitle,
+            generatedPrompt: this.currentPrompt.generatedPrompt,
+            createdAt: this.currentPrompt.createdAt,
+            exportedAt: new Date().toISOString()
+        };
+
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `prompt-${this.currentPrompt.promptId}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        window.App.showNotification('Prompt exported successfully!', 'success');
+    }
+
     // Utility functions
     refreshStories() {
         this.loadStories();
@@ -779,6 +947,7 @@ class StoriesOverviewManager {
         this.stopAutoRefresh();
         this.closeStoryModal();
         this.closeEditModal();
+        this.closePromptModal();
     }
 }
 

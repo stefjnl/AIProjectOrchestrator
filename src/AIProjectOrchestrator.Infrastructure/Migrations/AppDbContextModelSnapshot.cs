@@ -357,8 +357,14 @@ namespace AIProjectOrchestrator.Infrastructure.Migrations
                     b.Property<string>("EstimatedComplexity")
                         .HasColumnType("text");
 
+                    b.Property<bool>("HasPrompt")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Priority")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PromptId")
                         .HasColumnType("text");
 
                     b.Property<int>("Status")

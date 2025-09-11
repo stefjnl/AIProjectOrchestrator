@@ -246,6 +246,23 @@ namespace AIProjectOrchestrator.Application.Services
                     CreatedAt = DateTime.UtcNow
                 };
 
+                // Update the UserStory with prompt information
+                try
+                {
+                    _logger.LogInformation("Updating UserStory {StoryId} with prompt information", story.Id);
+                    story.HasPrompt = true;
+                    story.PromptId = response.PromptId.ToString();
+
+                    // Update the story in the repository
+                    await _storyGenerationRepository.UpdateStoryAsync(story, cancellationToken);
+                    _logger.LogInformation("Successfully updated UserStory {StoryId} with prompt ID: {PromptId}", story.Id, response.PromptId);
+                }
+                catch (Exception updateEx)
+                {
+                    _logger.LogWarning(updateEx, "Failed to update UserStory {StoryId} with prompt information, but prompt generation was successful", story.Id);
+                    // Don't fail the entire operation if the update fails
+                }
+
                 _logger.LogInformation("Prompt generated successfully with ID: {PromptId}", response.PromptId);
                 return response;
             }
