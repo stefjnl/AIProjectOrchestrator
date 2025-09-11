@@ -204,7 +204,7 @@ class WorkflowManager {
             // Debug the structure
             if (this.workflowState) {
                 console.log('Requirements analysis:', this.workflowState.requirementsAnalysis);
-                console.log('Project planning:', this.workflowState.projectPlanning);
+                console.log('Project planning details:', JSON.stringify(this.workflowState.projectPlanning, null, 2));
                 console.log('Story generation:', this.workflowState.storyGeneration);
                 console.log('Prompt generation:', this.workflowState.promptGeneration);
             }
@@ -1063,58 +1063,41 @@ class WorkflowManager {
 
     async getPromptsStage() {
         try {
-            // For prompts, we might not have a specific ID, so check if any prompts exist
-            const hasPrompts = this.workflowState?.promptGeneration?.storyPrompts &&
-                this.workflowState.promptGeneration.storyPrompts.length > 0;
+            // Check if we have prompts from the workflow state or API
+            let prompts = [];
+            let hasPrompts = false;
+
+            // First try to get prompts from workflow state
+            if (this.workflowState?.promptGeneration?.storyPrompts && this.workflowState.promptGeneration.storyPrompts.length > 0) {
+                prompts = this.workflowState.promptGeneration.storyPrompts;
+                hasPrompts = true;
+            } else {
+                // Try to load prompts from API
+                try {
+                    prompts = await APIClient.getPrompts(this.projectId);
+                    hasPrompts = prompts && prompts.length > 0;
+                } catch (apiError) {
+                    console.warn('Could not load prompts from API:', apiError);
+                }
+            }
 
             if (hasPrompts) {
-                // Use the existing prompts from workflow state
-                return `
-                    <div class="stage-container">
-                        <h2>Prompt Generation</h2>
-                        <div class="prompts-content">
-                            <div class="prompts-summary">
-                                <h3>Generated Prompts</h3>
-                                ${this.formatPrompts(this.workflowState.promptGeneration.storyPrompts)}
-                            </div>
-                            <div class="prompts-actions">
-                                <button class="btn btn-primary" onclick="workflowManager.generateAllPrompts()">
-                                    🚀 Generate All Prompts
-                                </button>
-                                <button class="btn btn-secondary" onclick="workflowManager.customizePrompts()">
-                                    ⚙️ Customize Prompts
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                // Show prompt review interface
+                return this.getPromptsReviewState(prompts);
             } else {
-                // Try to load prompts from API if we have a way to identify them
-                try {
-                    const prompts = await APIClient.getPrompts(this.projectId);
-                    return `
-                        <div class="stage-container">
-                            <h2>Prompt Generation</h2>
-                            <div class="prompts-content">
-                                <div class="prompts-summary">
-                                    <h3>Generated Prompts</h3>
-                                    ${this.formatPrompts(prompts)}
-                                </div>
-                                <div class="prompts-actions">
-                                    <button class="btn btn-primary" onclick="workflowManager.generateAllPrompts()">
-                                        🚀 Generate All Prompts
-                                    </button>
-                                    <button class="btn btn-secondary" onclick="workflowManager.customizePrompts()">
-                                        ⚙️ Customize Prompts
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                } catch (apiError) {
-                    console.warn('Could not load prompts:', apiError);
-                    return this.getPromptsEmptyState();
+                // Check if we can get prompts from story generation
+                const generationId = this.workflowState?.storyGeneration?.generationId;
+                if (generationId) {
+                    try {
+                        const approvedStories = await APIClient.getApprovedStories(generationId);
+                        if (approvedStories && approvedStories.length > 0) {
+                            return this.getPromptsReadyState(approvedStories);
+                        }
+                    } catch (apiError) {
+                        console.warn('Could not load approved stories:', apiError);
+                    }
                 }
+                return this.getPromptsEmptyState();
             }
         } catch (error) {
             console.error('Error in getPromptsStage:', error);
@@ -1122,17 +1105,65 @@ class WorkflowManager {
         }
     }
 
+    getPromptsReviewState(prompts) {
+        return `
+            <div class="stage-container">
+                <h2>Prompt Review</h2>
+                <div class="prompts-content">
+                    <div class="prompts-summary">
+                        <h3>Generated Prompts</h3>
+                        ${this.formatPrompts(prompts)}
+                    </div>
+                    <div class="prompts-actions">
+                        <button class="btn btn-success" onclick="workflowManager.navigateToStage5()">
+                            ✅ Continue to Final Review
+                        </button>
+                        <button class="btn btn-secondary" onclick="workflowManager.exportPrompts()">
+                            📥 Export Prompts
+                        </button>
+                        <button class="btn btn-outline" onclick="workflowManager.regeneratePrompts()">
+                            🔄 Regenerate All
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    getPromptsReadyState(approvedStories) {
+        return `
+            <div class="stage-container">
+                <h2>Prompt Review</h2>
+                <div class="stage-status ready">
+                    <div class="status-icon">✅</div>
+                    <h3>Ready for Prompt Generation</h3>
+                    <p>${approvedStories.length} approved stories are ready for prompt generation.</p>
+                    <div class="stage-actions">
+                        <button class="btn btn-primary" onclick="workflowManager.generateAllPrompts()">
+                            🤖 Generate Prompts for ${approvedStories.length} Stories
+                        </button>
+                        <button class="btn btn-secondary" onclick="workflowManager.navigateToStoriesOverview()">
+                            📋 Manage Individual Stories
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     getPromptsEmptyState() {
         return `
             <div class="stage-container">
-                <h2>Prompt Generation</h2>
+                <h2>Prompt Review</h2>
                 <div class="empty-stage">
                     <div class="empty-icon">🤖</div>
-                    <h3>No Prompts Found</h3>
-                    <p>Generate code prompts based on your approved user stories.</p>
-                    <button class="btn btn-primary" onclick="workflowManager.generateAllPrompts()">
-                        🚀 Generate Prompts
-                    </button>
+                    <h3>No Prompts Available</h3>
+                    <p>No prompts have been generated yet. Please ensure you have approved stories and generate prompts first.</p>
+                    <div class="stage-actions">
+                        <button class="btn btn-primary" onclick="workflowManager.navigateToStoriesOverview()">
+                            📋 Go to Stories Overview
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
@@ -1479,7 +1510,7 @@ class WorkflowManager {
 
     async generateStories() {
         console.log('=== generateStories() called ===');
-        
+
         // Check if stories are already approved
         if (this.workflowState?.storyGeneration?.isApproved === true) {
             if (!confirm('User stories are already completed. Do you want to regenerate them? This will require re-approval.')) {
@@ -1502,22 +1533,25 @@ class WorkflowManager {
         try {
             console.log('Getting project details for story generation...');
             const project = await APIClient.getProject(this.projectId);
-            
-            // Create the story generation request
+
+            // Validate that we have required IDs before proceeding
+            if (!this.workflowState?.projectPlanning?.planningId) {
+                console.error('Cannot generate stories: Project Planning ID is missing');
+                window.App.showNotification('Failed to generate stories: Project Planning not completed.', 'error');
+                return;
+            }
+
             const request = {
                 ProjectId: this.projectId,
                 RequirementsAnalysisId: this.workflowState?.requirementsAnalysis?.analysisId,
-                ProjectPlanningId: this.workflowState?.projectPlanning?.planningId,
+                PlanningId: this.workflowState?.projectPlanning?.planningId,
                 ProjectDescription: project.description || 'No description available',
                 TechStack: project.techStack || 'Not specified',
                 Timeline: project.timeline || 'Not specified',
-                AdditionalContext: null // Can be extended later
+                AdditionalContext: null
             };
 
             console.log('Generating user stories with request:', request);
-            
-            // Make API call to generate user stories
-            console.log('Calling APIClient.generateStories...');
             const result = await APIClient.generateStories(request);
             console.log('User stories generation result:', result);
 
@@ -1539,7 +1573,7 @@ class WorkflowManager {
 
     async regenerateStories() {
         console.log('=== regenerateStories() called ===');
-        
+
         // Check if stories are already approved
         if (this.workflowState?.storyGeneration?.isApproved === true) {
             if (!confirm('User stories are already completed. Do you want to regenerate them? This will require re-approval.')) {
@@ -1562,20 +1596,26 @@ class WorkflowManager {
         try {
             console.log('Getting project details for story regeneration...');
             const project = await APIClient.getProject(this.projectId);
-            
-            // Create the story generation request for regeneration
+
+            // Validate that we have required IDs before proceeding
+            if (!this.workflowState?.projectPlanning?.planningId) {
+                console.error('Cannot regenerate stories: Project Planning ID is missing');
+                window.App.showNotification('Failed to regenerate stories: Project Planning not completed.', 'error');
+                return;
+            }
+
             const request = {
                 ProjectId: this.projectId,
                 RequirementsAnalysisId: this.workflowState?.requirementsAnalysis?.analysisId,
-                ProjectPlanningId: this.workflowState?.projectPlanning?.planningId,
+                PlanningId: this.workflowState?.projectPlanning?.planningId,
                 ProjectDescription: project.description || 'No description available',
                 TechStack: project.techStack || 'Not specified',
                 Timeline: project.timeline || 'Not specified',
-                AdditionalContext: 'Regenerated stories' // Indicate this is a regeneration
+                AdditionalContext: 'Regenerated stories'
             };
 
             console.log('Regenerating user stories with request:', request);
-            
+
             // Make API call to regenerate user stories
             console.log('Calling APIClient.generateStories for regeneration...');
             const result = await APIClient.generateStories(request);
@@ -1598,12 +1638,73 @@ class WorkflowManager {
     }
 
     async generateAllPrompts() {
+        console.log('=== generateAllPrompts() called ===');
+
+        // Check if stories are approved
+        if (this.workflowState?.storyGeneration?.isApproved !== true) {
+            window.App.showNotification('You must complete User Stories before generating prompts.', 'warning');
+            return;
+        }
+
+        // Check if prompts are already generated
+        if (this.workflowState?.promptGeneration?.completionPercentage >= 100) {
+            if (!confirm('Prompts are already generated. Do you want to regenerate them?')) {
+                return;
+            }
+        }
+
         const loadingOverlay = showLoading('Generating all prompts...');
         try {
-            // Implementation for prompt generation
-            window.App.showNotification('All prompts generated successfully!', 'success');
+            console.log('Getting project details for prompt generation...');
+            const project = await APIClient.getProject(this.projectId);
+
+            // Validate that we have required IDs before proceeding
+            if (!this.workflowState?.storyGeneration?.generationId) {
+                console.error('Cannot generate prompts: Story Generation ID is missing');
+                window.App.showNotification('Failed to generate prompts: User Stories not completed.', 'error');
+                return;
+            }
+
+            // Get approved stories to generate prompts for
+            console.log('Getting approved stories...');
+            const approvedStories = await APIClient.getApprovedStories(this.workflowState.storyGeneration.generationId);
+            console.log('Approved stories:', approvedStories);
+
+            if (!approvedStories || approvedStories.length === 0) {
+                window.App.showNotification('No approved stories found. Please approve some stories first.', 'warning');
+                return;
+            }
+
+            // Create the prompt generation request
+            const request = {
+                ProjectId: this.projectId,
+                RequirementsAnalysisId: this.workflowState?.requirementsAnalysis?.analysisId,
+                PlanningId: this.workflowState?.projectPlanning?.planningId,
+                StoryGenerationId: this.workflowState?.storyGeneration?.generationId,
+                Stories: approvedStories,
+                ProjectDescription: project.description || 'No description available',
+                TechStack: project.techStack || 'Not specified',
+                Timeline: project.timeline || 'Not specified',
+                AdditionalContext: null
+            };
+
+            console.log('Generating prompts with request:', request);
+
+            // Make API call to generate prompts
+            console.log('Calling APIClient.generatePrompt...');
+            const result = await APIClient.generatePrompt(request);
+            console.log('Prompt generation result:', result);
+
+            window.App.showNotification('Prompts submitted for review! Check the Review Queue.', 'success');
+
+            // Reload workflow state to reflect changes
+            console.log('Reloading workflow state...');
+            await this.loadWorkflowState();
+            console.log('Reloading stage content...');
             await this.loadStageContent(4);
+            console.log('=== generateAllPrompts() completed successfully ===');
         } catch (error) {
+            console.error('Failed to generate prompts:', error);
             window.App.showNotification(`Failed to generate prompts: ${error.message || error}`, 'error');
         } finally {
             hideLoading(loadingOverlay);
@@ -1712,9 +1813,15 @@ class WorkflowManager {
             }
 
             if (!previousStoriesApproved && currentStoriesApproved) {
-                console.log('Stories approved, progressing to stage 4');
-                await this.loadStageContent(4);
-                window.App.showNotification('User stories approved! Moving to Prompt Generation.', 'success');
+                console.log('Stories approved, navigating to StoriesOverview');
+                // Navigate to StoriesOverview page instead of stage 4
+                const generationId = this.workflowState?.storyGeneration?.generationId;
+                if (generationId) {
+                    window.location.href = `/Stories/Overview?generationId=${generationId}&projectId=${this.projectId}`;
+                } else {
+                    console.error('No generation ID found for StoriesOverview navigation');
+                    window.App.showNotification('Stories approved but cannot navigate to overview.', 'error');
+                }
                 return;
             }
 
@@ -1810,6 +1917,29 @@ class WorkflowManager {
 
     exportProject() {
         window.App.showNotification('Export project functionality coming soon', 'info');
+    }
+
+    navigateToStoriesOverview() {
+        const generationId = this.workflowState?.storyGeneration?.generationId;
+        if (generationId) {
+            window.location.href = `/Stories/Overview?generationId=${generationId}&projectId=${this.projectId}`;
+        } else {
+            window.App.showNotification('No story generation ID found.', 'error');
+        }
+    }
+
+    navigateToStage5() {
+        this.jumpToStage(5);
+    }
+
+    exportPrompts() {
+        window.App.showNotification('Export prompts functionality coming soon', 'info');
+    }
+
+    regeneratePrompts() {
+        if (confirm('Are you sure you want to regenerate all prompts? This will replace existing prompts.')) {
+            this.generateAllPrompts();
+        }
     }
 
     // Show start workflow button for new projects (containers removed, now integrated into stage content)

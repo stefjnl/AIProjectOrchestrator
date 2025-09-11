@@ -88,9 +88,9 @@ namespace AIProjectOrchestrator.Infrastructure.Data
                 .IsUnique();
 
             modelBuilder.Entity<PromptGeneration>()
-                .HasOne(pg => pg.StoryGeneration)
-                .WithMany(sg => sg.PromptGenerations)
-                .HasForeignKey(pg => pg.StoryGenerationId)
+                .HasOne(pg => pg.UserStory)
+                .WithMany(us => us.PromptGenerations)
+                .HasForeignKey(pg => pg.UserStoryId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<PromptGeneration>()
@@ -139,8 +139,8 @@ namespace AIProjectOrchestrator.Infrastructure.Data
                 .HasDatabaseName("IX_StoryGeneration_Status");
 
             modelBuilder.Entity<PromptGeneration>()
-                .HasIndex(p => p.StoryGenerationId)
-                .HasDatabaseName("IX_PromptGeneration_StoryGenerationId");
+                .HasIndex(p => p.UserStoryId)
+                .HasDatabaseName("IX_PromptGeneration_UserStoryId");
 
             modelBuilder.Entity<PromptGeneration>()
                 .HasIndex(p => p.Status)

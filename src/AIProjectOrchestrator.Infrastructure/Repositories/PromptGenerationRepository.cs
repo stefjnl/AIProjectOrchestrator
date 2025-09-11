@@ -14,30 +14,32 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         public async Task<PromptGeneration?> GetByPromptIdAsync(string promptId, CancellationToken cancellationToken = default)
         {
             return await _context.PromptGenerations
+                .Include(pg => pg.UserStory)
                 .FirstOrDefaultAsync(pg => pg.PromptId == promptId, cancellationToken);
         }
 
-        public async Task<PromptGeneration?> GetByStoryGenerationIdAndIndexAsync(int storyGenerationId, int storyIndex, CancellationToken cancellationToken = default)
+        public async Task<PromptGeneration?> GetByUserStoryIdAndIndexAsync(Guid userStoryId, int storyIndex, CancellationToken cancellationToken = default)
         {
             return await _context.PromptGenerations
-                .FirstOrDefaultAsync(pg => pg.StoryGenerationId == storyGenerationId && pg.StoryIndex == storyIndex, cancellationToken);
+                .FirstOrDefaultAsync(pg => pg.UserStoryId == userStoryId && pg.StoryIndex == storyIndex, cancellationToken);
         }
 
-        public async Task<IEnumerable<PromptGeneration>> GetByStoryGenerationIdAsync(int storyGenerationId, CancellationToken cancellationToken = default)
+        public async Task<IEnumerable<PromptGeneration>> GetByUserStoryIdAsync(Guid userStoryId, CancellationToken cancellationToken = default)
         {
             return await _context.PromptGenerations
-                .Where(pg => pg.StoryGenerationId == storyGenerationId)
+                .Where(pg => pg.UserStoryId == userStoryId)
                 .ToListAsync(cancellationToken);
         }
 
         public async Task<IEnumerable<PromptGeneration>> GetByProjectIdAsync(int projectId, CancellationToken cancellationToken = default)
         {
             return await _context.PromptGenerations
-                .Include(pg => pg.StoryGeneration)
-                    .ThenInclude(sg => sg.ProjectPlanning)
-                        .ThenInclude(pp => pp.RequirementsAnalysis)
-                            .ThenInclude(ra => ra.Project)
-                .Where(pg => pg.StoryGeneration.ProjectPlanning.RequirementsAnalysis.ProjectId == projectId)
+                .Include(pg => pg.UserStory)
+                    .ThenInclude(us => us.StoryGeneration)
+                        .ThenInclude(sg => sg.ProjectPlanning)
+                            .ThenInclude(pp => pp.RequirementsAnalysis)
+                                .ThenInclude(ra => ra.Project)
+                .Where(pg => pg.UserStory.StoryGeneration.ProjectPlanning.RequirementsAnalysis.ProjectId == projectId)
                 .ToListAsync(cancellationToken);
         }
     }

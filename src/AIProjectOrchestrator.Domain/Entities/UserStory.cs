@@ -23,5 +23,12 @@ namespace AIProjectOrchestrator.Domain.Entities
         public List<string> Tags { get; set; } = new();
         public string? EstimatedComplexity { get; set; }
         public StoryStatus Status { get; set; } = StoryStatus.Draft;
+
+        // Prompt generation tracking
+        public bool HasPrompt { get; set; } = false;
+        public string? PromptId { get; set; }
+        
+        // Navigation properties
+        public List<PromptGeneration> PromptGenerations { get; set; } = new();
     }
 }

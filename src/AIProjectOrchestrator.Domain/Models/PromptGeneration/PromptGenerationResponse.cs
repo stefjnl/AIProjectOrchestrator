@@ -11,5 +11,6 @@ namespace AIProjectOrchestrator.Domain.Models.PromptGeneration
         public Guid ReviewId { get; set; }
         public PromptGenerationStatus Status { get; set; }
         public DateTime CreatedAt { get; set; }
+        public string? StoryTitle { get; set; }
     }
 }
