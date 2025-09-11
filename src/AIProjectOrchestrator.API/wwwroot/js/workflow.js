@@ -84,6 +84,11 @@ class WorkflowManager {
             // Load initial data
             await this.loadInitialData();
 
+            // Update stage indicators after data is loaded
+            if (this.stateManager) {
+                this.stateManager.updateStageIndicators();
+            }
+
             console.log('Workflow orchestrator initialized successfully');
         } catch (error) {
             console.error('Failed to initialize workflow orchestrator:', error);

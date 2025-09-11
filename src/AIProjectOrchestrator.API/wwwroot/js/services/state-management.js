@@ -216,6 +216,16 @@ class StateManagementService {
             // Update cache timestamp
             this.state.cache.lastUpdated = new Date().toISOString();
 
+            // Update stage indicators when workflow state changes
+            if (section === 'workflow') {
+                this.updateStageIndicators();
+            }
+
+            // Also update project overview when project state changes
+            if (section === 'project') {
+                this.updateProjectOverviewUI();
+            }
+
             // Notify subscribers
             if (!options.silent) {
                 this.notifySubscribers(`${section}Changed`, {
@@ -407,6 +417,119 @@ class StateManagementService {
         };
 
         return this.updateProjectState(updates);
+    }
+
+    /**
+     * Update pipeline stage indicators based on workflow state
+     */
+    updateStageIndicators() {
+        // Update both stage indicators and project overview
+        this.updateProjectOverviewUI();
+        this.updateStageIndicatorClasses();
+    }
+
+    /**
+     * Update project overview UI with current project data
+     */
+    updateProjectOverviewUI() {
+        const project = this.state.project;
+        if (!project) return;
+
+        // Update project name
+        const projectNameElement = document.getElementById('project-name');
+        if (projectNameElement) {
+            projectNameElement.textContent = project.name || 'Unknown Project';
+        }
+
+        // Update project status
+        const projectStatusElement = document.getElementById('project-status');
+        if (projectStatusElement) {
+            projectStatusElement.textContent = project.status || 'Not Started';
+            projectStatusElement.className = `project-status status-${(project.status || 'not-started').toLowerCase().replace(/\s+/g, '-')}`;
+        }
+
+        // Update project created date
+        const projectCreatedElement = document.getElementById('project-created');
+        if (projectCreatedElement) {
+            const createdDate = project.createdAt ? new Date(project.createdAt) : new Date();
+            projectCreatedElement.textContent = createdDate.toLocaleDateString();
+        }
+
+        // Update project progress
+        const projectProgressElement = document.getElementById('project-progress');
+        if (projectProgressElement) {
+            const progress = this.calculateProgress();
+            projectProgressElement.textContent = `${progress}%`;
+
+            // Update progress bar
+            const progressBar = document.querySelector('.progress-bar .progress-fill');
+            if (progressBar) {
+                progressBar.style.width = `${progress}%`;
+            }
+        }
+
+        // Update loading state
+        const overviewContent = document.getElementById('overview-content');
+        if (overviewContent && overviewContent.innerHTML.includes('Loading...')) {
+            overviewContent.classList.remove('loading');
+        }
+    }
+
+    /**
+     * Update stage indicator CSS classes based on workflow state
+     */
+    updateStageIndicatorClasses() {
+        const workflow = this.state.workflow;
+        if (!workflow) return;
+
+        // Update stage 1 (requirements)
+        const stage1Element = document.getElementById('stage-1');
+        if (stage1Element) {
+            if (workflow.requirementsAnalysis?.isApproved) {
+                stage1Element.classList.add('completed');
+            } else if (workflow.requirementsAnalysis?.status !== 'NotStarted') {
+                stage1Element.classList.add('active');
+            }
+        }
+
+        // Update stage 2 (planning)
+        const stage2Element = document.getElementById('stage-2');
+        if (stage2Element) {
+            if (workflow.projectPlanning?.isApproved) {
+                stage2Element.classList.add('completed');
+            } else if (workflow.projectPlanning?.status !== 'NotStarted') {
+                stage2Element.classList.add('active');
+            }
+        }
+
+        // Update stage 3 (stories)
+        const stage3Element = document.getElementById('stage-3');
+        if (stage3Element) {
+            if (workflow.storyGeneration?.isApproved) {
+                stage3Element.classList.add('completed');
+            } else if (workflow.storyGeneration?.status !== 'NotStarted') {
+                stage3Element.classList.add('active');
+            }
+        }
+
+        // Update stage 4 (prompts)
+        const stage4Element = document.getElementById('stage-4');
+        if (stage4Element) {
+            const completion = workflow.promptGeneration?.completionPercentage || 0;
+            if (completion >= 100) {
+                stage4Element.classList.add('completed');
+            } else if (completion > 0) {
+                stage4Element.classList.add('active');
+            }
+        }
+
+        // Update stage 5 (review)
+        const stage5Element = document.getElementById('stage-5');
+        if (stage5Element) {
+            if (workflow.promptGeneration?.completionPercentage >= 100) {
+                stage5Element.classList.add('available');
+            }
+        }
     }
 
     /**
@@ -792,46 +915,44 @@ class StateManagementService {
     }
 
     /**
+     * Update pipeline stage indicators based on workflow state
+     */
+    // REMOVED: Duplicate implementation - use the one at line 425 instead
+
+    /**
      * Get state summary for debugging
      */
     getStateSummary() {
-        const state = this.getState();
         return {
-            currentStage: state.navigation.currentStage,
-            isNewProject: state.ui.isNewProject,
-            hasShownPrompt: state.ui.hasShownNewProjectPrompt,
-            isAutoRefreshing: state.navigation.isAutoRefreshing,
-            loadingState: state.ui.loadingState,
-            errorMessage: state.ui.errorMessage,
-            workflowProgress: this.calculateProgress(),
-            lastUpdated: state.cache.lastUpdated,
-            subscriberCount: this.getSubscriberCount()
+            projectId: this.projectId,
+            currentStage: this.getCurrentStage(),
+            progress: this.calculateProgress(),
+            projectName: this.state.project.name || 'Unknown',
+            projectStatus: this.state.project.status || 'Not Started',
+            workflowStatus: {
+                requirements: this.state.workflow.requirementsAnalysis?.status,
+                planning: this.state.workflow.projectPlanning?.status,
+                stories: this.state.workflow.storyGeneration?.status,
+                prompts: this.state.workflow.promptGeneration?.status
+            }
         };
     }
 
-    getSubscriberCount() {
-        let count = 0;
-        this.subscribers.forEach(subscribers => {
-            count += subscribers.size;
-        });
-        return count;
+    /**
+     * Get subscriber count for debugging
+     */
+    getSubscriberCount(eventType = 'stateChanged') {
+        if (!this.subscribers.has(eventType)) return 0;
+        return this.subscribers.get(eventType).size;
     }
 
     /**
-     * Cleanup and disposal
+     * Clean up resources
      */
     dispose() {
         this.cancelAutoSave();
         this.subscribers.clear();
         this.stateHistory = [];
-        this.historyIndex = -1;
         console.log('StateManagementService disposed');
     }
-}
-
-// Export for both browser and Node.js environments
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = StateManagementService;
-} else if (typeof window !== 'undefined') {
-    window.StateManagementService = StateManagementService;
 }

@@ -210,6 +210,11 @@ class StoriesOverviewManager {
             this.updateProgress();
             window.App.showNotification('Story approved successfully!', 'success');
 
+            // Close the story modal if it's open and this is the current story
+            if (this.currentStory && this.currentStory.id === storyId) {
+                this.closeStoryModal();
+            }
+
         } catch (error) {
             console.error('Failed to approve story:', error);
             window.App.showNotification('Failed to approve story. Please try again.', 'error');
@@ -269,6 +274,10 @@ class StoriesOverviewManager {
             this.renderStories();
             this.updateProgress();
             window.App.showNotification(`All ${pendingStories.length} stories approved successfully!`, 'success');
+
+            // Close any open modals after bulk approval
+            this.closeStoryModal();
+            this.closeEditModal();
 
         } catch (error) {
             console.error('Failed to approve all stories:', error);
@@ -694,6 +703,7 @@ class StoriesOverviewManager {
     approveCurrentStory() {
         if (this.currentStory) {
             this.approveStory(this.currentStory.id);
+            // The approveStory function will handle closing the modal if it's the current story
         }
     }
 
@@ -743,22 +753,22 @@ class StoriesOverviewManager {
         // Populate modal content
         document.getElementById('modal-prompt-title').textContent =
             `Generated Prompt - ${promptData.storyTitle || 'Untitled Story'}`;
-        
+
         document.getElementById('modal-prompt-story-title').textContent =
             promptData.storyTitle || 'Untitled Story';
-        
+
         document.getElementById('modal-prompt-date').textContent =
             new Date(promptData.createdAt).toLocaleString();
-        
+
         document.getElementById('modal-prompt-quality').textContent =
             this.calculateQualityScore(promptData.generatedPrompt);
-        
+
         document.getElementById('modal-prompt-content').textContent =
             promptData.generatedPrompt;
 
         // Show modal
         modal.classList.add('show');
-        
+
         // Store current prompt for other operations
         this.currentPrompt = promptData;
     }
@@ -800,21 +810,21 @@ class StoriesOverviewManager {
         const contentElement = document.getElementById('modal-prompt-content');
         contentElement.contentEditable = true;
         contentElement.classList.add('editing');
-        
+
         // Change edit button to save button
         const editBtn = document.querySelector('[onclick="editPrompt()"]');
         if (editBtn) {
             editBtn.textContent = '💾 Save';
             editBtn.onclick = () => this.savePromptEdit();
         }
-        
+
         window.App.showNotification('Prompt is now editable. Make your changes and click Save.', 'info');
     }
 
     savePromptEdit() {
         const contentElement = document.getElementById('modal-prompt-content');
         const editedContent = contentElement.textContent;
-        
+
         if (!this.currentPrompt) {
             window.App.showNotification('No prompt to save.', 'warning');
             return;
@@ -822,18 +832,18 @@ class StoriesOverviewManager {
 
         // Update the current prompt
         this.currentPrompt.generatedPrompt = editedContent;
-        
+
         // Disable editing
         contentElement.contentEditable = false;
         contentElement.classList.remove('editing');
-        
+
         // Change save button back to edit button
         const saveBtn = document.querySelector('[onclick="savePromptEdit()"]');
         if (saveBtn) {
             saveBtn.textContent = '✏️ Edit';
             saveBtn.onclick = () => this.editPrompt();
         }
-        
+
         window.App.showNotification('Prompt updated successfully!', 'success');
     }
 

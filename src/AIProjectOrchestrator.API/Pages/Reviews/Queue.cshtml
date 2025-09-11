@@ -92,6 +92,19 @@
             window.App.showNotification(message, 'success');
         }
 
+        // Helper function to redirect to project workflow after approval
+        function redirectToProjectWorkflow(projectId) {
+            if (projectId) {
+                // Show confirmation message before redirect
+                window.App.showNotification('Review approved! Redirecting to project workflow...', 'success');
+
+                // Redirect after brief delay (1.5 seconds)
+                setTimeout(() => {
+                    window.location.href = `/Projects/Workflow?projectId=${projectId}`;
+                }, 1500);
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             loadReviews();
             setupEventListeners();
@@ -152,42 +165,42 @@
             emptyState.style.display = 'none';
 
             container.innerHTML = reviews.map(review => `
-                            <div class="review-item ${review.status}" data-review-id="${review.id}">
-                                <div class="review-header">
-                                    <div class="review-checkbox">
-                                        <input type="checkbox" id="review-${review.id}" 
-                                               onchange="toggleReviewSelection('${review.id}')">
-                                    </div>
-                                    <div class="review-info">
-                                        <h4>${review.title || 'Untitled Review'}</h4>
-                                        <div class="review-meta">
-                                            <span class="review-type">${review.type}</span>
-                                            <span class="review-date">${new Date(review.createdAt).toLocaleDateString()}</span>
-                                            <span class="review-status ${review.status}">${review.status}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="review-content">
-                                    <p class="review-description">${review.description || 'No description'}</p>
-                                    <div class="review-preview">
-                                        <pre>${review.content ? review.content.substring(0, 200) + '...' : 'No content'}</pre>
-                                    </div>
-                                </div>
-                                <div class="review-actions">
-                                    <button class="btn btn-primary" onclick="openReviewModal('${review.id}')">
-                                        Review Details
-                                    </button>
-                                    ${review.status === 'pending' ? `
-                                        <button class="btn btn-success" onclick="quickApprove('${review.id}')">
-                                            Approve
-                                        </button>
-                                        <button class="btn btn-danger" onclick="quickReject('${review.id}')">
-                                            Reject
-                                        </button>
-                                    ` : ''}
-                                </div>
-                            </div>
-                        `).join('');
+                                            <div class="review-item ${review.status}" data-review-id="${review.id}">
+                                                <div class="review-header">
+                                                    <div class="review-checkbox">
+                                                        <input type="checkbox" id="review-${review.id}"
+                                                               onchange="toggleReviewSelection('${review.id}')">
+                                                    </div>
+                                                    <div class="review-info">
+                                                        <h4>${review.serviceName} Review - ${review.pipelineStage}</h4>
+                                                        <div class="review-meta">
+                                                            <span class="review-type">${review.serviceName}</span>
+                                                            <span class="review-date">${new Date(review.submittedAt).toLocaleDateString()}</span>
+                                                            <span class="review-status ${review.status}">${review.status}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="review-content">
+                                                    <p class="review-description">${review.content ? review.content.substring(0, 150) + '...' : 'No description'}</p>
+                                                    <div class="review-preview">
+                                                        <pre>${review.content ? review.content.substring(0, 200) + '...' : 'No content'}</pre>
+                                                    </div>
+                                                </div>
+                                                <div class="review-actions">
+                                                    <button class="btn btn-primary" onclick="openReviewModal('${review.id}')">
+                                                        Review Details
+                                                    </button>
+                                                    ${review.status === 'pending' ? `
+                                                        <button class="btn btn-success" onclick="quickApprove('${review.id}')">
+                                                            Approve
+                                                        </button>
+                                                        <button class="btn btn-danger" onclick="quickReject('${review.id}')">
+                                                            Reject
+                                                        </button>
+                                                    ` : ''}
+                                                </div>
+                                            </div>
+                                        `).join('');
         }
 
         function updateStats(reviews) {
@@ -232,13 +245,26 @@
             if (selectedReviews.size === 0) return;
 
             try {
+                // Get review details to extract project ID for redirect
+                let projectId = null;
                 for (const reviewId of selectedReviews) {
+                    const review = await APIClient.getReview(reviewId);
                     await APIClient.approveReview(reviewId);
+
+                    // Use project ID from first review for redirect
+                    if (!projectId && review.projectId) {
+                        projectId = review.projectId;
+                    }
                 }
 
                 showSuccess(`Approved ${selectedReviews.size} review${selectedReviews.size > 1 ? 's' : ''}`);
                 clearSelection();
                 loadReviews();
+
+                // Redirect to project workflow after batch approval
+                if (projectId) {
+                    redirectToProjectWorkflow(projectId);
+                }
             } catch (error) {
                 handleApiError(error, 'Failed to approve reviews');
             }
@@ -265,9 +291,16 @@
 
         async function quickApprove(reviewId) {
             try {
+                // Get review details to extract project ID for redirect
+                const review = await APIClient.getReview(reviewId);
                 await APIClient.approveReview(reviewId);
                 showSuccess('Review approved successfully');
                 loadReviews();
+
+                // Redirect to project workflow after approval
+                if (review.projectId) {
+                    redirectToProjectWorkflow(review.projectId);
+                }
             } catch (error) {
                 handleApiError(error, 'Failed to approve review');
             }
@@ -290,39 +323,43 @@
             try {
                 currentReview = await APIClient.getReview(reviewId);
 
-                document.getElementById('modal-title').textContent = currentReview.title || 'Review Content';
+                document.getElementById('modal-title').textContent = `${currentReview.serviceName} Review - ${currentReview.pipelineStage}`;
                 document.getElementById('modal-body').innerHTML = `
-                                <div class="review-details">
-                                    <div class="detail-item">
-                                        <strong>Type:</strong> ${currentReview.type}
-                                    </div>
-                                    <div class="detail-item">
-                                        <strong>Status:</strong> <span class="status ${currentReview.status}">${currentReview.status}</span>
-                                    </div>
-                                    <div class="detail-item">
-                                        <strong>Created:</strong> ${new Date(currentReview.createdAt).toLocaleString()}
-                                    </div>
-                                    ${currentReview.reviewedAt ? `
-                                    <div class="detail-item">
-                                        <strong>Reviewed:</strong> ${new Date(currentReview.reviewedAt).toLocaleString()}
-                                    </div>
-                                    ` : ''}
-                                    <div class="detail-item">
-                                        <strong>Description:</strong>
-                                        <p>${currentReview.description || 'No description'}</p>
-                                    </div>
-                                    <div class="detail-item">
-                                        <strong>Content:</strong>
-                                        <pre class="review-full-content">${currentReview.content || 'No content'}</pre>
-                                    </div>
-                                    ${currentReview.feedback ? `
-                                    <div class="detail-item">
-                                        <strong>Feedback:</strong>
-                                        <p class="feedback">${currentReview.feedback}</p>
-                                    </div>
-                                    ` : ''}
-                                </div>
-                            `;
+                                                    <div class="review-details">
+                                                        <div class="detail-item">
+                                                            <strong>Service:</strong> ${currentReview.serviceName}
+                                                        </div>
+                                                        <div class="detail-item">
+                                                            <strong>Pipeline Stage:</strong> ${currentReview.pipelineStage}
+                                                        </div>
+                                                        <div class="detail-item">
+                                                            <strong>Status:</strong> <span class="status ${currentReview.status}">${currentReview.status}</span>
+                                                        </div>
+                                                        <div class="detail-item">
+                                                            <strong>Submitted:</strong> ${new Date(currentReview.submittedAt).toLocaleString()}
+                                                        </div>
+                                                        ${currentReview.reviewedAt ? `
+                                                        <div class="detail-item">
+                                                            <strong>Reviewed:</strong> ${new Date(currentReview.reviewedAt).toLocaleString()}
+                                                        </div>
+                                                        ` : ''}
+                                                        ${currentReview.projectId ? `
+                                                        <div class="detail-item">
+                                                            <strong>Project ID:</strong> ${currentReview.projectId}
+                                                        </div>
+                                                        ` : ''}
+                                                        <div class="detail-item">
+                                                            <strong>Content:</strong>
+                                                            <pre class="review-full-content">${currentReview.content || 'No content available'}</pre>
+                                                        </div>
+                                                        ${currentReview.decision?.feedback ? `
+                                                        <div class="detail-item">
+                                                            <strong>Feedback:</strong>
+                                                            <p class="feedback">${currentReview.decision.feedback}</p>
+                                                        </div>
+                                                        ` : ''}
+                                                    </div>
+                                                `;
 
                 document.getElementById('review-modal').style.display = 'block';
             } catch (error) {
@@ -339,10 +376,18 @@
             if (!currentReview) return;
 
             try {
+                // Store project ID before closing modal and clearing currentReview
+                const projectId = currentReview.projectId;
+
                 await APIClient.approveReview(currentReview.id);
                 showSuccess('Review approved successfully');
                 closeModal();
                 loadReviews();
+
+                // Redirect to project workflow after approval
+                if (projectId) {
+                    redirectToProjectWorkflow(projectId);
+                }
             } catch (error) {
                 handleApiError(error, 'Failed to approve review');
             }
@@ -367,346 +412,346 @@
         // Add CSS for review interface
         const style = document.createElement('style');
         style.textContent = `
-                        .page-header {
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: flex-start;
-                            margin-bottom: 2rem;
-                        }
+                                            .page-header {
+                                                display: flex;
+                                                justify-content: space-between;
+                                                align-items: flex-start;
+                                                margin-bottom: 2rem;
+                                            }
             
-                        .page-header h1 {
-                            margin: 0;
-                            font-size: 2rem;
-                        }
+                                            .page-header h1 {
+                                                margin: 0;
+                                                font-size: 2rem;
+                                            }
             
-                        .page-header .subtitle {
-                            margin: 0.5rem 0 0 0;
-                            color: var(--color-gray-600);
-                        }
+                                            .page-header .subtitle {
+                                                margin: 0.5rem 0 0 0;
+                                                color: var(--color-gray-600);
+                                            }
             
-                        .queue-stats {
-                            display: flex;
-                            gap: 2rem;
-                            background: white;
-                            padding: 1rem 1.5rem;
-                            border-radius: 12px;
-                            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
-                            border: 1px solid var(--color-gray-200);
-                        }
+                                            .queue-stats {
+                                                display: flex;
+                                                gap: 2rem;
+                                                background: white;
+                                                padding: 1rem 1.5rem;
+                                                border-radius: 12px;
+                                                box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+                                                border: 1px solid var(--color-gray-200);
+                                            }
             
-                        .stat-item {
-                            display: flex;
-                            flex-direction: column;
-                            align-items: center;
-                            gap: 0.25rem;
-                        }
+                                            .stat-item {
+                                                display: flex;
+                                                flex-direction: column;
+                                                align-items: center;
+                                                gap: 0.25rem;
+                                            }
             
-                        .stat-number {
-                            font-size: 1.5rem;
-                            font-weight: var(--font-bold);
-                            color: var(--color-primary-600);
-                        }
+                                            .stat-number {
+                                                font-size: 1.5rem;
+                                                font-weight: var(--font-bold);
+                                                color: var(--color-primary-600);
+                                            }
             
-                        .stat-label {
-                            font-size: 0.875rem;
-                            color: var(--color-gray-600);
-                        }
+                                            .stat-label {
+                                                font-size: 0.875rem;
+                                                color: var(--color-gray-600);
+                                            }
             
-                        .review-tabs {
-                            display: flex;
-                            gap: 1rem;
-                            margin-bottom: 1.5rem;
-                            border-bottom: 1px solid var(--color-gray-200);
-                        }
+                                            .review-tabs {
+                                                display: flex;
+                                                gap: 1rem;
+                                                margin-bottom: 1.5rem;
+                                                border-bottom: 1px solid var(--color-gray-200);
+                                            }
             
-                        .tab-btn {
-                            padding: 0.75rem 1.5rem;
-                            background: none;
-                            border: none;
-                            border-bottom: 2px solid transparent;
-                            color: var(--color-gray-600);
-                            font-weight: 500;
-                            cursor: pointer;
-                            transition: all 0.2s ease;
-                        }
+                                            .tab-btn {
+                                                padding: 0.75rem 1.5rem;
+                                                background: none;
+                                                border: none;
+                                                border-bottom: 2px solid transparent;
+                                                color: var(--color-gray-600);
+                                                font-weight: 500;
+                                                cursor: pointer;
+                                                transition: all 0.2s ease;
+                                            }
             
-                        .tab-btn:hover {
-                            color: var(--color-primary-600);
-                        }
+                                            .tab-btn:hover {
+                                                color: var(--color-primary-600);
+                                            }
             
-                        .tab-btn.active {
-                            color: var(--color-primary-600);
-                            border-bottom-color: var(--color-primary-600);
-                        }
+                                            .tab-btn.active {
+                                                color: var(--color-primary-600);
+                                                border-bottom-color: var(--color-primary-600);
+                                            }
             
-                        .batch-actions {
-                            display: none;
-                            align-items: center;
-                            gap: 1rem;
-                            padding: 1rem;
-                            background: var(--color-gray-50);
-                            border-radius: 8px;
-                            margin-bottom: 1rem;
-                        }
+                                            .batch-actions {
+                                                display: none;
+                                                align-items: center;
+                                                gap: 1rem;
+                                                padding: 1rem;
+                                                background: var(--color-gray-50);
+                                                border-radius: 8px;
+                                                margin-bottom: 1rem;
+                                            }
             
-                        .batch-text {
-                            font-weight: 500;
-                            color: var(--color-gray-700);
-                        }
+                                            .batch-text {
+                                                font-weight: 500;
+                                                color: var(--color-gray-700);
+                                            }
             
-                        .reviews-list {
-                            display: flex;
-                            flex-direction: column;
-                            gap: 1rem;
-                        }
+                                            .reviews-list {
+                                                display: flex;
+                                                flex-direction: column;
+                                                gap: 1rem;
+                                            }
             
-                        .review-item {
-                            background: white;
-                            border-radius: 12px;
-                            padding: 1.5rem;
-                            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
-                            border: 1px solid var(--color-gray-200);
-                            transition: all 0.3s ease;
-                        }
+                                            .review-item {
+                                                background: white;
+                                                border-radius: 12px;
+                                                padding: 1.5rem;
+                                                box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+                                                border: 1px solid var(--color-gray-200);
+                                                transition: all 0.3s ease;
+                                            }
             
-                        .review-item:hover {
-                            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
-                        }
+                                            .review-item:hover {
+                                                box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+                                            }
             
-                        .review-item.pending {
-                            border-left: 4px solid var(--color-warning-500);
-                        }
+                                            .review-item.pending {
+                                                border-left: 4px solid var(--color-warning-500);
+                                            }
             
-                        .review-item.approved {
-                            border-left: 4px solid var(--color-success-500);
-                        }
+                                            .review-item.approved {
+                                                border-left: 4px solid var(--color-success-500);
+                                            }
             
-                        .review-item.rejected {
-                            border-left: 4px solid var(--color-danger-500);
-                        }
+                                            .review-item.rejected {
+                                                border-left: 4px solid var(--color-danger-500);
+                                            }
             
-                        .review-header {
-                            display: flex;
-                            align-items: flex-start;
-                            gap: 1rem;
-                            margin-bottom: 1rem;
-                        }
+                                            .review-header {
+                                                display: flex;
+                                                align-items: flex-start;
+                                                gap: 1rem;
+                                                margin-bottom: 1rem;
+                                            }
             
-                        .review-checkbox {
-                            margin-top: 0.25rem;
-                        }
+                                            .review-checkbox {
+                                                margin-top: 0.25rem;
+                                            }
             
-                        .review-info h4 {
-                            margin: 0 0 0.5rem 0;
-                            color: var(--color-gray-900);
-                        }
+                                            .review-info h4 {
+                                                margin: 0 0 0.5rem 0;
+                                                color: var(--color-gray-900);
+                                            }
             
-                        .review-meta {
-                            display: flex;
-                            gap: 1rem;
-                            font-size: 0.875rem;
-                            color: var(--color-gray-600);
-                        }
+                                            .review-meta {
+                                                display: flex;
+                                                gap: 1rem;
+                                                font-size: 0.875rem;
+                                                color: var(--color-gray-600);
+                                            }
             
-                        .review-type {
-                            background: var(--color-gray-100);
-                            padding: 0.25rem 0.5rem;
-                            border-radius: 4px;
-                        }
+                                            .review-type {
+                                                background: var(--color-gray-100);
+                                                padding: 0.25rem 0.5rem;
+                                                border-radius: 4px;
+                                            }
             
-                        .review-date {
-                            color: var(--color-gray-500);
-                        }
+                                            .review-date {
+                                                color: var(--color-gray-500);
+                                            }
             
-                        .review-status {
-                            padding: 0.25rem 0.5rem;
-                            border-radius: 4px;
-                            font-size: 0.75rem;
-                            font-weight: 500;
-                            text-transform: uppercase;
-                        }
+                                            .review-status {
+                                                padding: 0.25rem 0.5rem;
+                                                border-radius: 4px;
+                                                font-size: 0.75rem;
+                                                font-weight: 500;
+                                                text-transform: uppercase;
+                                            }
             
-                        .review-status.pending {
-                            background: var(--color-warning-100);
-                            color: var(--color-warning-700);
-                        }
+                                            .review-status.pending {
+                                                background: var(--color-warning-100);
+                                                color: var(--color-warning-700);
+                                            }
             
-                        .review-status.approved {
-                            background: var(--color-success-100);
-                            color: var(--color-success-700);
-                        }
+                                            .review-status.approved {
+                                                background: var(--color-success-100);
+                                                color: var(--color-success-700);
+                                            }
             
-                        .review-status.rejected {
-                            background: var(--color-danger-100);
-                            color: var(--color-danger-700);
-                        }
+                                            .review-status.rejected {
+                                                background: var(--color-danger-100);
+                                                color: var(--color-danger-700);
+                                            }
             
-                        .review-description {
-                            color: var(--color-gray-700);
-                            margin-bottom: 1rem;
-                            line-height: 1.5;
-                        }
+                                            .review-description {
+                                                color: var(--color-gray-700);
+                                                margin-bottom: 1rem;
+                                                line-height: 1.5;
+                                            }
             
-                        .review-preview {
-                            background: var(--color-gray-50);
-                            border-radius: 6px;
-                            padding: 1rem;
-                            margin-bottom: 1rem;
-                        }
+                                            .review-preview {
+                                                background: var(--color-gray-50);
+                                                border-radius: 6px;
+                                                padding: 1rem;
+                                                margin-bottom: 1rem;
+                                            }
             
-                        .review-preview pre {
-                            margin: 0;
-                            font-family: var(--font-mono);
-                            font-size: 0.875rem;
-                            color: var(--color-gray-700);
-                            white-space: pre-wrap;
-                            word-break: break-word;
-                        }
+                                            .review-preview pre {
+                                                margin: 0;
+                                                font-family: var(--font-mono);
+                                                font-size: 0.875rem;
+                                                color: var(--color-gray-700);
+                                                white-space: pre-wrap;
+                                                word-break: break-word;
+                                            }
             
-                        .review-actions {
-                            display: flex;
-                            gap: 0.5rem;
-                            flex-wrap: wrap;
-                        }
+                                            .review-actions {
+                                                display: flex;
+                                                gap: 0.5rem;
+                                                flex-wrap: wrap;
+                                            }
             
-                        .review-actions .btn {
-                            font-size: 0.875rem;
-                            padding: 0.5rem 1rem;
-                        }
+                                            .review-actions .btn {
+                                                font-size: 0.875rem;
+                                                padding: 0.5rem 1rem;
+                                            }
             
-                        .empty-state {
-                            text-align: center;
-                            padding: 4rem 2rem;
-                        }
+                                            .empty-state {
+                                                text-align: center;
+                                                padding: 4rem 2rem;
+                                            }
             
-                        .empty-content {
-                            max-width: 400px;
-                            margin: 0 auto;
-                        }
+                                            .empty-content {
+                                                max-width: 400px;
+                                                margin: 0 auto;
+                                            }
             
-                        .empty-icon {
-                            font-size: 4rem;
-                            margin-bottom: 1rem;
-                        }
+                                            .empty-icon {
+                                                font-size: 4rem;
+                                                margin-bottom: 1rem;
+                                            }
             
-                        .empty-state h3 {
-                            margin-bottom: 0.5rem;
-                            color: var(--color-gray-900);
-                        }
+                                            .empty-state h3 {
+                                                margin-bottom: 0.5rem;
+                                                color: var(--color-gray-900);
+                                            }
             
-                        .empty-state p {
-                            color: var(--color-gray-600);
-                            margin-bottom: 1.5rem;
-                        }
+                                            .empty-state p {
+                                                color: var(--color-gray-600);
+                                                margin-bottom: 1.5rem;
+                                            }
             
-                        /* Modal Styles */
-                        .modal {
-                            display: none;
-                            position: fixed;
-                            z-index: 1000;
-                            left: 0;
-                            top: 0;
-                            width: 100%;
-                            height: 100%;
-                            background-color: rgba(0, 0, 0, 0.5);
-                            backdrop-filter: blur(4px);
-                        }
+                                            /* Modal Styles */
+                                            .modal {
+                                                display: none;
+                                                position: fixed;
+                                                z-index: 1000;
+                                                left: 0;
+                                                top: 0;
+                                                width: 100%;
+                                                height: 100%;
+                                                background-color: rgba(0, 0, 0, 0.5);
+                                                backdrop-filter: blur(4px);
+                                            }
             
-                        .modal-content {
-                            background-color: white;
-                            margin: 5% auto;
-                            padding: 0;
-                            border-radius: 12px;
-                            width: 90%;
-                            max-width: 800px;
-                            max-height: 80vh;
-                            overflow: hidden;
-                            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
-                        }
+                                            .modal-content {
+                                                background-color: white;
+                                                margin: 5% auto;
+                                                padding: 0;
+                                                border-radius: 12px;
+                                                width: 90%;
+                                                max-width: 800px;
+                                                max-height: 80vh;
+                                                overflow: hidden;
+                                                box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+                                            }
             
-                        .modal-header {
-                            display: flex;
-                            justify-content: space-between;
-                            align-items: center;
-                            padding: 1.5rem;
-                            border-bottom: 1px solid var(--color-gray-200);
-                        }
+                                            .modal-header {
+                                                display: flex;
+                                                justify-content: space-between;
+                                                align-items: center;
+                                                padding: 1.5rem;
+                                                border-bottom: 1px solid var(--color-gray-200);
+                                            }
             
-                        .modal-header h3 {
-                            margin: 0;
-                            color: var(--color-gray-900);
-                        }
+                                            .modal-header h3 {
+                                                margin: 0;
+                                                color: var(--color-gray-900);
+                                            }
             
-                        .modal-close {
-                            background: none;
-                            border: none;
-                            font-size: 1.5rem;
-                            color: var(--color-gray-400);
-                            cursor: pointer;
-                            padding: 0.25rem;
-                            border-radius: 4px;
-                            transition: all 0.2s ease;
-                        }
+                                            .modal-close {
+                                                background: none;
+                                                border: none;
+                                                font-size: 1.5rem;
+                                                color: var(--color-gray-400);
+                                                cursor: pointer;
+                                                padding: 0.25rem;
+                                                border-radius: 4px;
+                                                transition: all 0.2s ease;
+                                            }
             
-                        .modal-close:hover {
-                            background: var(--color-gray-100);
-                            color: var(--color-gray-600);
-                        }
+                                            .modal-close:hover {
+                                                background: var(--color-gray-100);
+                                                color: var(--color-gray-600);
+                                            }
             
-                        .modal-body {
-                            padding: 1.5rem;
-                            overflow-y: auto;
-                            max-height: calc(80vh - 140px);
-                        }
+                                            .modal-body {
+                                                padding: 1.5rem;
+                                                overflow-y: auto;
+                                                max-height: calc(80vh - 140px);
+                                            }
             
-                        .modal-footer {
-                            display: flex;
-                            justify-content: flex-end;
-                            gap: 0.5rem;
-                            padding: 1rem 1.5rem;
-                            border-top: 1px solid var(--color-gray-200);
-                        }
+                                            .modal-footer {
+                                                display: flex;
+                                                justify-content: flex-end;
+                                                gap: 0.5rem;
+                                                padding: 1rem 1.5rem;
+                                                border-top: 1px solid var(--color-gray-200);
+                                            }
             
-                        .review-details {
-                            display: flex;
-                            flex-direction: column;
-                            gap: 1rem;
-                        }
+                                            .review-details {
+                                                display: flex;
+                                                flex-direction: column;
+                                                gap: 1rem;
+                                            }
             
-                        .detail-item {
-                            display: flex;
-                            flex-direction: column;
-                            gap: 0.25rem;
-                        }
+                                            .detail-item {
+                                                display: flex;
+                                                flex-direction: column;
+                                                gap: 0.25rem;
+                                            }
             
-                        .detail-item strong {
-                            color: var(--color-gray-700);
-                            font-weight: 500;
-                        }
+                                            .detail-item strong {
+                                                color: var(--color-gray-700);
+                                                font-weight: 500;
+                                            }
             
-                        .detail-item p {
-                            margin: 0;
-                            line-height: 1.5;
-                        }
+                                            .detail-item p {
+                                                margin: 0;
+                                                line-height: 1.5;
+                                            }
             
-                        .review-full-content {
-                            background: var(--color-gray-50);
-                            padding: 1rem;
-                            border-radius: 6px;
-                            font-family: var(--font-mono);
-                            font-size: 0.875rem;
-                            line-height: 1.5;
-                            max-height: 300px;
-                            overflow-y: auto;
-                        }
+                                            .review-full-content {
+                                                background: var(--color-gray-50);
+                                                padding: 1rem;
+                                                border-radius: 6px;
+                                                font-family: var(--font-mono);
+                                                font-size: 0.875rem;
+                                                line-height: 1.5;
+                                                max-height: 300px;
+                                                overflow-y: auto;
+                                            }
             
-                        .feedback {
-                            background: var(--color-gray-100);
-                            padding: 1rem;
-                            border-radius: 6px;
-                            font-style: italic;
-                        }
-                    `;
+                                            .feedback {
+                                                background: var(--color-gray-100);
+                                                padding: 1rem;
+                                                border-radius: 6px;
+                                                font-style: italic;
+                                            }
+                                        `;
         document.head.appendChild(style);
     </script>
 }

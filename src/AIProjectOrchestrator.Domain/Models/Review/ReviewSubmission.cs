@@ -18,6 +18,7 @@ namespace AIProjectOrchestrator.Domain.Models.Review
         public AIResponse? AIResponse { get; set; }
         public ReviewDecision? Decision { get; set; }
         public Dictionary<string, object> Metadata { get; set; } = new();
+        public int? ProjectId { get; set; }
     }
 
     public class ReviewDecision

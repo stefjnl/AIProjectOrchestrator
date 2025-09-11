@@ -365,7 +365,7 @@ class WorkflowContentService {
                             📋 View Review Details
                         </button>
                         <button class="btn btn-success" onclick="workflowManager.regeneratePlan()">
-                            🚀 Regenerate Plan
+                            🚀 Generate Project Plan
                         </button>
                     </div>
                 </div>
@@ -407,7 +407,7 @@ class WorkflowContentService {
                     <h3>No Project Plan Found</h3>
                     <p>Create a technical architecture plan for your project.</p>
                     <button class="btn btn-primary" onclick="workflowManager.regeneratePlan()">
-                        🚀 Generate Plan
+                        🚀 Generate Project Plan
                     </button>
                 </div>
             </div>
@@ -559,7 +559,7 @@ class WorkflowContentService {
                             📋 View Review Details
                         </button>
                         <button class="btn btn-success" onclick="workflowManager.regenerateStories()">
-                            ✨ Regenerate Stories
+                            ✨ Generate Stories
                         </button>
                     </div>
                 </div>
@@ -1022,7 +1022,7 @@ class WorkflowContentService {
                 return;
             }
 
-            const loadingOverlay = showLoading('Regenerating project plan...');
+            const loadingOverlay = showLoading('Generating project plan...');
             try {
                 // Get project details for regeneration
                 const project = await this.apiClient.getProject(this.workflowManager.projectId);
@@ -1137,7 +1137,7 @@ class WorkflowContentService {
                 return;
             }
 
-            const loadingOverlay = showLoading('Regenerating user stories...');
+            const loadingOverlay = showLoading('Generating user stories...');
             try {
                 // Get project details for story regeneration
                 const project = await this.apiClient.getProject(this.workflowManager.projectId);

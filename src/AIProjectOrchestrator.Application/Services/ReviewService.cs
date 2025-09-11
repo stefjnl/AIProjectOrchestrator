@@ -126,7 +126,7 @@ namespace AIProjectOrchestrator.Application.Services
         {
             _logger.LogDebug("Retrieving review {ReviewId}", reviewId);
 
-            var reviewEntity = await _reviewRepository.GetByReviewIdAsync(reviewId, cancellationToken);
+            var reviewEntity = await _reviewRepository.GetReviewWithWorkflowAsync(reviewId, cancellationToken);
             if (reviewEntity != null)
             {
                 // Check if review has expired
@@ -139,6 +139,10 @@ namespace AIProjectOrchestrator.Application.Services
                     _logger.LogInformation("Review {ReviewId} has expired", reviewId);
                 }
 
+                // Get project ID from the review's workflow entities
+                var project = GetProjectFromReview(reviewEntity);
+                int? projectId = project?.Id;
+
                 return new ReviewSubmission
                 {
                     Id = reviewEntity.ReviewId,
@@ -150,7 +154,8 @@ namespace AIProjectOrchestrator.Application.Services
                     SubmittedAt = reviewEntity.CreatedDate,
                     ReviewedAt = reviewEntity.UpdatedDate,
                     Decision = null, // This would need to be reconstructed from database fields
-                    Metadata = new Dictionary<string, object>() // This would need to be stored in the database
+                    Metadata = new Dictionary<string, object>(), // This would need to be stored in the database
+                    ProjectId = projectId
                 };
             }
 
@@ -502,6 +507,7 @@ namespace AIProjectOrchestrator.Application.Services
                             Status = reviewEntity.Status,
                             SubmittedAt = reviewEntity.CreatedDate,
                             ReviewedAt = reviewEntity.UpdatedDate,
+                            ProjectId = project.Id,
                             ProjectName = project.Name,
                             ProjectDescription = project.Description,
                             ProjectStage = reviewEntity.PipelineStage,
