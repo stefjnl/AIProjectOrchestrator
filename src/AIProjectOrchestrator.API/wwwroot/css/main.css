@@ -1,0 +1,186 @@
+/* AI Project Orchestrator - Main CSS File
+ * This file imports all modular CSS components in the correct order
+ * to maintain proper cascade and specificity
+ */
+
+/* Core Styles - Foundation */
+@import url('core/variables.css');
+@import url('core/reset.css');
+@import url('core/typography.css');
+
+/* Layout Components - Structure */
+@import url('layouts/containers.css');
+@import url('layouts/footer.css');
+
+/* UI Components - Interactive Elements */
+@import url('components/buttons.css');
+@import url('components/cards.css');
+@import url('components/forms.css');
+@import url('components/navigation.css');
+@import url('components/modals.css');
+@import url('components/loading.css');
+
+/* Page-Specific Styles - Feature Pages */
+@import url('pages/playground.css');
+@import url('pages/stories.css');
+@import url('pages/workflow.css');
+
+/* Utility Classes - Helpers */
+@import url('utilities/helpers.css');
+@import url('utilities/animations.css');
+
+/* Responsive Styles - Media Queries (loaded last) */
+@import url('layouts/responsive.css');
+
+/* Legacy Compatibility Layer
+ * This section provides backward compatibility for existing class names
+ * that may be used in JavaScript or HTML templates
+ */
+
+/* Legacy button classes (from original styles.css) */
+.btn-primary { @extend .btn--primary; }
+.btn-secondary { @extend .btn--secondary; }
+.btn-success { @extend .btn--success; }
+.btn-danger { @extend .btn--danger; }
+.btn-info { @extend .btn--info; }
+
+/* Legacy card classes */
+.card:hover { @extend .card--clickable:hover; }
+
+/* Legacy form classes */
+.form-input,
+.form-textarea,
+.form-select { @extend .form-input; }
+
+.form-label { @extend .form-label; }
+
+/* Legacy utility classes */
+.text-center { @extend .text-center; }
+.text-left { @extend .text-left; }
+.text-right { @extend .text-right; }
+
+.mb-0 { margin-bottom: 0; }
+.mb-sm { margin-bottom: var(--spacing-sm); }
+.mb-md { margin-bottom: var(--spacing-md); }
+.mb-lg { margin-bottom: var(--spacing-lg); }
+.mb-xl { margin-bottom: var(--spacing-xl); }
+
+.mt-0 { margin-top: 0; }
+.mt-sm { margin-top: var(--spacing-sm); }
+.mt-md { margin-top: var(--spacing-md); }
+.mt-lg { margin-top: var(--spacing-lg); }
+.mt-xl { margin-top: var(--spacing-xl); }
+
+.d-flex { display: flex; }
+.d-block { display: block; }
+.d-inline { display: inline; }
+.d-inline-block { display: inline-block; }
+
+.justify-content-center { justify-content: center; }
+.justify-content-between { justify-content: space-between; }
+.align-items-center { align-items: center; }
+
+.flex-column { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-grow-1 { flex-grow: 1; }
+
+.w-100 { width: 100%; }
+.h-100 { height: 100%; }
+
+.position-relative { position: relative; }
+.position-absolute { position: absolute; }
+
+.rounded { border-radius: var(--radius-md); }
+.rounded-lg { border-radius: var(--radius-lg); }
+.rounded-xl { border-radius: var(--radius-xl); }
+
+.shadow { box-shadow: var(--shadow-sm); }
+.shadow-lg { box-shadow: var(--shadow-lg); }
+
+.overflow-hidden { overflow: hidden; }
+.text-truncate { 
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Legacy loading animation */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--color-gray-300);
+    border-radius: 50%;
+    border-top-color: var(--color-primary-500);
+    animation: spin 1s ease-in-out infinite;
+}
+
+/* Legacy gradients */
+.gradient-primary { background: var(--gradient-primary); }
+.gradient-success { background: var(--gradient-success); }
+.gradient-card { background: var(--gradient-card); }
+
+/* Custom Properties for JavaScript Access
+ * These ensure CSS variables are available to JavaScript
+ */
+:root {
+    /* Export key variables for JavaScript access */
+    --export-primary-color: var(--color-primary-500);
+    --export-success-color: var(--color-success-500);
+    --export-warning-color: var(--color-warning-500);
+    --export-danger-color: var(--color-danger-500);
+    --export-gray-500: var(--color-gray-500);
+    --export-gray-700: var(--color-gray-700);
+    --export-gray-900: var(--color-gray-900);
+}
+
+/* Print Styles */
+@media print {
+    .btn,
+    .card:hover,
+    .modal {
+        display: none !important;
+    }
+    
+    .card {
+        box-shadow: none !important;
+        border: 1px solid var(--color-gray-300) !important;
+    }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+    :root {
+        --color-primary-500: #0052cc;
+        --color-success-500: #008000;
+        --color-warning-500: #cc6600;
+        --color-danger-500: #cc0000;
+    }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Focus Visible Support */
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+:focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+}

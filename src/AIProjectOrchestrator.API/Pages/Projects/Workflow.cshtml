@@ -139,14 +139,31 @@
 </div>
 
 @section Scripts {
+    <!-- Core services (load first) -->
     <script src="~/js/services/state-management.js"></script>
     <script src="~/js/services/stage-initialization.js"></script>
     <script src="~/js/services/event-handler.js"></script>
-    <script src="~/js/services/workflow-content.js"></script>
+
+    <!-- Load the new modular WorkflowContentService -->
+    <script src="~/js/services/workflow-content/base-content-generator.js"></script>
+    <script src="~/js/services/workflow-content/stage-generators/requirements-generator.js"></script>
+    <script src="~/js/services/workflow-content/stage-generators/planning-generator.js"></script>
+    <script src="~/js/services/workflow-content/stage-generators/stories-generator.js"></script>
+    <script src="~/js/services/workflow-content/stage-generators/prompts-generator.js"></script>
+    <script src="~/js/services/workflow-content/stage-generators/review-generator.js"></script>
+    <script src="~/js/services/workflow-content/action-handlers/requirements-handler.js"></script>
+    <script src="~/js/services/workflow-content/action-handlers/planning-handler.js"></script>
+    <script src="~/js/services/workflow-content/action-handlers/stories-handler.js"></script>
+    <script src="~/js/services/workflow-content/action-handlers/prompts-handler.js"></script>
+    <script src="~/js/services/workflow-content/action-handlers/project-handler.js"></script>
+    <script src="~/js/services/workflow-content/workflow-content-service.js"></script>
+    <script src="~/js/services/workflow-content/service-bundle.js"></script>
+
+    <!-- Main workflow manager (load last) -->
     <script src="~/js/workflow.js"></script>
     <script>
         // Enhanced workflow initialization with new project support
-        document.addEventListener('DOMContentLoaded', function () {
+        async function initializeWorkflow() {
             const urlParams = new URLSearchParams(window.location.search);
             const projectId = urlParams.get('projectId');
             const newProject = urlParams.get('newProject') === 'true';
@@ -157,8 +174,66 @@
                 return;
             }
 
+            console.log('Starting workflow initialization...');
+
+            // Wait for all modular scripts to load with retry mechanism
+            const maxRetries = 20; // Increased retries
+            let retries = 0;
+            let modularServiceAvailable = false;
+
+            while (retries < maxRetries && !modularServiceAvailable) {
+                // Check if the new modular WorkflowContentService is available
+                modularServiceAvailable = typeof WorkflowContentServiceBundle !== 'undefined' &&
+                    typeof WorkflowContentService !== 'undefined' &&
+                    typeof BaseContentGenerator !== 'undefined' &&
+                    typeof RequirementsGenerator !== 'undefined' &&
+                    typeof PlanningGenerator !== 'undefined' &&
+                    typeof StoriesGenerator !== 'undefined' &&
+                    typeof PromptsGenerator !== 'undefined' &&
+                    typeof ReviewGenerator !== 'undefined' &&
+                    typeof RequirementsHandler !== 'undefined' &&
+                    typeof PlanningHandler !== 'undefined' &&
+                    typeof StoriesHandler !== 'undefined' &&
+                    typeof PromptsHandler !== 'undefined' &&
+                    typeof ProjectHandler !== 'undefined';
+
+                console.log(`Attempt ${retries + 1}: Checking modular services...`);
+                console.log('Available services:', {
+                    WorkflowContentServiceBundle: typeof WorkflowContentServiceBundle,
+                    WorkflowContentService: typeof WorkflowContentService,
+                    BaseContentGenerator: typeof BaseContentGenerator,
+                    RequirementsGenerator: typeof RequirementsGenerator,
+                    // Add more detailed logging
+                    allServices: {
+                        bundle: typeof WorkflowContentServiceBundle,
+                        service: typeof WorkflowContentService,
+                        base: typeof BaseContentGenerator,
+                        reqGen: typeof RequirementsGenerator,
+                        planGen: typeof PlanningGenerator,
+                        storyGen: typeof StoriesGenerator,
+                        promptGen: typeof PromptsGenerator,
+                        reviewGen: typeof ReviewGenerator,
+                        reqHandler: typeof RequirementsHandler,
+                        planHandler: typeof PlanningHandler,
+                        storyHandler: typeof StoriesHandler,
+                        promptHandler: typeof PromptsHandler,
+                        projectHandler: typeof ProjectHandler
+                    }
+                });
+
+                if (!modularServiceAvailable) {
+                    // Wait longer before retrying
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    retries++;
+                }
+            }
+
+            console.log('Final check - Modular WorkflowContentService available:', modularServiceAvailable);
+
             // Initialize the workflow manager with new project flag
-            if (window.workflowManager) {
+            if (window.workflowManager && modularServiceAvailable) {
+                console.log('✅ WorkflowContentService available, initializing normally');
+
                 // Set the new project flag for the workflow manager
                 window.workflowManager.isNewProject = newProject;
 
@@ -176,12 +251,52 @@
                     }, 1000);
                 }
             } else {
-                // Show fallback content if workflow manager fails to load
+                // Show fallback content if workflow manager or modular service fails to load
+                console.warn('❌ WorkflowContentService not available after ' + retries + ' attempts. Showing fallback content.');
+                console.log('Available global objects:', Object.keys(window).filter(key => key.includes('Service') || key.includes('Generator') || key.includes('Handler')));
+
                 const fallbackContent = document.getElementById('fallback-content');
                 if (fallbackContent && newProject) {
                     fallbackContent.style.display = 'block';
                 }
+
+                // Show error notification
+                if (window.App && window.App.showNotification) {
+                    window.App.showNotification('Workflow service not available. Using fallback mode.', 'warning');
+                }
             }
+        }
+
+        // Enhanced workflow initialization with new project support
+        window.addEventListener('load', function () {
+            console.log('Window load event fired, starting workflow initialization...');
+            console.log('Checking if modular scripts are loaded...');
+
+            // Debug: Check what scripts are actually loaded
+            const loadedScripts = document.querySelectorAll('script[src]');
+            console.log('Loaded scripts:', Array.from(loadedScripts).map(s => s.src));
+
+            // Debug: Check global objects
+            console.log('Global objects check:', {
+                WorkflowContentServiceBundle: typeof WorkflowContentServiceBundle,
+                WorkflowContentService: typeof WorkflowContentService,
+                BaseContentGenerator: typeof BaseContentGenerator,
+                RequirementsGenerator: typeof RequirementsGenerator,
+                PlanningGenerator: typeof PlanningGenerator,
+                StoriesGenerator: typeof StoriesGenerator,
+                PromptsGenerator: typeof PromptsGenerator,
+                ReviewGenerator: typeof ReviewGenerator,
+                RequirementsHandler: typeof RequirementsHandler,
+                PlanningHandler: typeof PlanningHandler,
+                StoriesHandler: typeof StoriesHandler,
+                PromptsHandler: typeof PromptsHandler,
+                ProjectHandler: typeof ProjectHandler
+            });
+
+            // Wait for all resources to be fully loaded
+            setTimeout(() => {
+                initializeWorkflow();
+            }, 1500); // Increased to 1.5 seconds to ensure scripts are fully loaded
         });
 
         // Global function to handle requirements analysis (called from workflow.js)
