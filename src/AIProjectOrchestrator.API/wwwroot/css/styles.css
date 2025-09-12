@@ -1369,3 +1369,234 @@ a:hover {
     border: 3px solid var(--color-gray-200);
     border-top-color: var(--color-primary-500);
 }
+
+/* Stories Overview Page Styles */
+.stories-overview-container {
+    margin-bottom: var(--spacing-2xl);
+}
+
+.stories-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-xl);
+}
+
+.stories-header h2 {
+    margin: 0;
+    color: var(--color-gray-900);
+}
+
+.stories-actions {
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: center;
+}
+
+.stories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: var(--spacing-xl);
+}
+
+.story-card {
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    padding: var(--spacing-lg);
+}
+
+.story-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+.story-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--spacing-md);
+}
+
+.story-header h4 {
+    margin: 0;
+    font-size: var(--text-lg);
+    font-weight: var(--font-semibold);
+    color: var(--color-gray-900);
+    flex: 1;
+    margin-right: var(--spacing-md);
+}
+
+.story-status {
+    font-size: var(--text-xs);
+    font-weight: var(--font-medium);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.story-status.pending {
+    background-color: var(--color-warning-100);
+    color: var(--color-warning-700);
+}
+
+.story-status.approved {
+    background-color: var(--color-success-100);
+    color: var(--color-success-700);
+}
+
+.story-status.rejected {
+    background-color: var(--color-danger-100);
+    color: var(--color-danger-700);
+}
+
+.story-description {
+    color: var(--color-gray-600);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    margin-bottom: var(--spacing-md);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.story-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    padding-top: var(--spacing-md);
+    border-top: 1px solid var(--color-gray-200);
+}
+
+.story-points {
+    font-size: var(--text-sm);
+    color: var(--color-gray-500);
+    font-weight: var(--font-medium);
+}
+
+.story-priority {
+    font-size: var(--text-xs);
+    font-weight: var(--font-medium);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.story-priority.priority-low {
+    background-color: var(--color-gray-100);
+    color: var(--color-gray-600);
+}
+
+.story-priority.priority-medium {
+    background-color: var(--color-primary-100);
+    color: var(--color-primary-700);
+}
+
+.story-priority.priority-high {
+    background-color: var(--color-warning-100);
+    color: var(--color-warning-700);
+}
+
+.story-priority.priority-critical {
+    background-color: var(--color-danger-100);
+    color: var(--color-danger-700);
+}
+
+.story-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.story-actions .btn {
+    flex: 1;
+    min-width: 80px;
+    justify-content: center;
+}
+
+/* Progress bar styles for stories overview */
+.progress-bar-container {
+    margin-top: var(--spacing-md);
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: var(--color-gray-200);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--gradient-primary);
+    transition: width 0.3s ease;
+    border-radius: 4px;
+}
+
+/* Empty and error states */
+.empty-state,
+.error-state {
+    text-align: center;
+    padding: var(--spacing-2xl);
+    background: white;
+    border-radius: 12px;
+    border: 1px solid var(--color-gray-200);
+    margin: var(--spacing-xl) 0;
+}
+
+.empty-icon,
+.error-icon {
+    font-size: var(--text-4xl);
+    margin-bottom: var(--spacing-md);
+}
+
+.empty-state h3,
+.error-state h3 {
+    color: var(--color-gray-700);
+    margin-bottom: var(--spacing-sm);
+}
+
+.empty-state p,
+.error-state p {
+    color: var(--color-gray-500);
+    margin-bottom: var(--spacing-lg);
+}
+
+/* Responsive design for stories grid */
+@media (max-width: 768px) {
+    .stories-header {
+        flex-direction: column;
+        gap: var(--spacing-md);
+        align-items: stretch;
+    }
+
+    .stories-actions {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .stories-grid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-lg);
+    }
+
+    .story-actions .btn {
+        flex: 1;
+        min-width: auto;
+    }
+}
+
+@media (max-width: 480px) {
+    .story-meta {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+        align-items: flex-start;
+    }
+
+    .story-actions {
+        flex-direction: column;
+    }
+}

@@ -96,7 +96,7 @@ class StoriesOverviewManager {
         });
 
         return `
-            <div class="story-card" data-story-id="${story.id}" data-story-index="${index}">
+            <div class="card story-card" data-story-id="${story.id}" data-story-index="${index}">
                 <div class="story-header">
                     <h4>${story.title || 'Untitled Story'}</h4>
                     <span class="story-status ${statusClass}">${statusName}</span>
