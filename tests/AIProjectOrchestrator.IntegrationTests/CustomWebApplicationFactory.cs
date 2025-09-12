@@ -45,7 +45,14 @@ namespace AIProjectOrchestrator.IntegrationTests
         {
             // Configure the host to use test environment
             builder.UseEnvironment("IntegrationTests");
-            return base.CreateHost(builder);
+            var host = base.CreateHost(builder);
+            
+            // Ensure database is ready before returning the host
+            var scope = host.Services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            context.Database.EnsureCreatedAsync().GetAwaiter().GetResult();
+            
+            return host;
         }
 
         public async Task EnsureDatabaseReadyAsync()

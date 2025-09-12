@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -11,6 +11,7 @@
     <PackageReference Include="coverlet.collector" Version="6.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.8" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
     <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
@@ -24,11 +25,11 @@
     <ProjectReference Include="..\..\src\AIProjectOrchestrator.API\AIProjectOrchestrator.API.csproj" />
   </ItemGroup>
 
-<ItemGroup>
-  <Content Include="..\..\Instructions\**\*.md">
-    <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    <Link>Instructions\%(RecursiveDir)%(Filename)%(Extension)</Link>
-  </Content>
-</ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\Instructions\**\*.md">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <Link>Instructions\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Content>
+  </ItemGroup>
 
 </Project>

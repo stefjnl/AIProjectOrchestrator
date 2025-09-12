@@ -25,10 +25,11 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             _settings = configurationService.GetProviderSettings<LMStudioSettings>(ProviderName);
 
             // Log settings for debugging
-            AIClientLogger.LogSettings(ProviderName, _settings.BaseUrl, 0, _settings.DefaultModel);
+            _logger.LogInformation("{ProviderName} Settings - BaseUrl: {BaseUrl}, DefaultModel: {DefaultModel}",
+                ProviderName, _settings.BaseUrl, _settings.DefaultModel);
 
             // Also log the HttpClient BaseAddress in constructor
-            AIClientLogger.LogRequestUrl(ProviderName, httpClient.BaseAddress?.ToString() ?? "NULL");
+            _logger.LogInformation("{ProviderName} HttpClient BaseAddress: {BaseAddress}", ProviderName, httpClient.BaseAddress?.ToString() ?? "NULL");
         }
 
         public override async Task<AIResponse> CallAsync(AIRequest request, CancellationToken cancellationToken = default)
@@ -55,18 +56,18 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 // Log the HttpClient BaseAddress for debugging
-                AIClientLogger.LogRequestUrl(ProviderName, _httpClient.BaseAddress?.ToString() ?? "NULL");
+                _logger.LogInformation("{ProviderName} HttpClient BaseAddress: {BaseAddress}", ProviderName, _httpClient.BaseAddress?.ToString() ?? "NULL");
 
                 // Log the full request URL being constructed
                 var fullUrl = _httpClient.BaseAddress != null
-                    ? new Uri(_httpClient.BaseAddress, "v1/chat/completions").ToString()
-                    : "v1/chat/completions";
-                AIClientLogger.LogRequestUrl(ProviderName, fullUrl);
+                    ? new Uri(_httpClient.BaseAddress, "chat/completions").ToString()
+                    : "chat/completions";
+                _logger.LogInformation("{ProviderName} Request URL: {RequestUrl}", ProviderName, fullUrl);
 
                 var response = await SendRequestWithRetryAsync(
                     () =>
                     {
-                        var requestMessage = new HttpRequestMessage(HttpMethod.Post, "v1/chat/completions")
+                        var requestMessage = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
                         {
                             Content = content
                         };
@@ -116,6 +117,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error in LMStudioClient.CallAsync for provider {ProviderName}", ProviderName);
                 return new AIResponse
                 {
                     Content = string.Empty,
@@ -134,10 +136,19 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             {
                 // Simple health check - try to connect to the base URL
                 var response = await _httpClient.GetAsync("", cancellationToken);
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("{ProviderName} health check passed", ProviderName);
+                }
+                else
+                {
+                    _logger.LogWarning("{ProviderName} health check failed with status {StatusCode}", ProviderName, response.StatusCode);
+                }
                 return response.IsSuccessStatusCode;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Error in LMStudioClient.IsHealthyAsync for provider {ProviderName}", ProviderName);
                 return false;
             }
         }

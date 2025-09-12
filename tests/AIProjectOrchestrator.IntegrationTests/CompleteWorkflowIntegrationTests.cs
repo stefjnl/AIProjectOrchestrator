@@ -71,13 +71,16 @@ namespace AIProjectOrchestrator.IntegrationTests
             var pendingReviewsResponse = await client.GetAsync("/api/review/pending");
             pendingReviewsResponse.EnsureSuccessStatusCode();
             var pendingReviewsJson = await pendingReviewsResponse.Content.ReadAsStringAsync();
-            dynamic pendingReviews = JsonSerializer.Deserialize<dynamic>(pendingReviewsJson);
+            var pendingReviews = JsonSerializer.Deserialize<List<dynamic>>(pendingReviewsJson);
             Assert.NotNull(pendingReviews);
-            Assert.True(((dynamic[])pendingReviews).Length > 0);
+            Assert.True(pendingReviews.Count > 0);
             var reviewId = (Guid)pendingReviews[0].Id!;
             var approveContent = new StringContent("{}", Encoding.UTF8, "application/json");
             var approveReqResponse = await client.PostAsync($"/api/review/{reviewId}/approve", approveContent);
             approveReqResponse.EnsureSuccessStatusCode();
+
+            // Wait for review to be processed
+            await Task.Delay(500);
 
             // 4. Submit project planning
             var planData = new { RequirementsAnalysisId = analysisId };
@@ -94,12 +97,15 @@ namespace AIProjectOrchestrator.IntegrationTests
             var pendingPlanResponse = await client.GetAsync("/api/review/pending");
             pendingPlanResponse.EnsureSuccessStatusCode();
             var pendingPlanJson = await pendingPlanResponse.Content.ReadAsStringAsync();
-            dynamic pendingPlans = JsonSerializer.Deserialize<dynamic>(pendingPlanJson);
+            var pendingPlans = JsonSerializer.Deserialize<List<dynamic>>(pendingPlanJson);
             Assert.NotNull(pendingPlans);
-            Assert.True(((dynamic[])pendingPlans).Length > 0);
+            Assert.True(pendingPlans.Count > 0);
             var planReviewId = (Guid)pendingPlans[0].Id!;
             var approvePlanResponse = await client.PostAsync($"/api/review/{planReviewId}/approve", approveContent);
             approvePlanResponse.EnsureSuccessStatusCode();
+
+            // Wait for review to be processed
+            await Task.Delay(500);
 
             // 6. Submit story generation
             var storyData = new { ProjectPlanningId = planningId };
@@ -116,18 +122,24 @@ namespace AIProjectOrchestrator.IntegrationTests
             var pendingStoryResponse = await client.GetAsync("/api/review/pending");
             pendingStoryResponse.EnsureSuccessStatusCode();
             var pendingStoryJson = await pendingStoryResponse.Content.ReadAsStringAsync();
-            dynamic pendingStories = JsonSerializer.Deserialize<dynamic>(pendingStoryJson);
+            var pendingStories = JsonSerializer.Deserialize<List<dynamic>>(pendingStoryJson);
             Assert.NotNull(pendingStories);
-            Assert.True(((dynamic[])pendingStories).Length > 0);
+            Assert.True(pendingStories.Count > 0);
             var storyReviewId = (Guid)pendingStories[0].Id!;
             var approveStoryResponse = await client.PostAsync($"/api/review/{storyReviewId}/approve", approveContent);
             approveStoryResponse.EnsureSuccessStatusCode();
+
+            // Wait for review to be processed
+            await Task.Delay(500);
 
             // 8. Generate prompt for first story
             var promptData = new PromptGenerationRequest { StoryGenerationId = storyGenerationId, StoryIndex = 0 };
             var promptContent = new StringContent(JsonSerializer.Serialize(promptData), Encoding.UTF8, "application/json");
             var promptResponse = await client.PostAsync("/api/prompts/generate", promptContent);
             Assert.Equal(HttpStatusCode.OK, promptResponse.StatusCode); // Success
+
+            // Wait for prompt generation to complete
+            await Task.Delay(500);
 
             var promptJson = await promptResponse.Content.ReadAsStringAsync();
             var prompt = JsonSerializer.Deserialize<PromptGenerationResponse>(promptJson);

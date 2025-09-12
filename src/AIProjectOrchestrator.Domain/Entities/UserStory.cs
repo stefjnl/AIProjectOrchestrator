@@ -3,12 +3,7 @@ using System.Collections.Generic;
 
 namespace AIProjectOrchestrator.Domain.Entities
 {
-    public enum StoryStatus
-    {
-        Draft,
-        Approved,
-        Rejected
-    }
+    using AIProjectOrchestrator.Domain.Models.Stories;
 
     public class UserStory
     {
@@ -22,7 +17,7 @@ namespace AIProjectOrchestrator.Domain.Entities
         public int? StoryPoints { get; set; }
         public List<string> Tags { get; set; } = new();
         public string? EstimatedComplexity { get; set; }
-        public StoryStatus Status { get; set; } = StoryStatus.Draft;
+        public Models.Stories.StoryStatus Status { get; set; } = Models.Stories.StoryStatus.Draft;
 
         // Prompt generation tracking
         public bool HasPrompt { get; set; } = false;

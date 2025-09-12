@@ -1,8 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
-using AIProjectOrchestrator.Domain.Services;
 
-namespace AIProjectOrchestrator.Infrastructure.AI
+namespace AIProjectOrchestrator.Domain.Services
 {
     public interface IAIClientFactory
     {
