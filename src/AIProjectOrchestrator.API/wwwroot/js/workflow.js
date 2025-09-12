@@ -10,11 +10,16 @@ class WorkflowManager {
 
         console.log(`WorkflowManager initialized for project ${projectId}, newProject=${isNewProject}`);
 
-        this.initializeServices();
-        this.initialize();
+        this.initializeServices().then(() => {
+            this.initialize();
+        }).catch(error => {
+            console.error('Failed to initialize services:', error);
+            this.initializeFallbackServices();
+            this.initialize();
+        });
     }
 
-    initializeServices() {
+    async initializeServices() {
         try {
             console.log('Initializing services...');
             console.log('StateManagementService available:', typeof StateManagementService !== 'undefined');
@@ -40,8 +45,12 @@ class WorkflowManager {
             this.stateManager = typeof StateManagementService !== 'undefined' ?
                 new StateManagementService(this) : new InlineStateManagementService(this);
 
-            this.contentService = (typeof WorkflowContentService !== 'undefined' && apiClientAvailable) ?
-                new WorkflowContentService(this, APIClient) : new InlineWorkflowContentService(this);
+            // Use the new modular WorkflowContentServiceBundle
+            if (typeof WorkflowContentServiceBundle !== 'undefined' && apiClientAvailable) {
+                this.contentService = await this.initializeModularContentService();
+            } else {
+                this.contentService = new InlineWorkflowContentService(this);
+            }
 
             this.stageInitializer = typeof StageInitializationService !== 'undefined' ?
                 new StageInitializationService(this) : new InlineStageInitializationService(this);
@@ -58,6 +67,37 @@ class WorkflowManager {
         } catch (error) {
             console.warn('Failed to initialize external services, using inline implementations:', error);
             this.initializeFallbackServices();
+        }
+    }
+
+    /**
+     * Initialize the new modular WorkflowContentService
+     * @returns {WorkflowContentService} The initialized content service
+     */
+    async initializeModularContentService() {
+        try {
+            console.log('🚀 Initializing modular WorkflowContentService...');
+
+            // Create and initialize the service bundle
+            const serviceBundle = new WorkflowContentServiceBundle();
+
+            await serviceBundle.initialize({
+                workflowManager: this,
+                apiClient: APIClient
+            });
+
+            // Get the main service from the bundle
+            const contentService = serviceBundle.getWorkflowContentService();
+
+            console.log('✅ Modular WorkflowContentService initialized successfully');
+            console.log('Service health:', contentService.getHealthStatus());
+
+            return contentService;
+
+        } catch (error) {
+            console.error('❌ Failed to initialize modular WorkflowContentService:', error);
+            console.log('🔄 Falling back to inline implementation');
+            return new InlineWorkflowContentService(this);
         }
     }
 

@@ -20,23 +20,23 @@
     </div>
 
     <!-- Progress Overview -->
-    <div class="progress-overview" id="progress-overview">
-        <div class="progress-card">
+    <div class="project-overview" id="progress-overview">
+        <div class="overview-card">
             <h3>Story Approval Progress</h3>
-            <div class="progress-content">
-                <div class="progress-item">
+            <div class="overview-content">
+                <div class="overview-item">
                     <span class="label">Approved:</span>
                     <span class="value" id="approved-count">0</span>
                 </div>
-                <div class="progress-item">
+                <div class="overview-item">
                     <span class="label">Total:</span>
                     <span class="value" id="total-count">0</span>
                 </div>
-                <div class="progress-item">
+                <div class="overview-item">
                     <span class="label">Prompts Generated:</span>
                     <span class="value" id="prompts-count">0</span>
                 </div>
-                <div class="progress-item">
+                <div class="overview-item">
                     <span class="label">Progress:</span>
                     <span class="value" id="approval-progress">0%</span>
                 </div>
@@ -50,7 +50,7 @@
     </div>
 
     <!-- Stories Grid -->
-    <div class="stories-grid-container">
+    <div class="stories-overview-container">
         <div class="stories-header">
             <h2>User Stories</h2>
             <div class="stories-actions">
@@ -223,7 +223,17 @@
 
 @section Scripts {
     <script src="~/js/status-utils.js"></script>
-    <script src="~/js/stories-overview.js"></script>
+
+    <!-- Load the new modular StoriesOverview -->
+    <script src="~/js/stories-overview/base-stories-manager.js"></script>
+    <script src="~/js/stories-overview/story-renderer.js"></script>
+    <script src="~/js/stories-overview/story-actions.js"></script>
+    <script src="~/js/stories-overview/prompt-generator.js"></script>
+    <script src="~/js/stories-overview/modal-manager.js"></script>
+    <script src="~/js/stories-overview/story-utils.js"></script>
+    <script src="~/js/stories-overview/stories-overview-manager.js"></script>
+    <script src="~/js/stories-overview/service-bundle.js"></script>
+
     <script>
         // Initialize StoriesOverview when DOM is loaded
         document.addEventListener('DOMContentLoaded', function () {
@@ -240,15 +250,40 @@
                 return;
             }
 
-            // Initialize the StoriesOverview manager
-            console.log('window.storiesOverviewManager:', window.storiesOverviewManager);
-            if (window.storiesOverviewManager) {
-                console.log('Initializing StoriesOverview manager...');
-                window.storiesOverviewManager.initialize(generationId, projectId);
-                console.log('StoriesOverview manager initialized successfully');
+            // Initialize the modular StoriesOverview service
+            console.log('Checking StoriesOverview service bundle...');
+
+            // Wait for all components to be ready
+            if (window.storiesOverviewServiceBundle) {
+                console.log('StoriesOverviewServiceBundle found, loading components...');
+
+                window.storiesOverviewServiceBundle.loadComponents().then(success => {
+                    if (success) {
+                        console.log('✅ StoriesOverview components loaded successfully');
+
+                        // Initialize the manager
+                        const manager = window.storiesOverviewServiceBundle.getManager();
+                        console.log('Initializing StoriesOverviewManager...');
+
+                        manager.initialize(generationId, projectId).then(() => {
+                            console.log('✅ StoriesOverviewManager initialized successfully');
+                        }).catch(error => {
+                            console.error('❌ Failed to initialize StoriesOverviewManager:', error);
+                            alert('Failed to initialize Stories Overview. Please refresh the page.');
+                        });
+
+                    } else {
+                        console.error('❌ Failed to load StoriesOverview components');
+                        alert('Failed to load Stories Overview components. Please refresh the page.');
+                    }
+                }).catch(error => {
+                    console.error('❌ Error loading StoriesOverview components:', error);
+                    alert('Error loading Stories Overview components. Please refresh the page.');
+                });
+
             } else {
-                console.error('StoriesOverview manager not loaded');
-                alert('Failed to load StoriesOverview. Please refresh the page.');
+                console.error('StoriesOverviewServiceBundle not found');
+                alert('Failed to load Stories Overview service. Please refresh the page.');
             }
         });
 
