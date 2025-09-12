@@ -482,41 +482,89 @@ class StateManagementService {
         const workflow = this.state.workflow;
         if (!workflow) return;
 
+        console.log('updateStageIndicatorClasses called with workflow:', {
+            requirementsAnalysis: workflow.requirementsAnalysis,
+            projectPlanning: workflow.projectPlanning,
+            storyGeneration: workflow.storyGeneration,
+            promptGeneration: workflow.promptGeneration
+        });
+
         // Clear all existing classes first to ensure clean state
         for (let i = 1; i <= 5; i++) {
             const element = document.getElementById(`stage-${i}`);
             if (element) {
                 element.classList.remove('completed', 'active', 'available');
+                console.log(`Cleared classes for stage-${i}`);
             }
         }
 
         // Update stage 1 (requirements)
         const stage1Element = document.getElementById('stage-1');
         if (stage1Element) {
+            console.log('Stage 1 analysis:', {
+                isApproved: workflow.requirementsAnalysis?.isApproved,
+                status: workflow.requirementsAnalysis?.status
+            });
+
             if (workflow.requirementsAnalysis?.isApproved) {
                 stage1Element.classList.add('completed');
-            } else if (workflow.requirementsAnalysis?.status === 'InProgress') {
+                console.log('Stage 1: added completed class');
+            } else if (workflow.requirementsAnalysis?.status === 'Processing' ||
+                workflow.requirementsAnalysis?.status === 'PendingReview') {
                 stage1Element.classList.add('active');
+                console.log('Stage 1: added active class for status:', workflow.requirementsAnalysis?.status);
+            } else {
+                console.log('Stage 1: no class added, status:', workflow.requirementsAnalysis?.status);
             }
         }
 
         // Update stage 2 (planning)
         const stage2Element = document.getElementById('stage-2');
         if (stage2Element) {
+            console.log('Stage 2 analysis:', {
+                isApproved: workflow.projectPlanning?.isApproved,
+                status: workflow.projectPlanning?.status,
+                requirementsApproved: workflow.requirementsAnalysis?.isApproved
+            });
+
             if (workflow.projectPlanning?.isApproved) {
                 stage2Element.classList.add('completed');
-            } else if (workflow.projectPlanning?.status === 'InProgress') {
+                console.log('Stage 2: added completed class');
+            } else if (workflow.projectPlanning?.status === 'Processing' ||
+                workflow.projectPlanning?.status === 'PendingReview') {
                 stage2Element.classList.add('active');
+                console.log('Stage 2: added active class for status:', workflow.projectPlanning?.status);
+            } else if (workflow.requirementsAnalysis?.isApproved === true) {
+                // Stage 2 should be active if requirements are approved but planning is not started/processing
+                stage2Element.classList.add('active');
+                console.log('Stage 2: added active class because requirements are approved');
+            } else {
+                console.log('Stage 2: no class added, status:', workflow.projectPlanning?.status);
             }
         }
 
         // Update stage 3 (stories)
         const stage3Element = document.getElementById('stage-3');
         if (stage3Element) {
+            console.log('Stage 3 analysis:', {
+                isApproved: workflow.storyGeneration?.isApproved,
+                status: workflow.storyGeneration?.status,
+                planningApproved: workflow.projectPlanning?.isApproved
+            });
+
             if (workflow.storyGeneration?.isApproved) {
                 stage3Element.classList.add('completed');
-            } else if (workflow.storyGeneration?.status === 'InProgress') {
+                console.log('Stage 3: added completed class');
+            } else if (workflow.storyGeneration?.status === 'Processing' ||
+                workflow.storyGeneration?.status === 'PendingReview') {
                 stage3Element.classList.add('active');
+                console.log('Stage 3: added active class for status:', workflow.storyGeneration?.status);
+            } else if (workflow.projectPlanning?.isApproved === true) {
+                // Stage 3 should be active if planning is approved but stories are not started/processing
+                stage3Element.classList.add('active');
+                console.log('Stage 3: added active class because planning is approved');
+            } else {
+                console.log('Stage 3: no class added, status:', workflow.storyGeneration?.status);
             }
         }
 
@@ -524,18 +572,39 @@ class StateManagementService {
         const stage4Element = document.getElementById('stage-4');
         if (stage4Element) {
             const completion = workflow.promptGeneration?.completionPercentage || 0;
+            console.log('Stage 4 analysis:', {
+                completionPercentage: completion,
+                isApproved: workflow.promptGeneration?.isApproved,
+                storiesApproved: workflow.storyGeneration?.isApproved
+            });
+
             if (completion >= 100) {
                 stage4Element.classList.add('completed');
+                console.log('Stage 4: added completed class');
             } else if (completion > 0) {
                 stage4Element.classList.add('active');
+                console.log('Stage 4: added active class');
+            } else if (workflow.storyGeneration?.isApproved === true) {
+                // Stage 4 should be active if stories are approved but prompts are not started
+                stage4Element.classList.add('active');
+                console.log('Stage 4: added active class because stories are approved');
+            } else {
+                console.log('Stage 4: no class added');
             }
         }
 
         // Update stage 5 (review)
         const stage5Element = document.getElementById('stage-5');
         if (stage5Element) {
+            console.log('Stage 5 analysis:', {
+                completionPercentage: workflow.promptGeneration?.completionPercentage
+            });
+
             if (workflow.promptGeneration?.completionPercentage >= 100) {
                 stage5Element.classList.add('available');
+                console.log('Stage 5: added available class');
+            } else {
+                console.log('Stage 5: no class added');
             }
         }
     }
