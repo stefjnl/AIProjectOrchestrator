@@ -106,7 +106,7 @@ namespace AIProjectOrchestrator.Application.Services
                 {
                     SystemMessage = instructionContent.Content,
                     Prompt = CreatePromptFromContext(planningContent, requirementsContent, request),
-                    ModelName = "qwen/qwen3-coder", // Default model for story generation via OpenRouter
+                    ModelName = "moonshotai/Kimi-K2-Instruct-0905", // Default model for story generation via NanoGpt
                     Temperature = 0.7,
                     MaxTokens = 4000 // Larger response expected for story generation
                 };
@@ -121,12 +121,12 @@ namespace AIProjectOrchestrator.Application.Services
                     _logger.LogWarning("Story generation {GenerationId} context size is large: {ContextSize} bytes", generationId, contextSize);
                 }
 
-                // Get OpenRouter AI client
-                var aiClient = _aiClientFactory.GetClient("OpenRouter");
+                // Get NanoGpt AI client
+                var aiClient = _aiClientFactory.GetClient("NanoGpt");
                 if (aiClient == null)
                 {
-                    _logger.LogError("Story generation {GenerationId} failed: OpenRouter AI client not available", generationId);
-                    throw new InvalidOperationException("OpenRouter AI client is not available");
+                    _logger.LogError("Story generation {GenerationId} failed: NanoGpt AI client not available", generationId);
+                    throw new InvalidOperationException("NanoGpt AI client is not available");
                 }
 
                 _logger.LogDebug("Calling AI client for story generation {GenerationId}", generationId);

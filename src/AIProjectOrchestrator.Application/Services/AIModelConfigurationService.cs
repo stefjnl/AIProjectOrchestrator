@@ -27,10 +27,10 @@ public class AIModelConfigurationService : IAIModelConfigurationService
 
         var modelName = modelType.ToLower() switch
         {
-            "claude" => "qwen/qwen3-coder",
-            "qwen3-coder" => "qwen/qwen3-coder",
-            "deepseek" => "qwen/qwen3-coder", // Use Qwen for all models
-            _ => "qwen/qwen3-coder"
+            "claude" => "moonshotai/Kimi-K2-Instruct-0905",
+            "qwen3-coder" => "moonshotai/Kimi-K2-Instruct-0905",
+            "deepseek" => "moonshotai/Kimi-K2-Instruct-0905", // Use NanoGpt for all models
+            _ => "moonshotai/Kimi-K2-Instruct-0905"
         };
 
         _logger.LogDebug("Mapped model type '{ModelType}' to model name '{ModelName}'", modelType, modelName);
@@ -48,10 +48,10 @@ public class AIModelConfigurationService : IAIModelConfigurationService
 
         var providerName = modelType.ToLower() switch
         {
-            "claude" => "OpenRouter", // Route Claude requests to OpenRouter
-            "qwen3-coder" => "LMStudio",
-            "deepseek" => "OpenRouter",
-            _ => "OpenRouter"
+            "claude" => "NanoGpt", // Route Claude requests to NanoGpt
+            "qwen3-coder" => "NanoGpt",
+            "deepseek" => "NanoGpt",
+            _ => "NanoGpt"
         };
 
         _logger.LogDebug("Mapped model type '{ModelType}' to provider '{ProviderName}'", modelType, providerName);
