@@ -146,6 +146,10 @@ builder.Services.AddHttpClient<NanoGptClient>()
         client.BaseAddress = new Uri(settings.BaseUrl);
         // Set a longer base timeout to handle large prompts - we'll manage individual request timeouts in the client
         client.Timeout = TimeSpan.FromSeconds(Math.Max(settings.TimeoutSeconds, 120)); // Minimum 2 minutes, max from config
+    })
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler()
+    {
+        ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
     });
 
 // Register AI clients as singletons
