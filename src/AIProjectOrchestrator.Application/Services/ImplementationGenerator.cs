@@ -11,21 +11,19 @@ using AIProjectOrchestrator.Domain.Models.Code;
 using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Domain.Entities;
 using AIProjectOrchestrator.Domain.Services;
-using AIProjectOrchestrator.Infrastructure.AI;
+using AIProjectOrchestrator.Infrastructure.AI.Providers;
 
 namespace AIProjectOrchestrator.Application.Services;
 
 public class ImplementationGenerator : IImplementationGenerator
 {
-    private readonly IAIClientFactory _aiClientFactory;
+    private readonly IImplementationGenerationAIProvider _aiProvider;
     private readonly ILogger<ImplementationGenerator> _logger;
-    private readonly IAIModelConfigurationService _modelConfigurationService;
 
-    public ImplementationGenerator(IAIClientFactory aiClientFactory, ILogger<ImplementationGenerator> logger, IAIModelConfigurationService modelConfigurationService)
+    public ImplementationGenerator(IImplementationGenerationAIProvider aiProvider, ILogger<ImplementationGenerator> logger)
     {
-        _aiClientFactory = aiClientFactory;
+        _aiProvider = aiProvider;
         _logger = logger;
-        _modelConfigurationService = modelConfigurationService;
     }
 
     public async Task<List<CodeArtifact>> GenerateImplementationAsync(
@@ -40,7 +38,7 @@ public class ImplementationGenerator : IImplementationGenerator
         {
             SystemMessage = instructionContent,
             Prompt = CreateImplementationPromptFromContext(context, testFiles),
-            ModelName = _modelConfigurationService.GetModelName(selectedModel),
+            ModelName = selectedModel,
             Temperature = 0.7,
             MaxTokens = 4000
         };
@@ -55,27 +53,13 @@ public class ImplementationGenerator : IImplementationGenerator
             _logger.LogWarning("Implementation generation context size is large: {ContextSize} bytes", contextSize);
         }
 
-        // Get AI client
-        var aiClient = _aiClientFactory.GetClient(_modelConfigurationService.GetProviderName(selectedModel));
-        if (aiClient == null)
-        {
-            _logger.LogError("Implementation generation failed: {Model} AI client not available", selectedModel);
-            throw new InvalidOperationException($"{selectedModel} AI client is not available");
-        }
+        _logger.LogDebug("Calling AI provider for implementation generation");
 
-        _logger.LogDebug("Calling AI client for implementation generation");
-
-        // Call AI
-        var aiResponse = await aiClient.CallAsync(aiRequest, cancellationToken);
-
-        if (!aiResponse.IsSuccess)
-        {
-            _logger.LogError("Implementation generation failed: AI call failed - {ErrorMessage}", aiResponse.ErrorMessage);
-            throw new InvalidOperationException($"AI call failed: {aiResponse.ErrorMessage}");
-        }
+        // Call AI using the provider
+        var aiResponse = await _aiProvider.GenerateContentAsync(aiRequest.Prompt, aiRequest.SystemMessage);
 
         // Parse AI response to code artifacts
-        return ParseAIResponseToCodeArtifacts(aiResponse.Content, "Implementation");
+        return ParseAIResponseToCodeArtifacts(aiResponse, "Implementation");
     }
 
     private string CreateImplementationPromptFromContext(ComprehensiveContext context, List<CodeArtifact> testFiles)

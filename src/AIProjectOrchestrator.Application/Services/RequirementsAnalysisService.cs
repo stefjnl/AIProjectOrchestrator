@@ -7,6 +7,7 @@ using AIProjectOrchestrator.Domain.Models;
 using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Domain.Models.Review;
 using AIProjectOrchestrator.Infrastructure.AI;
+using AIProjectOrchestrator.Infrastructure.AI.Providers;
 using AIProjectOrchestrator.Domain.Interfaces;
 using AIProjectOrchestrator.Domain.Entities;
 
@@ -15,20 +16,20 @@ namespace AIProjectOrchestrator.Application.Services
     public class RequirementsAnalysisService : IRequirementsAnalysisService
     {
         private readonly IInstructionService _instructionService;
-        private readonly IAIClientFactory _aiClientFactory;
+        private readonly IRequirementsAIProvider _requirementsAIProvider;
         private readonly Lazy<IReviewService> _reviewService;
         private readonly ILogger<RequirementsAnalysisService> _logger;
         private readonly IRequirementsAnalysisRepository _requirementsAnalysisRepository;
 
         public RequirementsAnalysisService(
             IInstructionService instructionService,
-            IAIClientFactory aiClientFactory,
+            IRequirementsAIProvider requirementsAIProvider,
             Lazy<IReviewService> reviewService,
             ILogger<RequirementsAnalysisService> logger,
             IRequirementsAnalysisRepository requirementsAnalysisRepository)
         {
             _instructionService = instructionService;
-            _aiClientFactory = aiClientFactory;
+            _requirementsAIProvider = requirementsAIProvider;
             _reviewService = reviewService;
             _logger = logger;
             _requirementsAnalysisRepository = requirementsAnalysisRepository;
@@ -73,30 +74,25 @@ namespace AIProjectOrchestrator.Application.Services
                 {
                     SystemMessage = instructionContent.Content,
                     Prompt = CreatePromptFromRequest(request),
-                    ModelName = "moonshotai/Kimi-K2-Instruct-0905", // Default model for requirements analysis via NanoGpt
-                    Temperature = 0.7,
-                    MaxTokens = 2000
+                    ModelName = string.Empty, // Will be set by the provider
+                    Temperature = 0.7, // Default value, will be overridden by provider
+                    MaxTokens = 1000  // Default value, will be overridden by provider
                 };
 
-                // Get NanoGpt AI client
-                var aiClient = _aiClientFactory.GetClient("NanoGpt");
-                if (aiClient == null)
-                {
-                    _logger.LogError("Requirements analysis {AnalysisId} failed: NanoGpt AI client not available", analysisId);
-                    throw new InvalidOperationException("NanoGpt AI client is not available");
-                }
-
-                _logger.LogDebug("Calling AI client for requirements analysis {AnalysisId}", analysisId);
+                _logger.LogDebug("Calling AI provider for requirements analysis {AnalysisId}", analysisId);
                 
-                // Call AI
-                var aiResponse = await aiClient.CallAsync(aiRequest, cancellationToken);
+                // Call AI using the requirements-specific provider
+                var generatedContent = await _requirementsAIProvider.GenerateContentAsync(aiRequest.Prompt, aiRequest.SystemMessage);
                 
-                if (!aiResponse.IsSuccess)
+                // GenerateContentAsync returns the content directly, so we need to create an AIResponse
+                var aiResponse = new AIResponse
                 {
-                    _logger.LogError("Requirements analysis {AnalysisId} failed: AI call failed - {ErrorMessage}", 
-                        analysisId, aiResponse.ErrorMessage);
-                    throw new InvalidOperationException($"AI call failed: {aiResponse.ErrorMessage}");
-                }
+                    Content = generatedContent,
+                    TokensUsed = 0, // We don't have token info from GenerateContentAsync
+                    ProviderName = _requirementsAIProvider.ProviderName,
+                    IsSuccess = true,
+                    ErrorMessage = null
+                };
 
                 // Create and store the analysis entity first to get the entity ID
                 var analysisEntity = new RequirementsAnalysis

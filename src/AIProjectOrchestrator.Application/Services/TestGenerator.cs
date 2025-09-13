@@ -11,21 +11,19 @@ using AIProjectOrchestrator.Domain.Models.Code;
 using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Domain.Entities;
 using AIProjectOrchestrator.Domain.Services;
-using AIProjectOrchestrator.Infrastructure.AI;
+using AIProjectOrchestrator.Infrastructure.AI.Providers;
 
 namespace AIProjectOrchestrator.Application.Services;
 
 public class TestGenerator : ITestGenerator
 {
-    private readonly IAIClientFactory _aiClientFactory;
+    private readonly ITestGenerationAIProvider _aiProvider;
     private readonly ILogger<TestGenerator> _logger;
-    private readonly IAIModelConfigurationService _modelConfigurationService;
 
-    public TestGenerator(IAIClientFactory aiClientFactory, ILogger<TestGenerator> logger, IAIModelConfigurationService modelConfigurationService)
+    public TestGenerator(ITestGenerationAIProvider aiProvider, ILogger<TestGenerator> logger)
     {
-        _aiClientFactory = aiClientFactory;
+        _aiProvider = aiProvider;
         _logger = logger;
-        _modelConfigurationService = modelConfigurationService;
     }
 
     public async Task<List<CodeArtifact>> GenerateTestFilesAsync(
@@ -39,7 +37,7 @@ public class TestGenerator : ITestGenerator
         {
             SystemMessage = instructionContent,
             Prompt = CreateTestPromptFromContext(context),
-            ModelName = _modelConfigurationService.GetModelName(selectedModel),
+            ModelName = selectedModel,
             Temperature = 0.7,
             MaxTokens = 4000
         };
@@ -54,27 +52,13 @@ public class TestGenerator : ITestGenerator
             _logger.LogWarning("Test generation context size is large: {ContextSize} bytes", contextSize);
         }
 
-        // Get AI client
-        var aiClient = _aiClientFactory.GetClient(_modelConfigurationService.GetProviderName(selectedModel));
-        if (aiClient == null)
-        {
-            _logger.LogError("Test generation failed: {Model} AI client not available", selectedModel);
-            throw new InvalidOperationException($"{selectedModel} AI client is not available");
-        }
+        _logger.LogDebug("Calling AI provider for test generation");
 
-        _logger.LogDebug("Calling AI client for test generation");
-
-        // Call AI
-        var aiResponse = await aiClient.CallAsync(aiRequest, cancellationToken);
-
-        if (!aiResponse.IsSuccess)
-        {
-            _logger.LogError("Test generation failed: AI call failed - {ErrorMessage}", aiResponse.ErrorMessage);
-            throw new InvalidOperationException($"AI call failed: {aiResponse.ErrorMessage}");
-        }
+        // Call AI using the provider
+        var aiResponse = await _aiProvider.GenerateContentAsync(aiRequest.Prompt, aiRequest.SystemMessage);
 
         // Parse AI response to code artifacts
-        return ParseAIResponseToCodeArtifacts(aiResponse.Content, "Test");
+        return ParseAIResponseToCodeArtifacts(aiResponse, "Test");
     }
 
     private string CreateTestPromptFromContext(AIProjectOrchestrator.Domain.Models.ComprehensiveContext context)

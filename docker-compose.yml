@@ -15,28 +15,51 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - aiprojectorchestrator-network
+    restart: unless-stopped
 
   api:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8087:8080"  # API and frontend port (serving static files)
+      - "8087:8080" # RESTORED: App accessible on 8087
     volumes:
       - ./Instructions:/app/Instructions
     depends_on:
       - db
+      - nanogpt-proxy # Ensure proxy starts first
     environment:
-      - DB_HOST=db
-      - DB_PORT=5432
-      - DB_DATABASE=aiprojectorchestrator
-      - DB_USER=user
-      - DB_PASSWORD=password
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=aiprojectorchestrator;Username=user;Password=password
       - ASPNETCORE_URLS=http://+:8080
       - ASPNETCORE_ENVIRONMENT=Development
+      # NanoGPT proxy configuration
+      - AIProviders__NanoGpt__BaseUrl=http://nanogpt-proxy:5000
+      - AIProviders__NanoGpt__UseProxy=true
     networks:
       - aiprojectorchestrator-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  nanogpt-proxy:
+    build:
+      context: ./proxy
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - NANOGPT_API_KEY=${NANOGPT_API_KEY}
+    networks:
+      - aiprojectorchestrator-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:5000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   postgres_data:

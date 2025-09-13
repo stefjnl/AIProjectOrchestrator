@@ -13,6 +13,7 @@ using AIProjectOrchestrator.Domain.Models.Stories;
 using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Domain.Models.Review;
 using AIProjectOrchestrator.Infrastructure.AI;
+using AIProjectOrchestrator.Infrastructure.AI.Providers;
 using AIProjectOrchestrator.Domain.Entities;
 using System.Text.Json;
 
@@ -23,7 +24,7 @@ namespace AIProjectOrchestrator.Application.Services
         private readonly IRequirementsAnalysisService _requirementsAnalysisService;
         private readonly IProjectPlanningService _projectPlanningService;
         private readonly IInstructionService _instructionService;
-        private readonly IAIClientFactory _aiClientFactory;
+        private readonly IStoryAIProvider _storyAIProvider;
         private readonly Lazy<IReviewService> _reviewService;
         private readonly ILogger<StoryGenerationService> _logger;
         private readonly IStoryGenerationRepository _storyGenerationRepository;
@@ -33,7 +34,7 @@ namespace AIProjectOrchestrator.Application.Services
             IRequirementsAnalysisService requirementsAnalysisService,
             IProjectPlanningService projectPlanningService,
             IInstructionService instructionService,
-            IAIClientFactory aiClientFactory,
+            IStoryAIProvider storyAIProvider,
             Lazy<IReviewService> reviewService,
             ILogger<StoryGenerationService> logger,
             IStoryGenerationRepository storyGenerationRepository,
@@ -42,7 +43,7 @@ namespace AIProjectOrchestrator.Application.Services
             _requirementsAnalysisService = requirementsAnalysisService;
             _projectPlanningService = projectPlanningService;
             _instructionService = instructionService;
-            _aiClientFactory = aiClientFactory;
+            _storyAIProvider = storyAIProvider;
             _reviewService = reviewService;
             _logger = logger;
             _storyGenerationRepository = storyGenerationRepository;
@@ -106,9 +107,9 @@ namespace AIProjectOrchestrator.Application.Services
                 {
                     SystemMessage = instructionContent.Content,
                     Prompt = CreatePromptFromContext(planningContent, requirementsContent, request),
-                    ModelName = "moonshotai/Kimi-K2-Instruct-0905", // Default model for story generation via NanoGpt
-                    Temperature = 0.7,
-                    MaxTokens = 4000 // Larger response expected for story generation
+                    ModelName = string.Empty, // Will be set by the provider
+                    Temperature = 0.7, // Default value, will be overridden by provider
+                    MaxTokens = 1000  // Default value, will be overridden by provider
                 };
 
                 // Log context size metrics
@@ -121,18 +122,20 @@ namespace AIProjectOrchestrator.Application.Services
                     _logger.LogWarning("Story generation {GenerationId} context size is large: {ContextSize} bytes", generationId, contextSize);
                 }
 
-                // Get NanoGpt AI client
-                var aiClient = _aiClientFactory.GetClient("NanoGpt");
-                if (aiClient == null)
+                _logger.LogDebug("Calling AI provider for story generation {GenerationId}", generationId);
+
+                // Call AI using the story-specific provider
+                var generatedContent = await _storyAIProvider.GenerateContentAsync(aiRequest.Prompt, aiRequest.SystemMessage);
+                
+                // GenerateContentAsync returns the content directly, so we need to create an AIResponse
+                var aiResponse = new AIResponse
                 {
-                    _logger.LogError("Story generation {GenerationId} failed: NanoGpt AI client not available", generationId);
-                    throw new InvalidOperationException("NanoGpt AI client is not available");
-                }
-
-                _logger.LogDebug("Calling AI client for story generation {GenerationId}", generationId);
-
-                // Call AI
-                var aiResponse = await aiClient.CallAsync(aiRequest, cancellationToken);
+                    Content = generatedContent,
+                    TokensUsed = 0, // We don't have token info from GenerateContentAsync
+                    ProviderName = _storyAIProvider.ProviderName,
+                    IsSuccess = true,
+                    ErrorMessage = null
+                };
 
                 if (!aiResponse.IsSuccess)
                 {
