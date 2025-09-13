@@ -24,7 +24,6 @@ namespace AIProjectOrchestrator.Application.Services
         private readonly IProjectPlanningService _projectPlanningService;
         private readonly IRequirementsAnalysisService _requirementsAnalysisService;
         private readonly IInstructionService _instructionService;
-        private readonly IAIClientFactory _aiClientFactory;
         private readonly IReviewService _reviewService;
         private readonly ITestGenerator _testGenerator;
         private readonly IImplementationGenerator _implementationGenerator;
@@ -39,7 +38,6 @@ namespace AIProjectOrchestrator.Application.Services
             IProjectPlanningService projectPlanningService,
             IRequirementsAnalysisService requirementsAnalysisService,
             IInstructionService instructionService,
-            IAIClientFactory aiClientFactory,
             IReviewService reviewService,
             ITestGenerator testGenerator,
             IImplementationGenerator implementationGenerator,
@@ -52,7 +50,6 @@ namespace AIProjectOrchestrator.Application.Services
             _projectPlanningService = projectPlanningService;
             _requirementsAnalysisService = requirementsAnalysisService;
             _instructionService = instructionService;
-            _aiClientFactory = aiClientFactory;
             _reviewService = reviewService;
             _testGenerator = testGenerator;
             _implementationGenerator = implementationGenerator;

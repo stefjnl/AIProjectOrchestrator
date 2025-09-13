@@ -20,23 +20,24 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "8087:8080"  # API and frontend port (serving static files)
+    # Comment out the ports mapping when using host networking
+    # ports:
+    #   - "8087:8080"
     volumes:
       - ./Instructions:/app/Instructions
     depends_on:
       - db
     environment:
-      - DB_HOST=db
+      - DB_HOST=localhost # Changed from 'db' since we're using host networking
       - DB_PORT=5432
       - DB_DATABASE=aiprojectorchestrator
       - DB_USER=user
       - DB_PASSWORD=password
-      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=aiprojectorchestrator;Username=user;Password=password
+      - ConnectionStrings__DefaultConnection=Host=localhost;Port=5432;Database=aiprojectorchestrator;Username=user;Password=password
       - ASPNETCORE_URLS=http://+:8080
       - ASPNETCORE_ENVIRONMENT=Development
-    networks:
-      - aiprojectorchestrator-network
+    network_mode: "host" # This bypasses Docker's SSL libraries entirely
+    networks: [] # Remove from bridge network when using host mode
 
 volumes:
   postgres_data:

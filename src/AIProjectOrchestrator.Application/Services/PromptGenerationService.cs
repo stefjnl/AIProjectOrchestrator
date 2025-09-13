@@ -10,6 +10,7 @@ using AIProjectOrchestrator.Domain.Models.PromptGeneration;
 using AIProjectOrchestrator.Domain.Models.Stories;
 using AIProjectOrchestrator.Domain.Services;
 using AIProjectOrchestrator.Infrastructure.AI;
+using AIProjectOrchestrator.Infrastructure.AI.Providers;
 using AIProjectOrchestrator.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
@@ -20,7 +21,7 @@ namespace AIProjectOrchestrator.Application.Services
         private readonly IStoryGenerationService _storyGenerationService;
         private readonly IProjectPlanningService _projectPlanningService;
         private readonly IInstructionService _instructionService;
-        private readonly IAIClientFactory _aiClientFactory;
+        private readonly IPromptGenerationAIProvider _promptGenerationAIProvider;
         private readonly Lazy<IReviewService> _reviewService;
         private readonly ILogger<PromptGenerationService> _logger;
         private readonly ILogger<PromptContextAssembler> _loggerAssembler;
@@ -31,7 +32,7 @@ namespace AIProjectOrchestrator.Application.Services
             IStoryGenerationService storyGenerationService,
             IProjectPlanningService projectPlanningService,
             IInstructionService instructionService,
-            IAIClientFactory aiClientFactory,
+            IPromptGenerationAIProvider promptGenerationAIProvider,
             Lazy<IReviewService> reviewService,
             ILogger<PromptGenerationService> logger,
             ILogger<PromptContextAssembler> loggerAssembler,
@@ -41,7 +42,7 @@ namespace AIProjectOrchestrator.Application.Services
             _storyGenerationService = storyGenerationService;
             _projectPlanningService = projectPlanningService;
             _instructionService = instructionService;
-            _aiClientFactory = aiClientFactory;
+            _promptGenerationAIProvider = promptGenerationAIProvider;
             _reviewService = reviewService;
             _logger = logger;
             _loggerAssembler = loggerAssembler;
@@ -129,110 +130,23 @@ namespace AIProjectOrchestrator.Application.Services
                 var promptContent = BuildPromptContent(story, request.TechnicalPreferences, request.PromptStyle);
                 _logger.LogInformation("Built coding assistant prompt with length: {Length} characters", promptContent.Length);
 
-                // Generate prompt using AI with fallback logic
-                IAIClient? aiClient = null;
-                AIResponse? aiResponse = null;
+                // Generate prompt using AI provider with built-in fallback logic
+                string generatedContent;
 
-                // Try primary provider first
                 try
                 {
-                    aiClient = _aiClientFactory.GetClient("NanoGpt");
-                    if (aiClient != null)
-                    {
-                        _logger.LogInformation("Using primary AI client: {ProviderName}", aiClient.ProviderName);
+                    _logger.LogInformation("Calling AI provider for prompt generation with prompt length: {Length} characters", promptContent.Length);
+                    
+                    generatedContent = await _promptGenerationAIProvider.GenerateContentAsync(promptContent, null);
 
-                        var aiRequest = new AIRequest
-                        {
-                            Prompt = promptContent,
-                            ModelName = "moonshotai/Kimi-K2-Instruct-0905",
-                            Temperature = 0.7,
-                            MaxTokens = 1500 // Reduced from 2000 to help with timeout issues
-                        };
-
-                        _logger.LogInformation("Calling AI service with prompt length: {Length} characters", promptContent.Length);
-                        aiResponse = await aiClient.CallAsync(aiRequest, cancellationToken);
-
-                        if (aiResponse.IsSuccess)
-                        {
-                            _logger.LogInformation("AI prompt generation successful with provider: {ProviderName}", aiClient.ProviderName);
-                        }
-                        else
-                        {
-                            _logger.LogWarning("Primary AI provider failed: {ErrorMessage}", aiResponse.ErrorMessage);
-                        }
-                    }
-                }
-                catch (TaskCanceledException tex) when (tex.InnerException is TimeoutException)
-                {
-                    _logger.LogWarning("Primary AI provider timed out, will attempt fallback: {ErrorMessage}", tex.Message);
+                    _logger.LogInformation("AI prompt generation successful with provider: {ProviderName}", _promptGenerationAIProvider.ProviderName);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Primary AI provider failed, will attempt fallback");
-                }
-
-                // If primary failed or timed out, try fallback providers
-                if (aiResponse == null || !aiResponse.IsSuccess)
-                {
-                    _logger.LogInformation("Attempting fallback AI providers");
-
-                    var fallbackProviders = new[] { "OpenRouter", "LMStudio" };
-                    foreach (var provider in fallbackProviders)
-                    {
-                        try
-                        {
-                            aiClient = _aiClientFactory.GetClient(provider);
-                            if (aiClient != null)
-                            {
-                                _logger.LogInformation("Trying fallback AI client: {ProviderName}", aiClient.ProviderName);
-
-                                var fallbackRequest = new AIRequest
-                                {
-                                    Prompt = promptContent,
-                                    ModelName = aiClient.ProviderName == "OpenRouter" ? "qwen/qwen3-coder" : "qwen-coder",
-                                    Temperature = 0.7,
-                                    MaxTokens = 1500
-                                };
-
-                                aiResponse = await aiClient.CallAsync(fallbackRequest, cancellationToken);
-
-                                if (aiResponse.IsSuccess)
-                                {
-                                    _logger.LogInformation("Fallback AI provider successful: {ProviderName}", aiClient.ProviderName);
-                                    break;
-                                }
-                                else
-                                {
-                                    _logger.LogWarning("Fallback provider {ProviderName} failed: {ErrorMessage}",
-                                        aiClient.ProviderName, aiResponse.ErrorMessage);
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "Fallback provider {ProviderName} failed", provider);
-                        }
-                    }
-                }
-
-                // If all providers failed, use the original prompt content as fallback
-                if (aiResponse == null || !aiResponse.IsSuccess)
-                {
-                    _logger.LogWarning("All AI providers failed, using original prompt as fallback");
-                    aiResponse = new AIResponse
-                    {
-                        Content = promptContent,
-                        TokensUsed = 0,
-                        ProviderName = "Fallback",
-                        IsSuccess = true,
-                        ErrorMessage = "AI generation failed, using original prompt"
-                    };
-                }
-
-                if (!aiResponse.IsSuccess)
-                {
-                    _logger.LogError("AI prompt generation failed: {ErrorMessage}", aiResponse.ErrorMessage);
-                    throw new InvalidOperationException($"AI prompt generation failed: {aiResponse.ErrorMessage}");
+                    _logger.LogWarning(ex, "AI provider failed, using original prompt as fallback");
+                    
+                    // Use fallback with original content
+                    generatedContent = promptContent;
                 }
 
                 // Create and save the prompt generation entity
@@ -242,7 +156,7 @@ namespace AIProjectOrchestrator.Application.Services
                     StoryIndex = request.StoryIndex,
                     PromptId = Guid.NewGuid().ToString(),
                     Status = PromptGenerationStatus.Approved,
-                    Content = aiResponse.Content ?? promptContent,
+                    Content = generatedContent,
                     ReviewId = Guid.NewGuid().ToString(),
                     CreatedDate = DateTime.UtcNow
                 };
@@ -400,19 +314,27 @@ namespace AIProjectOrchestrator.Application.Services
 
             try
             {
-                _logger.LogInformation("About to call AIClientFactory.GetClient('NanoGpt')");
-                var aiClient = _aiClientFactory.GetClient("NanoGpt");
-                _logger.LogInformation("AIClientFactory returned client: {ClientName}", aiClient?.ProviderName ?? "NULL");
-
+                _logger.LogInformation("Calling AI provider for playground prompt generation");
+                
                 var aiRequest = new AIRequest
                 {
                     Prompt = promptContent,
-                    ModelName = "moonshotai/Kimi-K2-Instruct-0905", // or any other model
-                    Temperature = 0.7,
-                    MaxTokens = 2000
+                    ModelName = string.Empty, // Will be set by the provider
+                    Temperature = 0.7, // Default value, will be overridden by provider
+                    MaxTokens = 1000  // Default value, will be overridden by provider
                 };
 
-                var aiResponse = await aiClient.CallAsync(aiRequest, cancellationToken);
+                var generatedContent = await _promptGenerationAIProvider.GenerateContentAsync(aiRequest.Prompt, aiRequest.SystemMessage);
+                
+                // GenerateContentAsync returns the content directly, so we need to create an AIResponse
+                var aiResponse = new AIResponse
+                {
+                    Content = generatedContent,
+                    TokensUsed = 0, // We don't have token info from GenerateContentAsync
+                    ProviderName = _promptGenerationAIProvider.ProviderName,
+                    IsSuccess = true,
+                    ErrorMessage = null
+                };
 
                 if (!aiResponse.IsSuccess)
                 {
@@ -420,7 +342,7 @@ namespace AIProjectOrchestrator.Application.Services
                     throw new InvalidOperationException($"AI call from playground failed: {aiResponse.ErrorMessage}");
                 }
 
-                _logger.LogInformation("Prompt from playground generated successfully.");
+                _logger.LogInformation("Prompt from playground generated successfully with provider: {ProviderName}", aiResponse.ProviderName);
                 return aiResponse;
             }
             catch (Exception ex)

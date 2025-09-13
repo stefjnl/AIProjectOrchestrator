@@ -7,6 +7,7 @@ using AIProjectOrchestrator.Domain.Models;
 using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Domain.Models.Review;
 using AIProjectOrchestrator.Infrastructure.AI;
+using AIProjectOrchestrator.Infrastructure.AI.Providers;
 using System.Text;
 using AIProjectOrchestrator.Domain.Interfaces;
 using AIProjectOrchestrator.Domain.Entities;
@@ -17,25 +18,28 @@ namespace AIProjectOrchestrator.Application.Services
     {
         private readonly IRequirementsAnalysisService _requirementsAnalysisService;
         private readonly IInstructionService _instructionService;
-        private readonly IAIClientFactory _aiClientFactory;
+        private readonly IPlanningAIProvider _planningAIProvider;
         private readonly Lazy<IReviewService> _reviewService;
         private readonly ILogger<ProjectPlanningService> _logger;
         private readonly IProjectPlanningRepository _projectPlanningRepository;
+        private readonly IRequirementsAnalysisRepository _requirementsAnalysisRepository;
 
         public ProjectPlanningService(
             IRequirementsAnalysisService requirementsAnalysisService,
             IInstructionService instructionService,
-            IAIClientFactory aiClientFactory,
+            IPlanningAIProvider planningAIProvider,
             Lazy<IReviewService> reviewService,
             ILogger<ProjectPlanningService> logger,
-            IProjectPlanningRepository projectPlanningRepository)
+            IProjectPlanningRepository projectPlanningRepository,
+            IRequirementsAnalysisRepository requirementsAnalysisRepository)
         {
             _requirementsAnalysisService = requirementsAnalysisService;
             _instructionService = instructionService;
-            _aiClientFactory = aiClientFactory;
+            _planningAIProvider = planningAIProvider;
             _reviewService = reviewService;
             _logger = logger;
             _projectPlanningRepository = projectPlanningRepository;
+            _requirementsAnalysisRepository = requirementsAnalysisRepository;
         }
 
         public async Task<ProjectPlanningResponse> CreateProjectPlanAsync(
@@ -90,9 +94,9 @@ namespace AIProjectOrchestrator.Application.Services
                 {
                     SystemMessage = instructionContent.Content,
                     Prompt = CreatePromptFromContext(requirementsAnalysis, request),
-                    ModelName = "moonshotai/Kimi-K2-Instruct-0905", // Default model for project planning via NanoGpt
-                    Temperature = 0.7,
-                    MaxTokens = 4000 // Larger response expected for project planning
+                    ModelName = string.Empty, // Will be set by the provider
+                    Temperature = 0.7, // Default value, will be overridden by provider
+                    MaxTokens = 1000  // Default value, will be overridden by provider
                 };
 
                 // Log context size metrics
@@ -105,21 +109,23 @@ namespace AIProjectOrchestrator.Application.Services
                     _logger.LogWarning("Project planning {PlanningId} context size is large: {ContextSize} bytes", planningId, contextSize);
                 }
 
-                // Get NanoGpt AI client
-                var aiClient = _aiClientFactory.GetClient("NanoGpt");
-                if (aiClient == null)
-                {
-                    _logger.LogError("Project planning {PlanningId} failed: NanoGpt AI client not available", planningId);
-                    throw new InvalidOperationException("NanoGpt AI client is not available");
-                }
-
-                _logger.LogDebug("Calling AI client for project planning {PlanningId}", planningId);
+                _logger.LogDebug("Calling AI provider for project planning {PlanningId}", planningId);
 
                 // Parallelize metadata save with AI call
                 var metadataTask = SaveMetadataAsync(request, planningId, cancellationToken);
 
-                // Call AI
-                var aiResponse = await aiClient.CallAsync(aiRequest, cancellationToken);
+                // Call AI using the planning-specific provider
+                var generatedContent = await _planningAIProvider.GenerateContentAsync(aiRequest.Prompt, aiRequest.SystemMessage);
+                
+                // GenerateContentAsync returns the content directly, so we need to create an AIResponse
+                var aiResponse = new AIResponse
+                {
+                    Content = generatedContent,
+                    TokensUsed = 0, // We don't have token info from GenerateContentAsync
+                    ProviderName = _planningAIProvider.ProviderName,
+                    IsSuccess = true,
+                    ErrorMessage = null
+                };
 
                 // Await metadata save completion
                 await metadataTask;
@@ -412,25 +418,6 @@ namespace AIProjectOrchestrator.Application.Services
             };
         }
 
-        private readonly IRequirementsAnalysisRepository _requirementsAnalysisRepository;
-
-        public ProjectPlanningService(
-            IRequirementsAnalysisService requirementsAnalysisService,
-            IInstructionService instructionService,
-            IAIClientFactory aiClientFactory,
-            Lazy<IReviewService> reviewService,
-            ILogger<ProjectPlanningService> logger,
-            IProjectPlanningRepository projectPlanningRepository,
-            IRequirementsAnalysisRepository requirementsAnalysisRepository)
-        {
-            _requirementsAnalysisService = requirementsAnalysisService;
-            _instructionService = instructionService;
-            _aiClientFactory = aiClientFactory;
-            _reviewService = reviewService;
-            _logger = logger;
-            _projectPlanningRepository = projectPlanningRepository;
-            _requirementsAnalysisRepository = requirementsAnalysisRepository;
-        }
 
         private async Task<int?> GetRequirementsAnalysisEntityId(Guid requirementsAnalysisId, CancellationToken cancellationToken)
         {
