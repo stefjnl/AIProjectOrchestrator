@@ -73,17 +73,17 @@ namespace AIProjectOrchestrator.Application.Services
                 {
                     SystemMessage = instructionContent.Content,
                     Prompt = CreatePromptFromRequest(request),
-                    ModelName = "qwen/qwen3-coder", // Default model for requirements analysis via OpenRouter
+                    ModelName = "moonshotai/Kimi-K2-Instruct-0905", // Default model for requirements analysis via NanoGpt
                     Temperature = 0.7,
                     MaxTokens = 2000
                 };
 
-                // Get OpenRouter AI client
-                var aiClient = _aiClientFactory.GetClient("OpenRouter");
+                // Get NanoGpt AI client
+                var aiClient = _aiClientFactory.GetClient("NanoGpt");
                 if (aiClient == null)
                 {
-                    _logger.LogError("Requirements analysis {AnalysisId} failed: OpenRouter AI client not available", analysisId);
-                    throw new InvalidOperationException("OpenRouter AI client is not available");
+                    _logger.LogError("Requirements analysis {AnalysisId} failed: NanoGpt AI client not available", analysisId);
+                    throw new InvalidOperationException("NanoGpt AI client is not available");
                 }
 
                 _logger.LogDebug("Calling AI client for requirements analysis {AnalysisId}", analysisId);

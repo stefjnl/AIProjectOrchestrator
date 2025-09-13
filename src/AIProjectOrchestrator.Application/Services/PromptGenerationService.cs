@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using AIProjectOrchestrator.Application.Interfaces;
 using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Domain.Models.PromptGeneration;
+using AIProjectOrchestrator.Domain.Models.Stories;
 using AIProjectOrchestrator.Domain.Services;
 using AIProjectOrchestrator.Infrastructure.AI;
 using AIProjectOrchestrator.Domain.Entities;

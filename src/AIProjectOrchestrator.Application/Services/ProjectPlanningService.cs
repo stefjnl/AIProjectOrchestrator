@@ -90,7 +90,7 @@ namespace AIProjectOrchestrator.Application.Services
                 {
                     SystemMessage = instructionContent.Content,
                     Prompt = CreatePromptFromContext(requirementsAnalysis, request),
-                    ModelName = "qwen/qwen3-coder", // Default model for project planning via OpenRouter
+                    ModelName = "moonshotai/Kimi-K2-Instruct-0905", // Default model for project planning via NanoGpt
                     Temperature = 0.7,
                     MaxTokens = 4000 // Larger response expected for project planning
                 };
@@ -105,12 +105,12 @@ namespace AIProjectOrchestrator.Application.Services
                     _logger.LogWarning("Project planning {PlanningId} context size is large: {ContextSize} bytes", planningId, contextSize);
                 }
 
-                // Get OpenRouter AI client
-                var aiClient = _aiClientFactory.GetClient("OpenRouter");
+                // Get NanoGpt AI client
+                var aiClient = _aiClientFactory.GetClient("NanoGpt");
                 if (aiClient == null)
                 {
-                    _logger.LogError("Project planning {PlanningId} failed: OpenRouter AI client not available", planningId);
-                    throw new InvalidOperationException("OpenRouter AI client is not available");
+                    _logger.LogError("Project planning {PlanningId} failed: NanoGpt AI client not available", planningId);
+                    throw new InvalidOperationException("NanoGpt AI client is not available");
                 }
 
                 _logger.LogDebug("Calling AI client for project planning {PlanningId}", planningId);

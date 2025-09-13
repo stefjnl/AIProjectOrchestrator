@@ -12,6 +12,6 @@ namespace AIProjectOrchestrator.Domain.Models.Stories
         public int? StoryPoints { get; set; }
         public List<string> Tags { get; set; } = new();
         public string? EstimatedComplexity { get; set; }
-        public StoryStatus Status { get; set; } = StoryStatus.Draft;
+        public Models.Stories.StoryStatus Status { get; set; } = StoryStatus.Draft;
     }
 }

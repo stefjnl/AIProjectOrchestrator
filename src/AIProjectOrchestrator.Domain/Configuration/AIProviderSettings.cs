@@ -40,10 +40,10 @@ namespace AIProjectOrchestrator.Domain.Configuration
         public class NanoGptSettings
     {
         public string ApiKey { get; set; } = string.Empty;
-        public string BaseUrl { get; set; } = "https://nano-gpt.com/api/v1"; 
+        public string BaseUrl { get; set; } = "https://api.nanogpt.com";
         public int TimeoutSeconds { get; set; } = 30;
         public int MaxRetries { get; set; } = 3;
-        public string DefaultModel { get; set; } = "moonshotai/Kimi-K2-Instruct-0905"; 
+        public string DefaultModel { get; set; } = "moonshotai/Kimi-K2-Instruct-0905";
     }
 
     public class AlibabaCloudSettings

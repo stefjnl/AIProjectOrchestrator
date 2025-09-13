@@ -15,12 +15,12 @@ using AIProjectOrchestrator.Application.Services;
 
 namespace AIProjectOrchestrator.IntegrationTests
 {
-    public class PromptGenerationIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
+    public class PromptGenerationIntegrationTests : IClassFixture<CustomWebApplicationFactory>
     {
-        private readonly WebApplicationFactory<Program> _factory;
+        private readonly CustomWebApplicationFactory _factory;
         private readonly Mock<IPromptGenerationService> _mockService;
 
-        public PromptGenerationIntegrationTests(WebApplicationFactory<Program> factory)
+        public PromptGenerationIntegrationTests(CustomWebApplicationFactory factory)
         {
             _factory = factory;
             _mockService = new Mock<IPromptGenerationService>();

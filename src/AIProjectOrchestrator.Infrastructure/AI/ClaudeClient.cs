@@ -25,16 +25,17 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             _settings = _configurationService.GetProviderSettings<ClaudeSettings>(ProviderName);
 
             // Log settings for debugging
-            AIClientLogger.LogSettings(ProviderName, _settings.BaseUrl, _settings.ApiKey?.Length ?? 0, _settings.DefaultModel);
+            _logger.LogInformation("{ProviderName} Settings - BaseUrl: {BaseUrl}, ApiKey Length: {ApiKeyLength}, DefaultModel: {DefaultModel}",
+                ProviderName, _settings.BaseUrl, _settings.ApiKey?.Length ?? 0, _settings.DefaultModel);
 
             // Log the actual API key prefix for debugging (first 10 characters)
             if (!string.IsNullOrEmpty(_settings.ApiKey))
             {
-                AIClientLogger.LogApiKeyPrefix(ProviderName, _settings.ApiKey.Substring(0, Math.Min(10, _settings.ApiKey.Length)));
+                _logger.LogInformation("{ProviderName} API Key prefix: {ApiKeyPrefix}", ProviderName, _settings.ApiKey.Substring(0, Math.Min(10, _settings.ApiKey.Length)));
             }
 
             // Also log the HttpClient BaseAddress in constructor
-            AIClientLogger.LogRequestUrl(ProviderName, httpClient.BaseAddress?.ToString() ?? "NULL");
+            _logger.LogInformation("{ProviderName} HttpClient BaseAddress: {BaseAddress}", ProviderName, httpClient.BaseAddress?.ToString() ?? "NULL");
         }
 
         public override async Task<AIResponse> CallAsync(AIRequest request, CancellationToken cancellationToken = default)
@@ -59,18 +60,18 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 // Log the HttpClient BaseAddress for debugging
-                AIClientLogger.LogRequestUrl(ProviderName, _httpClient.BaseAddress?.ToString() ?? "NULL");
+                _logger.LogInformation("{ProviderName} HttpClient BaseAddress: {BaseAddress}", ProviderName, _httpClient.BaseAddress?.ToString() ?? "NULL");
 
                 // Log the full request URL being constructed
                 var fullUrl = _httpClient.BaseAddress != null
-                    ? new Uri(_httpClient.BaseAddress, "v1/messages").ToString()
-                    : "v1/messages";
-                AIClientLogger.LogRequestUrl(ProviderName, fullUrl);
+                    ? new Uri(_httpClient.BaseAddress, "messages").ToString()
+                    : "messages";
+                _logger.LogInformation("{ProviderName} Request URL: {RequestUrl}", ProviderName, fullUrl);
 
                 var response = await SendRequestWithRetryAsync(
                     () =>
                     {
-                        var requestMessage = new HttpRequestMessage(HttpMethod.Post, "v1/messages")
+                        var requestMessage = new HttpRequestMessage(HttpMethod.Post, "messages")
                         {
                             Content = content
                         };
@@ -123,6 +124,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "Error in ClaudeClient.CallAsync for provider {ProviderName}", ProviderName);
                 return new AIResponse
                 {
                     Content = string.Empty,
@@ -141,10 +143,19 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             {
                 // Simple health check - try to connect to the base URL
                 var response = await _httpClient.GetAsync("", cancellationToken);
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("{ProviderName} health check passed", ProviderName);
+                }
+                else
+                {
+                    _logger.LogWarning("{ProviderName} health check failed with status {StatusCode}", ProviderName, response.StatusCode);
+                }
                 return response.IsSuccessStatusCode;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Error in ClaudeClient.IsHealthyAsync for provider {ProviderName}", ProviderName);
                 return false;
             }
         }

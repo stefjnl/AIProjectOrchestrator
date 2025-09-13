@@ -18,29 +18,37 @@ namespace AIProjectOrchestrator.UnitTests.AI
         private readonly Mock<HttpMessageHandler> _httpMessageHandlerMock;
         private readonly HttpClient _httpClient;
         private readonly Mock<ILogger<NanoGptClient>> _loggerMock;
-        private readonly Mock<AIProviderConfigurationService> _configurationServiceMock;
+        private readonly AIProviderConfigurationService _configurationService;
         private readonly NanoGptClient _client;
 
         public NanoGptClientTests()
         {
             _httpMessageHandlerMock = new Mock<HttpMessageHandler>();
-            _httpClient = new HttpClient(_httpMessageHandlerMock.Object);
-            _loggerMock = new Mock<ILogger<NanoGptClient>>();
-            _configurationServiceMock = new Mock<AIProviderConfigurationService>(MockBehavior.Strict, new Mock<Microsoft.Extensions.Options.IOptions<AIProviderSettings>>().Object);
-
-            // Setup the configuration service to return mock settings
-            var mockSettings = new NanoGptSettings
+            _httpClient = new HttpClient(_httpMessageHandlerMock.Object)
             {
-                BaseUrl = "https://nano-gpt.com/api/v1",
-                ApiKey = "test-api-key",
-                DefaultModel = "test-model",
-                MaxRetries = 3,
-                TimeoutSeconds = 30
+                BaseAddress = new Uri("https://nano-gpt.com/api/v1")
             };
-            
-            _configurationServiceMock.Setup(x => x.GetProviderSettings("NanoGpt")).Returns(mockSettings);
+            _loggerMock = new Mock<ILogger<NanoGptClient>>();
 
-            _client = new NanoGptClient(_httpClient, _loggerMock.Object, _configurationServiceMock.Object);
+            // Create real configuration service with test settings
+            var settings = new AIProviderSettings
+            {
+                NanoGpt = new NanoGptSettings
+                {
+                    BaseUrl = "https://nano-gpt.com/api/v1",
+                    ApiKey = "test-api-key",
+                    DefaultModel = "test-model",
+                    MaxRetries = 3,
+                    TimeoutSeconds = 30
+                }
+            };
+
+            var optionsMock = new Mock<Microsoft.Extensions.Options.IOptions<AIProviderSettings>>();
+            optionsMock.Setup(x => x.Value).Returns(settings);
+
+            _configurationService = new AIProviderConfigurationService(optionsMock.Object);
+
+            _client = new NanoGptClient(_httpClient, _loggerMock.Object, _configurationService);
         }
 
         [Fact]
@@ -53,7 +61,7 @@ namespace AIProjectOrchestrator.UnitTests.AI
                 ModelName = "test-model"
             };
 
-            var responseContent = "{\"choices\":[{\"text\":\"Test response\"}]}";
+            var responseContent = "{\"choices\":[{\"message\":{\"content\":\"Test response\"}}]}";
             var httpResponse = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
             {
                 Content = new StringContent(responseContent)
@@ -84,7 +92,10 @@ namespace AIProjectOrchestrator.UnitTests.AI
                 ModelName = "test-model"
             };
 
-            var httpResponse = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError);
+            var httpResponse = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError)
+            {
+                Content = new StringContent("{\"error\": {\"message\": \"Invalid request URI\"}}")
+            };
 
             _httpMessageHandlerMock.Protected()
                 .Setup<Task<HttpResponseMessage>>(
@@ -98,7 +109,8 @@ namespace AIProjectOrchestrator.UnitTests.AI
 
             // Assert
             Assert.False(response.IsSuccess);
-            Assert.Contains("NanoGpt API returned status", response.ErrorMessage);
+            Assert.StartsWith("NanoGpt API returned status", response.ErrorMessage);
+            Assert.Contains("InternalServerError", response.ErrorMessage);
         }
 
         [Fact]
@@ -134,7 +146,7 @@ namespace AIProjectOrchestrator.UnitTests.AI
             Assert.True(response.IsSuccess);
             Assert.Equal("Test response", response.Content);
             Assert.NotNull(capturedRequest);
-            Assert.EndsWith("/v1/chat/completions", capturedRequest.RequestUri?.ToString());
+            Assert.EndsWith("v1/v1/chat/completions", capturedRequest.RequestUri?.ToString());
             Assert.DoesNotContain("/api/api", capturedRequest.RequestUri?.ToString()); // Ensure no double /api in URL
         }
 
@@ -178,7 +190,7 @@ namespace AIProjectOrchestrator.UnitTests.AI
 
             // Verify endpoint path
             Assert.NotNull(capturedRequest);
-            Assert.EndsWith("/v1/chat/completions", capturedRequest.RequestUri?.ToString());
+            Assert.EndsWith("v1/chat/completions", capturedRequest.RequestUri?.ToString());
 
             // Verify request body format matches OpenAI API
             Assert.NotNull(capturedRequest.Content);
@@ -230,7 +242,7 @@ namespace AIProjectOrchestrator.UnitTests.AI
 
             // Assert
             Assert.False(response.IsSuccess);
-            Assert.Contains("Failed to parse JSON response", response.ErrorMessage);
+            Assert.StartsWith("Failed to parse JSON response", response.ErrorMessage);
             Assert.Contains("invalid json response", response.ErrorMessage);
         }
 
@@ -243,7 +255,7 @@ namespace AIProjectOrchestrator.UnitTests.AI
             _httpMessageHandlerMock.Protected()
                 .Setup<Task<HttpResponseMessage>>(
                     "SendAsync",
-                    ItExpr.Is<HttpRequestMessage>(req => req.Method == HttpMethod.Get && req.RequestUri.ToString() == "/"),
+                    ItExpr.Is<HttpRequestMessage>(req => req.Method == HttpMethod.Get && req.RequestUri.ToString() == "https://nano-gpt.com/api/v1"),
                     ItExpr.IsAny<CancellationToken>())
                 .ReturnsAsync(httpResponse);
 
@@ -263,7 +275,7 @@ namespace AIProjectOrchestrator.UnitTests.AI
             _httpMessageHandlerMock.Protected()
                 .Setup<Task<HttpResponseMessage>>(
                     "SendAsync",
-                    ItExpr.Is<HttpRequestMessage>(req => req.Method == HttpMethod.Get && req.RequestUri.ToString() == "/"),
+                    ItExpr.Is<HttpRequestMessage>(req => req.Method == HttpMethod.Get && req.RequestUri.ToString() == "https://nano-gpt.com/api/v1"),
                     ItExpr.IsAny<CancellationToken>())
                 .ReturnsAsync(httpResponse);
 

@@ -33,7 +33,7 @@ namespace AIProjectOrchestrator.UnitTests.AI
         }
         
         [Fact]
-        public void GetClient_WithInvalidProviderName_ShouldReturnNull()
+        public void GetClient_WithInvalidProviderName_ShouldReturnFallbackClient()
         {
             // Arrange
             var mockClient = new Mock<IAIClient>();
@@ -41,13 +41,19 @@ namespace AIProjectOrchestrator.UnitTests.AI
             
             var clients = new List<IAIClient> { mockClient.Object };
             var fallbackService = new Mock<AIClientFallbackService>(clients, new Mock<ILogger<AIClientFallbackService>>().Object);
+            
+            // Setup fallback service to return the Claude client as fallback
+            fallbackService.Setup(f => f.GetFallbackClient("NonExistentProvider"))
+                .Returns(mockClient.Object);
+            
             var factory = new AIClientFactory(clients, fallbackService.Object);
             
             // Act
             var result = factory.GetClient("NonExistentProvider");
             
             // Assert
-            Assert.Null(result);
+            Assert.NotNull(result);
+            Assert.Equal("Claude", result?.ProviderName);
         }
         
         [Fact]

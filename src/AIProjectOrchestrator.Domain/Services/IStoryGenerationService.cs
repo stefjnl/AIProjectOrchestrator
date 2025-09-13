@@ -49,13 +49,13 @@ namespace AIProjectOrchestrator.Domain.Services
             Guid storyGenerationId,
             CancellationToken cancellationToken = default);
 
-        Task<StoryStatus> GetStoryStatusAsync(
+        Task<AIProjectOrchestrator.Domain.Models.Stories.StoryStatus> GetStoryStatusAsync(
             Guid storyId,
             CancellationToken cancellationToken = default);
 
         Task UpdateStoryStatusAsync(
             Guid storyId,
-            StoryStatus status,
+            AIProjectOrchestrator.Domain.Models.Stories.StoryStatus status,
             CancellationToken cancellationToken = default);
 
         Task UpdateStoryAsync(

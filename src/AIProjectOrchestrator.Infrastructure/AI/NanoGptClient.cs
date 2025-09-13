@@ -15,7 +15,6 @@ namespace AIProjectOrchestrator.Infrastructure.AI
     {
         private readonly AIProviderConfigurationService _configurationService;
         private readonly NanoGptSettings _settings;
-        private readonly ILogger<NanoGptClient> _logger;
 
         public override string ProviderName => "NanoGpt";
 
@@ -24,19 +23,19 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         {
             _configurationService = configurationService;
             _settings = _configurationService.GetProviderSettings<NanoGptSettings>(ProviderName);
-            _logger = logger;
 
             // Log settings for debugging
-            AIClientLogger.LogSettings(ProviderName, _settings.BaseUrl, _settings.ApiKey?.Length ?? 0, _settings.DefaultModel);
+            _logger.LogInformation("{ProviderName} Settings - BaseUrl: {BaseUrl}, ApiKey Length: {ApiKeyLength}, DefaultModel: {DefaultModel}",
+                ProviderName, _settings.BaseUrl, _settings.ApiKey?.Length ?? 0, _settings.DefaultModel);
 
             // Log the actual API key prefix for debugging (first 10 characters)
             if (!string.IsNullOrEmpty(_settings.ApiKey))
             {
-                AIClientLogger.LogApiKeyPrefix(ProviderName, _settings.ApiKey.Substring(0, Math.Min(10, _settings.ApiKey.Length)));
+                _logger.LogInformation("{ProviderName} API Key prefix: {ApiKeyPrefix}", ProviderName, _settings.ApiKey.Substring(0, Math.Min(10, _settings.ApiKey.Length)));
             }
 
             // Also log the HttpClient BaseAddress in constructor
-            AIClientLogger.LogRequestUrl(ProviderName, httpClient.BaseAddress?.ToString() ?? "NULL");
+            _logger.LogInformation("{ProviderName} HttpClient BaseAddress: {BaseAddress}", ProviderName, httpClient.BaseAddress?.ToString() ?? "NULL");
         }
 
         public override async Task<AIResponse> CallAsync(AIRequest request, CancellationToken cancellationToken = default)
@@ -62,23 +61,54 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                     messages = messages,
                     temperature = request.Temperature,
                     max_tokens = request.MaxTokens,
-                    stream = false // Disable streaming for this implementation
+                    stream = false // Use non-streaming mode as in the working example
                 };
 
                 var json = JsonSerializer.Serialize(nanoGptRequest);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                // Log the request size for debugging
-                _logger.LogInformation("NanoGpt request JSON length: {JsonLength} characters", json.Length);
+                // Log the complete request details for debugging
+                _logger.LogInformation("=== NANO_GPT REQUEST DEBUG ===");
+                _logger.LogInformation("Request URL: {BaseUrl}/v1/chat/completions", _settings.BaseUrl);
+                _logger.LogInformation("Request Method: POST");
+                _logger.LogInformation("Request Headers:");
+                _logger.LogInformation("  Authorization: Bearer {ApiKeyPrefix}...", _settings.ApiKey?.Substring(0, Math.Min(10, _settings.ApiKey.Length)) ?? "NULL");
+                _logger.LogInformation("  Content-Type: application/json");
+                _logger.LogInformation("  Accept: text/event-stream");
+                _logger.LogInformation("Request Body:");
+                _logger.LogInformation("  model: {Model}", nanoGptRequest.model);
+                _logger.LogInformation("  temperature: {Temperature}", nanoGptRequest.temperature);
+                _logger.LogInformation("  max_tokens: {MaxTokens}", nanoGptRequest.max_tokens);
+                _logger.LogInformation("  stream: {Stream} (NON-STREAMING)", nanoGptRequest.stream);
+                _logger.LogInformation("  messages count: {MessageCount}", messages.Length);
+                for (int i = 0; i < messages.Length; i++)
+                {
+                    var msg = messages[i];
+                    _logger.LogInformation("  message[{Index}] role: {Role}", i, msg.GetType().GetProperty("role")?.GetValue(msg)?.ToString() ?? "unknown");
+                    var msgContent = msg.GetType().GetProperty("content")?.GetValue(msg)?.ToString() ?? "";
+                    _logger.LogInformation("  message[{Index}] content length: {ContentLength} chars", i, msgContent.Length);
+                    if (msgContent.Length > 100)
+                    {
+                        _logger.LogInformation("  message[{Index}] content preview: {Preview}...", i, msgContent.Substring(0, 100));
+                    }
+                    else
+                    {
+                        _logger.LogInformation("  message[{Index}] content: {Content}", i, msgContent);
+                    }
+                }
+                _logger.LogInformation("Request JSON length: {JsonLength} characters", json.Length);
+                _logger.LogInformation("Full Request JSON: {Json}", json);
+                _logger.LogInformation("Request JSON Length: {JsonLength} characters", json.Length);
+                _logger.LogInformation("=== END NANO_GPT REQUEST DEBUG ===");
 
                 // Log the HttpClient BaseAddress for debugging
-                AIClientLogger.LogRequestUrl(ProviderName, _httpClient.BaseAddress?.ToString() ?? "NULL");
+                _logger.LogInformation("{ProviderName} HttpClient BaseAddress: {BaseAddress}", ProviderName, _httpClient.BaseAddress?.ToString() ?? "NULL");
 
                 // Log the full request URL being constructed
                 var fullUrl = _httpClient.BaseAddress != null
                     ? new Uri(_httpClient.BaseAddress, "v1/chat/completions").ToString()
                     : "v1/chat/completions";
-                AIClientLogger.LogRequestUrl(ProviderName, fullUrl);
+                _logger.LogInformation("{ProviderName} Request URL: {RequestUrl}", ProviderName, fullUrl);
 
                 // Log timeout information (configured at DI level)
                 _logger.LogInformation("Using HttpClient with timeout: {TimeoutSeconds}s (configured in DI)", _httpClient.Timeout.TotalSeconds);
@@ -106,74 +136,99 @@ namespace AIProjectOrchestrator.Infrastructure.AI
 
                 var responseContent = await response.Content.ReadAsStringAsync();
 
-                // Log response details for debugging
-                AIClientLogger.LogResponse(ProviderName, response.StatusCode, responseContent.Length, responseContent.Substring(0, Math.Min(200, responseContent.Length)));
+                // Log complete response details for debugging
+                _logger.LogInformation("=== NANO_GPT RESPONSE DEBUG ===");
+                _logger.LogInformation("Response Status: {StatusCode}", response.StatusCode);
+                _logger.LogInformation("Response Headers:");
+                foreach (var header in response.Headers)
+                {
+                    _logger.LogInformation("  {HeaderName}: {HeaderValue}", header.Key, string.Join(", ", header.Value));
+                }
+                _logger.LogInformation("Response Content Length: {ContentLength} characters", responseContent.Length);
+                _logger.LogInformation("Full Response Content:");
+                _logger.LogInformation("{ResponseContent}", responseContent);
+                
+                // Also log a preview of the response
+                var previewLength = Math.Min(500, responseContent.Length);
+                _logger.LogInformation("Response Content Preview (first {PreviewLength} chars):", previewLength);
+                _logger.LogInformation("{Preview}", responseContent.Substring(0, previewLength));
+                _logger.LogInformation("=== END NANO_GPT RESPONSE DEBUG ===");
 
                 if (response.IsSuccessStatusCode)
                 {
                     try
                     {
-                        // Parse OpenAI-compatible response format
+                        // Parse non-streaming response format (OpenAI-compatible)
                         using var doc = JsonDocument.Parse(responseContent);
                         var root = doc.RootElement;
-
-                        var choices = root.GetProperty("choices");
-                        var firstChoice = choices[0];
-                        var message = firstChoice.GetProperty("message");
-                        var text = message.GetProperty("content").GetString() ?? string.Empty;
-
-                        // Extract token usage if available
-                        var tokensUsed = 0;
-                        if (root.TryGetProperty("usage", out var usageElement))
+                        
+                        if (root.TryGetProperty("choices", out var choicesElement) &&
+                            choicesElement.GetArrayLength() > 0)
                         {
-                            tokensUsed = usageElement.GetProperty("completion_tokens").GetInt32();
+                            var firstChoice = choicesElement[0];
+                            if (firstChoice.TryGetProperty("message", out var messageElement) &&
+                                messageElement.TryGetProperty("content", out var contentElement))
+                            {
+                                var finalContent = contentElement.GetString() ?? "";
+                                _logger.LogInformation("NanoGpt response successful, content length: {ContentLength}", finalContent.Length);
+
+                                return new AIResponse
+                                {
+                                    Content = finalContent,
+                                    TokensUsed = 0, // Token usage not available in this format
+                                    ProviderName = ProviderName,
+                                    IsSuccess = true,
+                                    ResponseTime = DateTime.UtcNow - startTime
+                                };
+                            }
                         }
 
-                        _logger.LogInformation("NanoGpt response successful, content length: {ContentLength}, tokens used: {TokensUsed}",
-                            text.Length, tokensUsed);
-
-                        return new AIResponse
-                        {
-                            Content = text,
-                            TokensUsed = tokensUsed,
-                            ProviderName = ProviderName,
-                            IsSuccess = true,
-                            ResponseTime = DateTime.UtcNow - startTime
-                        };
+                        throw new Exception("Invalid response format: missing choices or message content");
                     }
-                    catch (JsonException jsonEx)
+                    catch (Exception ex)
                     {
-                        AIClientLogger.LogException(ProviderName, 0, jsonEx);
-                        _logger.LogError(jsonEx, "Failed to parse NanoGpt JSON response");
+                        _logger.LogError(ex, "Failed to parse NanoGpt response for provider {ProviderName}", ProviderName);
                         return new AIResponse
                         {
                             Content = string.Empty,
                             TokensUsed = 0,
                             ProviderName = ProviderName,
                             IsSuccess = false,
-                            ErrorMessage = $"Failed to parse JSON response: {jsonEx.Message}. Response content starts with: {responseContent.Substring(0, Math.Min(100, responseContent.Length))}",
+                            ErrorMessage = $"Failed to parse response: {ex.Message}",
                             ResponseTime = DateTime.UtcNow - startTime
                         };
                     }
                 }
                 else
                 {
-                    _logger.LogWarning("NanoGpt API returned error status: {StatusCode}, content: {ResponseContent}",
-                        response.StatusCode, responseContent);
+                    _logger.LogError("{ProviderName} API returned error status: {StatusCode}, content: {ResponseContent}",
+                        ProviderName, response.StatusCode, responseContent);
+                    
+                    // Provide specific guidance based on the status code
+                    string errorMessage;
+                    if (response.StatusCode == System.Net.HttpStatusCode.NotFound || response.StatusCode == System.Net.HttpStatusCode.MethodNotAllowed)
+                    {
+                        errorMessage = $"NanoGpt API endpoint not found ({response.StatusCode}). This usually means either: 1) The API key is invalid/expired, 2) The endpoint URL is incorrect, or 3) The API service is down. Please verify your API key and ensure the service is active. Response: {responseContent}";
+                    }
+                    else
+                    {
+                        errorMessage = $"NanoGpt API returned status {response.StatusCode}: {responseContent}";
+                    }
+                    
                     return new AIResponse
                     {
                         Content = string.Empty,
                         TokensUsed = 0,
                         ProviderName = ProviderName,
                         IsSuccess = false,
-                        ErrorMessage = $"NanoGpt API returned status {response.StatusCode}: {responseContent}",
+                        ErrorMessage = errorMessage,
                         ResponseTime = DateTime.UtcNow - startTime
                     };
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in NanoGptClient.CallAsync");
+                _logger.LogError(ex, "Error in NanoGptClient.CallAsync for provider {ProviderName}", ProviderName);
                 return new AIResponse
                 {
                     Content = string.Empty,
@@ -192,10 +247,19 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             {
                 // Simple health check - try to connect to the base URL
                 var response = await _httpClient.GetAsync("", cancellationToken);
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("{ProviderName} health check passed", ProviderName);
+                }
+                else
+                {
+                    _logger.LogWarning("{ProviderName} health check failed with status {StatusCode}", ProviderName, response.StatusCode);
+                }
                 return response.IsSuccessStatusCode;
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(ex, "Error in NanoGptClient.IsHealthyAsync for provider {ProviderName}", ProviderName);
                 return false;
             }
         }
