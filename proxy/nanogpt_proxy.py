@@ -124,9 +124,15 @@ def chat_completions():
         if not request_data:
             return jsonify({'error': 'No JSON data provided'}), 400
             
-        # Log incoming request
+        # Log incoming request with size information
+        request_size = len(json.dumps(request_data))
         logger.info(f"Incoming request: Model={request_data.get('model', 'unknown')}, "
-                   f"Temperature={request_data.get('temperature', 'unknown')}")
+                   f"Temperature={request_data.get('temperature', 'unknown')}, "
+                   f"Request size: {request_size} characters")
+        
+        # Warn about large requests
+        if request_size > 10000:  # 10KB
+            logger.warning(f"Large request detected ({request_size} characters), may take longer to process")
         
         # Validate required fields
         if 'messages' not in request_data:
@@ -161,7 +167,7 @@ def chat_completions():
                     full_url,
                     json=request_data,
                     headers=headers,
-                    timeout=60
+                    timeout=300  # Increased timeout for large requests
                 )
                 
                 if response.status_code not in [404, 405]:  # If not "Not Found" or "Method Not Allowed"
