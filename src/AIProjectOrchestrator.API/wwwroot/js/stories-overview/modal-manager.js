@@ -202,6 +202,59 @@ class ModalManager extends BaseStoriesManager {
     }
 
     /**
+     * View prompt by ID - fetches prompt data and displays it
+     * @param {string} promptId - Prompt ID to view
+     */
+    async viewPrompt(promptId) {
+        console.log(`viewPrompt called with promptId: ${promptId}`);
+        
+        if (!promptId) {
+            console.error('No prompt ID provided');
+            this.showNotification('No prompt ID provided.', 'error');
+            return;
+        }
+
+        // Validate GUID format
+        if (!this.isValidGuid(promptId)) {
+            console.error('Invalid prompt ID format');
+            this.showNotification('Invalid prompt ID format.', 'error');
+            return;
+        }
+
+        const loadingOverlay = this.showLoadingOverlay('Loading prompt...');
+
+        try {
+            console.log(`Fetching prompt data for promptId: ${promptId}`);
+            
+            // Fetch prompt data from API
+            const promptData = await APIClient.getPrompt(promptId);
+            console.log('Received prompt data:', promptData);
+
+            if (!promptData) {
+                console.error('No prompt data received');
+                this.showNotification('Prompt not found.', 'error');
+                return;
+            }
+
+            // Validate prompt data structure
+            if (!promptData.generatedPrompt) {
+                console.error('Invalid prompt data structure - missing generatedPrompt');
+                this.showNotification('Invalid prompt data received.', 'error');
+                return;
+            }
+
+            // Display the prompt using existing modal functionality
+            await this.showPromptModal(promptData);
+
+        } catch (error) {
+            console.error('Failed to load prompt:', error);
+            this.showNotification(`Failed to load prompt: ${error.message}`, 'error');
+        } finally {
+            this.hideLoadingOverlay(loadingOverlay);
+        }
+    }
+
+    /**
      * Show prompt viewer modal
      * @param {Object} promptData - Prompt data object
      */
