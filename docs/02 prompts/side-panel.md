@@ -10,224 +10,104 @@
 
 ## Technical Context
 
-**Project Architecture**: .NET 9 Web API backend with Clean Architecture (Domain/Application/Infrastructure/API layers), vanilla JavaScript frontend with modular service architecture, Docker containerized deployment.
+**Project Architecture**: .NET 9 Web API with Clean Architecture, ASP.NET Core Razor Pages, vanilla JavaScript with modular service architecture, Docker containerized deployment.
 
-**Existing Components**:
-- `APIClient` global object handles all backend communication
-- `WorkflowManager` class manages workflow state with localStorage persistence
-- Project workflow page at `/Projects/Workflow` with 5-stage pipeline visualization
-- Artifact data available via existing endpoints: `/api/requirements/{id}/status`, `/api/planning/{id}/status`, `/api/stories/{id}/status`, `/api/prompts/{id}/status`
-
-**File Locations**:
-- Frontend: `frontend/projects/workflow.html` (main workflow page)
-- JavaScript: `frontend/js/workflow.js` (WorkflowManager class)
-- API Client: `frontend/js/api.js` (APIClient global object)
-- Styles: `frontend/css/styles.css`
+**Target File**: `src/AIProjectOrchestrator.API/Pages/Projects/Workflow.cshtml`
 
 ## Implementation Requirements
 
-### Frontend Components
+### Step 1: Codebase Analysis
+Before implementation, analyze the existing codebase to understand:
+- Current JavaScript architecture and patterns used throughout the application
+- Existing API client implementation and available endpoints
+- CSS/styling conventions and responsive design patterns
+- State management approach used in workflow functionality
+- Backend API endpoints available for retrieving full artifact content
+- Integration patterns between Razor pages and JavaScript
 
-**HTML Structure (workflow.html)**
-Add side panel container alongside existing workflow pipeline:
+### Step 2: Workflow Page Enhancement
+
+**Target**: `src/AIProjectOrchestrator.API/Pages/Projects/Workflow.cshtml`
+
+**Required Enhancement**: Add a collapsible side panel (350px width, collapsible to 40px) positioned on the right side of the existing workflow pipeline. The panel should:
+
+- Display "Generated Artifacts" header with toggle button
+- Show all completed artifacts for the current project with status indicators
+- Show friendly message when certain artifacts are not available yet (i.e. early on in the process)
+- Allow expanding individual artifacts to view full content
+- Maintain responsive behavior (convert to bottom sheet on mobile)
+- Integrate seamlessly with existing page layout and functionality
+
+**Layout Addition** (adapt to existing Razor page patterns):
 ```html
-<div class="workflow-layout">
-  <div class="workflow-main">
-    <!-- Existing 5-stage workflow pipeline stays unchanged -->
+<div class="artifacts-panel" id="artifactsPanel">
+  <div class="panel-header">
+    <h3>Generated Artifacts</h3>
+    <button class="panel-toggle" id="panelToggle">⟨</button>
   </div>
-  <div class="artifacts-panel" id="artifactsPanel">
-    <div class="panel-header">
-      <h3>Generated Artifacts</h3>
-      <button class="panel-toggle" id="panelToggle">⟨</button>
-    </div>
-    <div class="panel-content" id="panelContent">
-      <!-- Artifacts dynamically loaded here -->
-    </div>
+  <div class="panel-content" id="panelContent">
+    <!-- Artifacts dynamically loaded here -->
   </div>
 </div>
 ```
 
-**CSS Styling Requirements**
-- Panel width: 350px, fixed position on right side
-- Collapsible to 40px width when minimized
-- Smooth transitions for expand/collapse (0.3s ease)
-- Responsive: convert to bottom sheet on mobile (<768px)
-- Artifact items: card-like appearance with hover states
-- Expandable content areas within each artifact item
+### Step 3: JavaScript Implementation
+
+**Approach**: Follow existing JavaScript patterns to implement:
+- Panel toggle functionality with state persistence
+- Artifact loading and display using current API patterns  
+- Content expansion/collapse for individual artifacts
+- Error handling consistent with existing implementation
+- Loading states following current conventions
+
+### Step 4: Styling Implementation
+
+**Requirements**: 
+- Follow existing CSS conventions and class naming patterns
+- Implement smooth transitions (0.3s ease for panel toggle)
 - Status indicators: green (approved), yellow (pending), red (rejected)
+- Responsive design matching existing breakpoints
+- Card-like artifact items with hover states
 
-**JavaScript Functionality (WorkflowManager Extension)**
+### Step 5: Backend Integration
 
-Add these methods to existing WorkflowManager class:
-```javascript
-// New methods for artifacts panel
-async loadArtifactsPanel() {
-  // Fetch all completed artifacts for current project
-  // Populate panel with artifact cards
-  // Handle empty state display
-}
+**Analysis Needed**: Determine if current API endpoints provide full artifact content retrieval or just status information.
 
-toggleArtifactsPanel() {
-  // Collapse/expand panel with animation
-  // Update localStorage panel state
-}
+**Implementation**: If content retrieval endpoints don't exist, implement them following existing controller patterns and response formats.
 
-expandArtifact(artifactType, artifactId) {
-  // Load full artifact content
-  // Display in expandable content area
-  // Handle loading states
-}
+## Data Flow Requirements
 
-refreshArtifactStatus() {
-  // Update artifact approval statuses
-  // Called when returning from review queue
-}
-```
-
-**API Client Extensions (api.js)**
-
-Add these methods to existing APIClient object:
-```javascript
-// New artifact retrieval methods
-async getRequirementsContent(analysisId) {
-  // GET /api/requirements/{id} - return full analysis content
-}
-
-async getPlanningContent(planningId) {
-  // GET /api/planning/{id} - return full planning content  
-}
-
-async getStoriesContent(generationId) {
-  // GET /api/stories/{id} - return all user stories
-}
-
-async getPromptsContent(generationId) {
-  // GET /api/prompts/{id} - return generated prompts
-}
-```
-
-### Backend API Extensions
-
-**Required New Endpoints** (if content retrieval endpoints don't exist):
-- `GET /api/requirements/{id}` - Return full requirements analysis content
-- `GET /api/planning/{id}` - Return full project planning content
-- `GET /api/stories/{id}` - Return complete user stories collection
-- `GET /api/prompts/{id}` - Return generated prompts with metadata
-
-**Response Format** (standardized across all endpoints):
-```json
-{
-  "id": "string",
-  "content": "string", 
-  "status": "Approved|Pending|Rejected",
-  "createdAt": "datetime",
-  "approvedAt": "datetime?",
-  "title": "string"
-}
-```
-
-## Implementation Specifications
-
-### Data Flow
-1. Page load → WorkflowManager.loadArtifactsPanel() checks for completed artifacts
-2. For each completed stage → API call to retrieve artifact content and status
+1. Page load → Check for completed artifacts using existing API patterns
+2. For each completed stage → Retrieve artifact content and status
 3. Populate panel with artifact cards showing title, status, timestamp
-4. User clicks artifact → expandArtifact() loads full content in expandable area
-5. Panel state (open/closed, expanded artifacts) persisted to localStorage
-
-### Error Handling
-- Loading states during API calls (spinner/skeleton UI)
-- Network error fallbacks with retry options
-- Empty state messaging when no artifacts exist
-- Graceful handling of missing or corrupted artifact data
-
-### Integration Points
-- Must work with existing WorkflowManager state management
-- Panel updates when workflow stages complete (artifacts added dynamically)
-- Integrates with existing review approval flow (status updates)
-- Maintains existing workflow navigation and functionality
-
-### Mobile Responsive Behavior
-- Desktop: 350px fixed right panel
-- Tablet (768px-1024px): 300px panel width
-- Mobile (<768px): Convert to bottom sheet that slides up, full width
-
-## Testing Requirements
-
-**Manual Testing Scenarios**:
-1. Load workflow page with no completed artifacts → Empty state displays
-2. Complete requirements analysis → Panel shows new artifact with "Pending" status
-3. Approve requirements in review queue → Return to workflow, artifact shows "Approved"
-4. Click artifact → Content expands inline showing full analysis text
-5. Complete multiple stages → Panel shows multiple artifacts in chronological order
-6. Toggle panel collapse → Smooth animation, state persists on page refresh
-7. Test on mobile → Panel converts to bottom sheet behavior
-
-**Edge Cases to Handle**:
-- Very long artifact content (>10,000 characters)
-- Network timeouts during artifact loading
-- Corrupted artifact data or API errors
-- Browser localStorage limitations
-- Concurrent user sessions modifying same project
-
-## Code Quality Standards
-
-**JavaScript Requirements**:
-- Use async/await consistently, avoid callback hell
-- Implement proper error handling with try/catch blocks
-- Follow existing code patterns from WorkflowManager and APIClient
-- Add comprehensive console logging for debugging
-- Use semantic variable and function names
-- Implement loading states for all async operations
-
-**CSS Requirements**:
-- Use CSS custom properties for theming consistency
-- Implement smooth transitions and animations
-- Follow mobile-first responsive design principles
-- Maintain accessibility with proper ARIA labels
-- Use flexbox/grid for layout, avoid float-based positioning
-
-**HTML Requirements**:
-- Semantic HTML5 structure with proper heading hierarchy
-- Accessibility attributes (aria-labels, role attributes)
-- Clean separation between structure, styling, and behavior
-- Progressive enhancement approach (works without JavaScript)
+4. User clicks artifact → Load full content in expandable area
+5. Panel state persistence using existing state management approach
 
 ## Integration Specifications
 
-**Existing Code Modifications**:
-- Update `workflow.html` layout structure (add wrapper div)
-- Extend WorkflowManager class with artifact panel methods
-- Add artifact endpoints to APIClient object  
-- Update CSS with new panel styles and responsive breakpoints
-- Ensure panel integrates with existing workflow state management
+**Existing Code Preservation**:
+- All current workflow functionality must remain unchanged
+- No breaking changes to existing Razor page structure or JavaScript
+- Maintain existing state management and API communication patterns
+- Follow established CSS conventions and responsive design approach
 
-**Backwards Compatibility**:
-- All existing workflow functionality must remain unchanged
-- No breaking changes to existing API contracts or Razor page functionality
-- Maintain existing state management patterns and JavaScript integration
-- Preserve existing CSS class names and styling conventions
+## Quality Requirements
 
-## Deliverables Checklist
+**Error Handling**: Use existing error handling patterns for network issues and missing data
 
-**Analysis Phase**:
-- [ ] Document current JavaScript architecture and patterns
-- [ ] Identify existing API endpoints and response formats
-- [ ] Document current CSS/styling approach and conventions
-- [ ] Identify existing state management patterns
+**Loading States**: Implement loading indicators consistent with current implementation
 
-**Implementation Phase**:
-- [ ] Updated `src/AIProjectOrchestrator.API/Pages/Projects/Workflow.cshtml` with new layout
-- [ ] JavaScript artifacts panel functionality (using existing patterns)  
-- [ ] CSS styling for panel and responsive design (following existing conventions)
-- [ ] Backend endpoint extensions (if needed, following existing patterns)
+**Responsive Design**: Ensure panel works across all device sizes using existing responsive patterns
 
-**Quality Assurance**:
-- [ ] All existing workflow functionality works unchanged
-- [ ] Panel displays correctly across desktop/tablet/mobile
-- [ ] Smooth animations and transitions implemented
-- [ ] Error states handled gracefully using existing patterns
-- [ ] Loading states provide clear user feedback
-- [ ] State persistence working with existing approach
+**Performance**: No impact on existing workflow functionality or page load times
 
-This implementation will provide instant access to generated artifacts while maintaining the existing Razor Pages architecture and not disrupting current functionality.
+## Deliverables
+
+- [ ] Enhanced Workflow.cshtml with integrated side panel
+- [ ] JavaScript functionality following existing architectural patterns
+- [ ] CSS styling consistent with current design system
+- [ ] Backend endpoints (if needed) following existing controller patterns
+- [ ] Full integration with existing workflow state management
+- [ ] Responsive behavior matching existing mobile/desktop patterns
+
+This implementation will provide instant access to generated artifacts while maintaining consistency with existing codebase patterns and architectural decisions.

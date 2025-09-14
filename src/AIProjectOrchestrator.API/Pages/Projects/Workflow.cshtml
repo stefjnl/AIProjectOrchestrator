@@ -79,6 +79,286 @@
             }
         </style>
 
+        <!-- Artifacts Panel Styles -->
+        <style>
+            .artifacts-panel {
+                position: fixed;
+                right: 0;
+                top: 0;
+                height: 100vh;
+                width: 350px;
+                background: white;
+                border-left: 1px solid var(--color-gray-200);
+                box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+                transform: translateX(0);
+                transition: transform 0.3s ease;
+                z-index: 1000;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .panel-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 20px;
+                border-bottom: 1px solid var(--color-gray-200);
+                background: var(--color-gray-50);
+                flex-shrink: 0;
+            }
+
+            .panel-header h3 {
+                margin: 0;
+                font-size: var(--text-lg);
+                color: var(--color-gray-900);
+                font-weight: var(--font-semibold);
+            }
+
+            .panel-toggle {
+                background: none;
+                border: none;
+                font-size: var(--text-xl);
+                cursor: pointer;
+                color: var(--color-gray-600);
+                transition: transform 0.3s ease;
+                width: 32px;
+                height: 32px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 4px;
+                font-weight: var(--font-bold);
+            }
+
+            .panel-toggle:hover {
+                background: var(--color-gray-200);
+                color: var(--color-gray-900);
+            }
+
+            .panel-content {
+                flex: 1;
+                overflow-y: auto;
+                padding: 20px;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .artifact-item {
+                margin-bottom: 16px;
+                border: 1px solid var(--color-gray-200);
+                border-radius: 8px;
+                overflow: hidden;
+                background: white;
+                transition: all 0.2s ease;
+            }
+
+            .artifact-item:hover {
+                border-color: var(--color-primary-300);
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+
+            .artifact-item.expanded {
+                border-color: var(--color-primary-500);
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            }
+
+            .artifact-header {
+                padding: 16px 20px;
+                background: var(--color-gray-50);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                cursor: pointer;
+                transition: background-color 0.2s ease;
+            }
+
+            .artifact-header:hover {
+                background: var(--color-gray-100);
+            }
+
+            .artifact-title {
+                font-weight: var(--font-semibold);
+                color: var(--color-gray-900);
+                font-size: var(--text-sm);
+            }
+
+            .artifact-status {
+                font-size: var(--text-xs);
+                padding: 4px 8px;
+                border-radius: 4px;
+                background: var(--color-gray-200);
+                color: var(--color-gray-700);
+                font-weight: var(--font-medium);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            .artifact-status.approved {
+                background: var(--color-success-500);
+                color: white;
+            }
+
+            .artifact-status.pending {
+                background: var(--color-warning-500);
+                color: white;
+            }
+
+            .artifact-status.rejected {
+                background: var(--color-danger-500);
+                color: white;
+            }
+
+            .artifact-content {
+                padding: 0 20px 20px;
+                display: none;
+            }
+
+            .artifact-content[style*="display: block"] {
+                display: block !important;
+            }
+
+            .artifact-details {
+                margin-top: 16px;
+                white-space: pre-wrap;
+                word-break: break-word;
+                font-family: var(--font-mono);
+                font-size: var(--text-sm);
+                line-height: 1.6;
+                max-height: 300px;
+                overflow-y: auto;
+                background: var(--color-gray-50);
+                padding: 16px;
+                border-radius: 6px;
+                border: 1px solid var(--color-gray-200);
+                color: var(--color-gray-800);
+            }
+
+            .artifact-loading {
+                text-align: center;
+                padding: 20px;
+                color: var(--color-gray-600);
+                font-size: var(--text-sm);
+            }
+
+            .artifact-loading::after {
+                content: '';
+                display: inline-block;
+                width: 16px;
+                height: 16px;
+                border: 2px solid var(--color-gray-300);
+                border-top: 2px solid var(--color-primary-500);
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                margin-left: 8px;
+                vertical-align: middle;
+            }
+
+            /* Collapsed state */
+            .artifacts-panel.collapsed {
+                transform: translateX(calc(100% - 40px));
+            }
+
+            .artifacts-panel.collapsed .panel-toggle {
+                transform: rotate(180deg);
+            }
+
+            /* Panel toggle button in collapsed state */
+            .artifacts-panel.collapsed .panel-toggle {
+                background: var(--color-primary-500);
+                color: white;
+                border-radius: 4px 0 0 4px;
+                width: 40px;
+                height: 80px;
+                position: absolute;
+                left: -40px;
+                top: 50%;
+                transform: translateY(-50%);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: var(--text-lg);
+                box-shadow: -2px 0 8px rgba(0, 0, 0, 0.15);
+                transition: all 0.3s ease;
+            }
+
+            .artifacts-panel.collapsed .panel-toggle:hover {
+                background: var(--color-primary-600);
+                transform: translateY(-50%) scale(1.05);
+            }
+
+            /* Mobile responsive styles */
+            @@media (max-width: 768px) {
+                .artifacts-panel {
+                    width: 100%;
+                    height: 300px;
+                    bottom: 0;
+                    top: auto;
+                    border-top: 1px solid var(--color-gray-200);
+                    border-left: none;
+                    transform: translateY(0);
+                    border-radius: 16px 16px 0 0;
+                    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+                }
+
+                .artifacts-panel.collapsed {
+                    transform: translateY(calc(100% - 40px));
+                }
+
+                .panel-toggle {
+                    transform: rotate(90deg);
+                }
+
+                .artifacts-panel.collapsed .panel-toggle {
+                    transform: rotate(-90deg);
+                }
+
+                /* Mobile toggle button positioning */
+                .artifacts-panel.collapsed .panel-toggle {
+                    top: -40px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 80px;
+                    height: 40px;
+                    border-radius: 4px 4px 0 0;
+                }
+
+                .panel-header {
+                    padding: 16px;
+                }
+
+                .panel-content {
+                    padding: 16px;
+                }
+
+                .artifact-header {
+                    padding: 12px 16px;
+                }
+
+                .artifact-content {
+                    padding: 0 16px 16px;
+                }
+            }
+
+            /* Scrollbar styling for artifact details */
+            .artifact-details::-webkit-scrollbar {
+                width: 6px;
+            }
+
+            .artifact-details::-webkit-scrollbar-track {
+                background: var(--color-gray-100);
+                border-radius: 3px;
+            }
+
+            .artifact-details::-webkit-scrollbar-thumb {
+                background: var(--color-gray-400);
+                border-radius: 3px;
+            }
+
+            .artifact-details::-webkit-scrollbar-thumb:hover {
+                background: var(--color-gray-500);
+            }
+        </style>
+
     </div>
 
     <!-- Workflow Pipeline -->
@@ -163,6 +443,56 @@
         </div>
     </div>
 
+    <!-- Artifacts Side Panel -->
+    <div class="artifacts-panel" id="artifactsPanel">
+        <div class="panel-header">
+            <h3>Generated Artifacts</h3>
+            <button class="panel-toggle" id="panelToggle">⟨</button>
+        </div>
+        <div class="panel-content" id="panelContent">
+            <div class="artifact-item" data-artifact="requirements">
+                <div class="artifact-header">
+                    <span class="artifact-title">Requirements Analysis</span>
+                    <span class="artifact-status" id="requirements-status">Not Started</span>
+                </div>
+                <div class="artifact-content" id="requirements-content" style="display: none;">
+                    <div class="artifact-loading" id="requirements-loading" style="display: none;">Loading...</div>
+                    <div class="artifact-details" id="requirements-details"></div>
+                </div>
+            </div>
+            <div class="artifact-item" data-artifact="planning">
+                <div class="artifact-header">
+                    <span class="artifact-title">Project Planning</span>
+                    <span class="artifact-status" id="planning-status">Not Started</span>
+                </div>
+                <div class="artifact-content" id="planning-content" style="display: none;">
+                    <div class="artifact-loading" id="planning-loading" style="display: none;">Loading...</div>
+                    <div class="artifact-details" id="planning-details"></div>
+                </div>
+            </div>
+            <div class="artifact-item" data-artifact="stories">
+                <div class="artifact-header">
+                    <span class="artifact-title">User Stories</span>
+                    <span class="artifact-status" id="stories-status">Not Started</span>
+                </div>
+                <div class="artifact-content" id="stories-content" style="display: none;">
+                    <div class="artifact-loading" id="stories-loading" style="display: none;">Loading...</div>
+                    <div class="artifact-details" id="stories-details"></div>
+                </div>
+            </div>
+            <div class="artifact-item" data-artifact="prompts">
+                <div class="artifact-header">
+                    <span class="artifact-title">Generated Prompts</span>
+                    <span class="artifact-status" id="prompts-status">Not Started</span>
+                </div>
+                <div class="artifact-content" id="prompts-content" style="display: none;">
+                    <div class="artifact-loading" id="prompts-loading" style="display: none;">Loading...</div>
+                    <div class="artifact-details" id="prompts-details"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Stage Navigation -->
     <div class="stage-navigation">
         <button class="btn btn-secondary" id="prev-stage" onclick="navigateStage(-1)" disabled>
@@ -199,6 +529,10 @@
     <!-- Main workflow manager (load last) -->
     <script src="~/js/workflow.js"></script>
     <script src="~/js/api.js"></script>
+    
+    <!-- Artifacts Panel JavaScript -->
+    <script src="~/js/artifacts-panel.js"></script>
+    
     <script>
         // Enhanced workflow initialization with new project support
         async function initializeWorkflow() {
