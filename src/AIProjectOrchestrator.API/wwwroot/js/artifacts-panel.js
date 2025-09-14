@@ -116,23 +116,29 @@ class ArtifactsPanel {
     updateArtifactsFromWorkflow(workflowState) {
         if (!workflowState) return;
         
+        console.log('updateArtifactsFromWorkflow received:', workflowState);
+        
         // Update Requirements Analysis
         if (workflowState.requirementsAnalysis) {
+            console.log('Requirements Analysis data:', workflowState.requirementsAnalysis);
             this.updateArtifactStatus('requirements', workflowState.requirementsAnalysis);
         }
         
         // Update Project Planning
         if (workflowState.projectPlanning) {
+            console.log('Project Planning data:', workflowState.projectPlanning);
             this.updateArtifactStatus('planning', workflowState.projectPlanning);
         }
         
         // Update User Stories
         if (workflowState.storyGeneration) {
+            console.log('Story Generation data:', workflowState.storyGeneration);
             this.updateArtifactStatus('stories', workflowState.storyGeneration);
         }
         
         // Update Prompts
         if (workflowState.promptGeneration) {
+            console.log('Prompt Generation data:', workflowState.promptGeneration);
             this.updateArtifactStatus('prompts', workflowState.promptGeneration);
         }
     }
@@ -198,21 +204,27 @@ class ArtifactsPanel {
             switch (artifactType) {
                 case 'requirements':
                     if (workflowData.analysisId) {
+                        console.log(`Loading requirements for analysisId: ${workflowData.analysisId}`);
                         const result = await APIClient.getRequirements(workflowData.analysisId);
+                        console.log('Requirements API result:', result);
                         content = this.formatRequirementsContent(result);
                     }
                     break;
                     
                 case 'planning':
                     if (workflowData.planningId) {
+                        console.log(`Loading planning for planningId: ${workflowData.planningId}`);
                         const result = await APIClient.getProjectPlan(workflowData.planningId);
+                        console.log('Planning API result:', result);
                         content = this.formatPlanningContent(result);
                     }
                     break;
                     
                 case 'stories':
                     if (workflowData.generationId) {
+                        console.log(`Loading stories for generationId: ${workflowData.generationId}`);
                         const result = await APIClient.getApprovedStories(workflowData.generationId);
+                        console.log('Stories API result:', result);
                         content = this.formatStoriesContent(result);
                     }
                     break;
@@ -236,12 +248,22 @@ class ArtifactsPanel {
     }
     
     formatRequirementsContent(data) {
+        console.log('formatRequirementsContent received data:', data);
         if (!data) return 'No requirements data available';
         
         let content = '';
+        
+        // Use analysisResult which contains the main generated content
+        if (data.analysisResult) {
+            content += `${data.analysisResult}\n\n`;
+        }
+        
+        // Use projectDescription if available (might be empty)
         if (data.projectDescription) {
             content += `**Project Description:**\n${data.projectDescription}\n\n`;
         }
+        
+        // Add other fields if they exist
         if (data.keyFeatures && data.keyFeatures.length > 0) {
             content += `**Key Features:**\n${data.keyFeatures.map(f => `- ${f}`).join('\n')}\n\n`;
         }
@@ -255,16 +277,32 @@ class ArtifactsPanel {
             content += `**Additional Notes:**\n${data.additionalNotes}\n\n`;
         }
         
-        return content || 'Requirements analysis completed successfully';
+        // If no content was found, show the analysis result or a default message
+        return content.trim() || data.analysisResult || 'Requirements analysis completed successfully';
     }
     
     formatPlanningContent(data) {
+        console.log('formatPlanningContent received data:', data);
         if (!data) return 'No planning data available';
         
         let content = '';
-        if (data.architecture) {
-            content += `**Architecture:**\n${data.architecture}\n\n`;
+        
+        // Use projectRoadmap which contains the main generated content
+        if (data.projectRoadmap) {
+            content += `${data.projectRoadmap}\n\n`;
         }
+        
+        // Use architecturalDecisions if available
+        if (data.architecturalDecisions) {
+            content += `**Architectural Decisions:**\n${data.architecturalDecisions}\n\n`;
+        }
+        
+        // Use milestones if available
+        if (data.milestones) {
+            content += `**Milestones:**\n${data.milestones}\n\n`;
+        }
+        
+        // Add other fields if they exist
         if (data.techStack) {
             content += `**Technology Stack:** ${data.techStack}\n\n`;
         }
@@ -278,19 +316,38 @@ class ArtifactsPanel {
             content += `**Deployment Strategy:**\n${data.deploymentStrategy}\n\n`;
         }
         
-        return content || 'Project planning completed successfully';
+        // If no content was found, show the project roadmap or a default message
+        return content.trim() || data.projectRoadmap || 'Project planning completed successfully';
     }
     
     formatStoriesContent(stories) {
+        console.log('formatStoriesContent received stories:', stories);
         if (!stories || stories.length === 0) return 'No approved stories available';
         
         let content = `**Approved User Stories (${stories.length}):**\n\n`;
         stories.forEach((story, index) => {
-            content += `${index + 1}. **${story.title}**\n`;
-            content += `   ${story.description}\n`;
-            if (story.acceptanceCriteria) {
-                content += `   **Acceptance Criteria:** ${story.acceptanceCriteria}\n`;
+            const title = story.title || `Story ${index + 1}`;
+            const description = story.description || 'No description available';
+            
+            content += `${index + 1}. **${title}**\n`;
+            content += `   ${description}\n`;
+            
+            if (story.acceptanceCriteria && story.acceptanceCriteria.length > 0) {
+                content += `   **Acceptance Criteria:** ${story.acceptanceCriteria.join(', ')}\n`;
             }
+            
+            if (story.priority) {
+                content += `   **Priority:** ${story.priority}\n`;
+            }
+            
+            if (story.storyPoints) {
+                content += `   **Story Points:** ${story.storyPoints}\n`;
+            }
+            
+            if (story.tags && story.tags.length > 0) {
+                content += `   **Tags:** ${story.tags.join(', ')}\n`;
+            }
+            
             content += `\n`;
         });
         
