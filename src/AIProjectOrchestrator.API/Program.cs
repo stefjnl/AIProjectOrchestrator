@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using Serilog;
+using Serilog.Events;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using AIProjectOrchestrator.Infrastructure.Data;
@@ -24,6 +25,8 @@ using AIProjectOrchestrator.Infrastructure.AI;
 using AIProjectOrchestrator.Infrastructure.Configuration;
 using AIProjectOrchestrator.API.HealthChecks;
 using AIProjectOrchestrator.Domain.Models.Review;
+using AIProjectOrchestrator.API.Middleware;
+using AIProjectOrchestrator.API.Configuration;
 using Microsoft.AspNetCore.ResponseCompression;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -56,10 +59,25 @@ else
         };
 }
 
-// Add Serilog logging
-builder.Host.UseSerilog((context, configuration) =>
-    configuration.WriteTo.Console()
-        .ReadFrom.Configuration(context.Configuration));
+// Enhanced Serilog configuration for structured logging
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("System", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .Enrich.WithProperty("Application", "AIProjectOrchestrator")
+    .WriteTo.Console(outputTemplate:
+        "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
+    .WriteTo.File("logs/app-.log",
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 30,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
+    .CreateLogger();
+
+builder.Host.UseSerilog();
+
+// Add exception handling configuration
+builder.Services.Configure<ExceptionHandlingOptions>(builder.Configuration.GetSection("ExceptionHandling"));
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -368,6 +386,9 @@ if (app.Environment.IsDevelopment())
         context.Database.Migrate();
     }
 }
+
+// Register exception middleware first in the pipeline
+app.UseMiddleware<ExceptionMiddleware>();
 
 app.UseHttpsRedirection();
 

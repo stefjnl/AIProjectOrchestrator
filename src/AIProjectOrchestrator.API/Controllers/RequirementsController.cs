@@ -19,43 +19,20 @@ namespace AIProjectOrchestrator.API.Controllers
         }
 
         [HttpPost("analyze")]
-        public async Task<ActionResult<RequirementsAnalysisResponse>> AnalyzeRequirements(
+        public async Task<RequirementsAnalysisResponse> AnalyzeRequirements(
             [FromBody] RequirementsAnalysisRequest request,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var response = await _requirementsAnalysisService.AnalyzeRequirementsAsync(request, cancellationToken);
-                return Ok(response);
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { error = "Invalid request", message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return StatusCode(503, new { error = "Service unavailable", message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
-            }
+            // No try-catch needed - middleware handles exceptions
+            return await _requirementsAnalysisService.AnalyzeRequirementsAsync(request, cancellationToken);
         }
 
         [HttpGet("{analysisId:guid}/status")]
-        public async Task<ActionResult<RequirementsAnalysisStatus>> GetAnalysisStatus(
+        public async Task<RequirementsAnalysisStatus> GetAnalysisStatus(
             Guid analysisId,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var status = await _requirementsAnalysisService.GetAnalysisStatusAsync(analysisId, cancellationToken);
-                return Ok(status);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
-            }
+            return await _requirementsAnalysisService.GetAnalysisStatusAsync(analysisId, cancellationToken);
         }
 
         [HttpGet("{analysisId:guid}")]
@@ -63,33 +40,19 @@ namespace AIProjectOrchestrator.API.Controllers
             Guid analysisId,
             CancellationToken cancellationToken)
         {
-            try
+            var result = await _requirementsAnalysisService.GetAnalysisResultsAsync(analysisId, cancellationToken);
+            if (result == null)
             {
-                var result = await _requirementsAnalysisService.GetAnalysisResultsAsync(analysisId, cancellationToken);
-                if (result == null)
-                {
-                    return NotFound(new { error = "Not found", message = "Requirements analysis not found" });
-                }
-                return Ok(result);
+                return NotFound();
             }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
-            }
+            return result;
         }
 
         [HttpPost("{analysisId:guid}/approve")]
         public async Task<IActionResult> ApproveAnalysis(Guid analysisId, CancellationToken cancellationToken)
         {
-            try
-            {
-                await _requirementsAnalysisService.UpdateAnalysisStatusAsync(analysisId, RequirementsAnalysisStatus.Approved, cancellationToken);
-                return Ok();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { error = "Internal server error", message = ex.Message });
-            }
+            await _requirementsAnalysisService.UpdateAnalysisStatusAsync(analysisId, RequirementsAnalysisStatus.Approved, cancellationToken);
+            return Ok();
         }
     }
 }

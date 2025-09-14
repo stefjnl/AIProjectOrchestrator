@@ -1,12 +1,28 @@
 window.APIClient = {
     baseUrl: '/api',
 
+    async handleResponse(response) {
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+            console.error('API Error:', {
+                status: response.status,
+                correlationId: response.headers.get('X-Correlation-ID') || 'unknown',
+                detail: error.detail || error.title || 'An unexpected error occurred'
+            });
+            throw new Error(error.detail || error.title || 'An unexpected error occurred');
+        }
+        return response.json();
+    },
+
     async _request(method, endpoint, data = null) {
         const url = `${this.baseUrl}${endpoint}`;
+        const correlationId = crypto.randomUUID();
+        
         const options = {
             method: method,
             headers: {
                 'Content-Type': 'application/json',
+                'X-Correlation-ID': correlationId,
             },
         };
 
@@ -14,72 +30,17 @@ window.APIClient = {
             options.body = JSON.stringify(data);
         }
 
-        console.log(`API Request: ${method} ${url}`);
+        console.log(`API Request: ${method} ${url} (CorrelationId: ${correlationId})`);
         console.log('Request Data:', data);
         console.log('Request Options:', options);
 
         try {
             const response = await fetch(url, options);
 
-            console.log(`API Response Status: ${response.status}`);
+            console.log(`API Response Status: ${response.status} (CorrelationId: ${correlationId})`);
             console.log('API Response Headers:', [...response.headers.entries()]);
 
-            let responseBody = '';
-            try {
-                responseBody = await response.text();
-                console.log('API Response Body:', responseBody);
-            } catch (e) {
-                console.warn('Could not read response body:', e);
-            }
-
-            // Check if response is actually JSON
-            let isJsonResponse = false;
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                isJsonResponse = true;
-            }
-
-            if (!response.ok) {
-                let errorMessage = `Request failed with status ${response.status}`;
-                if (responseBody) {
-                    // Try to parse as JSON first
-                    if (isJsonResponse) {
-                        try {
-                            const errorData = JSON.parse(responseBody);
-                            if (errorData.message) {
-                                errorMessage = errorData.message;
-                            } else if (typeof errorData === 'string') {
-                                errorMessage = errorData;
-                            }
-                        } catch (e) {
-                            // If JSON parsing fails, use the raw body
-                            errorMessage = responseBody;
-                        }
-                    } else {
-                        // Not JSON, use raw body
-                        errorMessage = responseBody;
-                    }
-                }
-                throw new Error(`HTTP ${response.status}: ${errorMessage}`);
-            }
-
-            // For successful responses, try to parse as JSON if content-type indicates JSON
-            if (responseBody && isJsonResponse) {
-                try {
-                    return JSON.parse(responseBody);
-                } catch (e) {
-                    console.warn('Failed to parse JSON response:', e);
-                    // Return the raw body if JSON parsing fails
-                    return responseBody;
-                }
-            } else if (responseBody && responseBody.trim() !== '') {
-                // If there's a response body but it's not JSON, return as text
-                return responseBody;
-            } else {
-                // Empty response
-                return {};
-            }
-
+            return await this.handleResponse(response);
         } catch (error) {
             console.error('API Network/Fetch Error:', error);
             if (error instanceof TypeError && error.message === 'Failed to fetch') {
@@ -94,15 +55,35 @@ window.APIClient = {
     },
 
     async get(endpoint) {
-        return this._request('GET', endpoint);
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            method: 'GET',
+            headers: {
+                'X-Correlation-ID': crypto.randomUUID()
+            }
+        });
+        return this.handleResponse(response);
     },
 
     async post(endpoint, data) {
-        return this._request('POST', endpoint, data);
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Correlation-ID': crypto.randomUUID()
+            },
+            body: JSON.stringify(data)
+        });
+        return this.handleResponse(response);
     },
 
     async delete(endpoint) {
-        return this._request('DELETE', endpoint);
+        const response = await fetch(`${this.baseUrl}${endpoint}`, {
+            method: 'DELETE',
+            headers: {
+                'X-Correlation-ID': crypto.randomUUID()
+            }
+        });
+        return this.handleResponse(response);
     },
 
     async getProjects() {

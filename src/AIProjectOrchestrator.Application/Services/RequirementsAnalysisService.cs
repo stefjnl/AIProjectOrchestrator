@@ -10,6 +10,7 @@ using AIProjectOrchestrator.Infrastructure.AI;
 using AIProjectOrchestrator.Infrastructure.AI.Providers;
 using AIProjectOrchestrator.Domain.Interfaces;
 using AIProjectOrchestrator.Domain.Entities;
+using AIProjectOrchestrator.Domain.Exceptions;
 
 namespace AIProjectOrchestrator.Application.Services
 {
@@ -40,32 +41,39 @@ namespace AIProjectOrchestrator.Application.Services
             CancellationToken cancellationToken = default)
         {
             var analysisId = Guid.NewGuid().ToString();
-            _logger.LogInformation("Starting requirements analysis {AnalysisId} for project: {ProjectDescription}", 
-                analysisId, request.ProjectDescription);
+            
+            using var scope = _logger.BeginScope(new Dictionary<string, object>
+            {
+                ["Operation"] = "AnalyzeRequirements",
+                ["AnalysisId"] = analysisId,
+                ["ProjectId"] = request.ProjectId
+            });
+
+            _logger.LogInformation("Starting requirements analysis for project");
 
             try
             {
                 // Validate input
                 if (string.IsNullOrWhiteSpace(request.ProjectDescription))
                 {
-                    _logger.LogWarning("Requirements analysis {AnalysisId} failed: Project description is required", analysisId);
-                    throw new ArgumentException("Project description is required");
+                    _logger.LogWarning("Validation failed: Project description is required");
+                    throw new ValidationException("Project description is required");
                 }
 
                 if (request.ProjectDescription.Length < 10)
                 {
-                    _logger.LogWarning("Requirements analysis {AnalysisId} failed: Project description is too short", analysisId);
-                    throw new ArgumentException("Project description must be at least 10 characters long");
+                    _logger.LogWarning("Validation failed: Project description is too short");
+                    throw new ValidationException("Project description must be at least 10 characters long");
                 }
 
                 // Load instructions
-                _logger.LogDebug("Loading instructions for requirements analysis {AnalysisId}", analysisId);
+                _logger.LogDebug("Loading instructions from RequirementsAnalyst");
                 var instructionContent = await _instructionService.GetInstructionAsync("RequirementsAnalyst", cancellationToken);
                 
                 if (!instructionContent.IsValid)
                 {
-                    _logger.LogError("Requirements analysis {AnalysisId} failed: Invalid instruction content - {ValidationMessage}", 
-                        analysisId, instructionContent.ValidationMessage);
+                    _logger.LogError("Failed to load valid instructions: {ValidationMessage}",
+                        instructionContent.ValidationMessage);
                     throw new InvalidOperationException($"Failed to load valid instructions: {instructionContent.ValidationMessage}");
                 }
 
@@ -79,7 +87,7 @@ namespace AIProjectOrchestrator.Application.Services
                     MaxTokens = 1000  // Default value, will be overridden by provider
                 };
 
-                _logger.LogDebug("Calling AI provider for requirements analysis {AnalysisId}", analysisId);
+                _logger.LogDebug("Calling AI provider: {ProviderName}", _requirementsAIProvider.ProviderName);
                 
                 // Call AI using the requirements-specific provider
                 var generatedContent = await _requirementsAIProvider.GenerateContentAsync(aiRequest.Prompt, aiRequest.SystemMessage);
@@ -109,7 +117,7 @@ namespace AIProjectOrchestrator.Application.Services
                 var savedAnalysisId = analysisEntity.Id; // Get the database-generated int ID
 
                 // Submit for review
-                _logger.LogDebug("Submitting AI response for review in requirements analysis {AnalysisId}", analysisId);
+                _logger.LogDebug("Submitting AI response for review");
                 var correlationId = Guid.NewGuid().ToString();
                 var reviewRequest = new SubmitReviewRequest
                 {
@@ -134,8 +142,8 @@ namespace AIProjectOrchestrator.Application.Services
                 analysisEntity.ReviewId = reviewResponse.ReviewId.ToString();
                 await _requirementsAnalysisRepository.UpdateAsync(analysisEntity, cancellationToken);
 
-                _logger.LogInformation("Requirements analysis {AnalysisId} completed successfully. Review ID: {ReviewId}", 
-                    analysisId, reviewResponse.ReviewId);
+                _logger.LogInformation("Requirements analysis completed successfully. Review ID: {ReviewId}",
+                    reviewResponse.ReviewId);
 
                 var response = new RequirementsAnalysisResponse
                 {
@@ -152,8 +160,8 @@ namespace AIProjectOrchestrator.Application.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Requirements analysis {AnalysisId} failed with exception", analysisId);
-                throw;
+                _logger.LogError(ex, "Requirements analysis failed with exception");
+                throw; // Let middleware handle the response
             }
         }
 
