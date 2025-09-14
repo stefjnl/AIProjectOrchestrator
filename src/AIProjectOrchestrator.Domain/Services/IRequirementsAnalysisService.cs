@@ -25,7 +25,7 @@ namespace AIProjectOrchestrator.Domain.Services
             CancellationToken cancellationToken = default);
 
         Task<bool> CanAnalyzeRequirementsAsync(
-            Guid projectId,
+            int projectId,
             CancellationToken cancellationToken = default);
             
         Task<string?> GetBusinessContextAsync(Guid analysisId, CancellationToken cancellationToken = default);

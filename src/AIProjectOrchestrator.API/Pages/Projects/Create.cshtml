@@ -154,10 +154,22 @@
 
                     console.log('Calling APIClient.createProject with data:', projectData);
 
+                    // Store detailed requirements in localStorage for later use in Requirements Analysis
+                    if (projectData.requirements) {
+                        localStorage.setItem(`project_requirements_${projectData.name}`, projectData.requirements);
+                        console.log('Stored detailed requirements in localStorage for project:', projectData.name);
+                    }
+
                     // Create project
                     const project = await APIClient.createProject(projectData);
 
                     console.log('Project created successfully:', project);
+
+                    // Store detailed requirements with the actual project ID for Requirements Analysis
+                    if (projectData.requirements && project.id) {
+                        localStorage.setItem(`project_requirements_${project.id}`, projectData.requirements);
+                        console.log('Stored detailed requirements in localStorage for project ID:', project.id);
+                    }
 
                     // Show success and redirect
                     if (window.App && window.App.showNotification) {

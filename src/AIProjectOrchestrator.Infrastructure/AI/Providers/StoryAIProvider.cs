@@ -20,8 +20,10 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
         public StoryAIProvider(
             IHttpClientFactory httpClientFactory,
             IOptions<AIProviderSettings> settings,
-            ILogger<StoryAIProvider> logger)
-            : base("StoryGeneration", httpClientFactory, settings, logger)
+            ILogger<StoryAIProvider> logger,
+            IProviderConfigurationService providerConfigService = null,
+            IServiceProvider serviceProvider = null)
+            : base("StoryGeneration", httpClientFactory, settings, logger, providerConfigService, serviceProvider)
         {
             // This provider is specifically configured for Story Generation operations
             // The operation type "StoryGeneration" is used to look up configuration

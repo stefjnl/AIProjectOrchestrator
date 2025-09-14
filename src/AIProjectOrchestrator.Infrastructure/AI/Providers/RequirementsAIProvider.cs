@@ -17,11 +17,14 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
         /// <param name="httpClientFactory">Factory for creating HTTP clients with Docker SSL support</param>
         /// <param name="settings">Operation-specific configuration</param>
         /// <param name="logger">Logger for diagnostics</param>
+        /// <param name="providerConfigService">Service for runtime provider configuration</param>
         public RequirementsAIProvider(
             IHttpClientFactory httpClientFactory,
             IOptions<AIProviderSettings> settings,
-            ILogger<RequirementsAIProvider> logger)
-            : base("RequirementsAnalysis", httpClientFactory, settings, logger)
+            ILogger<RequirementsAIProvider> logger,
+            IProviderConfigurationService providerConfigService = null,
+            IServiceProvider serviceProvider = null)
+            : base("RequirementsAnalysis", httpClientFactory, settings, logger, providerConfigService, serviceProvider)
         {
             // This provider is specifically configured for Requirements Analysis operations
             // The operation type "RequirementsAnalysis" is used to look up configuration

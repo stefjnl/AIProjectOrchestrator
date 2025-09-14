@@ -22,6 +22,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             : base(httpClient, logger)
         {
             _configurationService = configurationService;
+            _logger.LogInformation("OpenRouterClient constructor called");
             _settings = _configurationService.GetProviderSettings<OpenRouterSettings>(ProviderName);
 
             // Log settings for debugging
@@ -32,6 +33,10 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             if (!string.IsNullOrEmpty(_settings.ApiKey))
             {
                 _logger.LogInformation("{ProviderName} API Key prefix: {ApiKeyPrefix}", ProviderName, _settings.ApiKey.Substring(0, Math.Min(10, _settings.ApiKey.Length)));
+            }
+            else
+            {
+                _logger.LogError("{ProviderName} API Key is null or empty!", ProviderName);
             }
 
             // Also log the HttpClient BaseAddress in constructor
@@ -79,9 +84,26 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                         };
 
                         // Add required headers for OpenRouter API
-                        requestMessage.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+                        _logger.LogInformation("Adding OpenRouter authentication headers - API Key length: {ApiKeyLength}", _settings.ApiKey?.Length ?? 0);
+                        if (!string.IsNullOrEmpty(_settings.ApiKey))
+                        {
+                            requestMessage.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+                            _logger.LogInformation("Authorization header added: Bearer {ApiKeyPrefix}...", _settings.ApiKey.Substring(0, Math.Min(10, _settings.ApiKey.Length)));
+                        }
+                        else
+                        {
+                            _logger.LogError("API Key is null or empty for OpenRouter!");
+                        }
                         requestMessage.Headers.Add("HTTP-Referer", "AIProjectOrchestrator");
                         requestMessage.Headers.Add("X-Title", "AIProjectOrchestrator");
+
+                        // Log all headers that will be sent
+                        _logger.LogInformation("Request headers being sent:");
+                        foreach (var header in requestMessage.Headers)
+                        {
+                            var headerValue = header.Key == "Authorization" ? "[REDACTED]" : string.Join(", ", header.Value);
+                            _logger.LogInformation("  {HeaderName}: {HeaderValue}", header.Key, headerValue);
+                        }
 
                         return requestMessage;
                     },

@@ -3,7 +3,7 @@ namespace AIProjectOrchestrator.Domain.Configuration
     public class AIProviderSettings
     {
         public const string SectionName = "AIProviders";
-        
+
         public ClaudeSettings Claude { get; set; } = new();
         public LMStudioSettings LMStudio { get; set; } = new();
         public OpenRouterSettings OpenRouter { get; set; } = new();
@@ -34,10 +34,10 @@ namespace AIProjectOrchestrator.Domain.Configuration
         public string BaseUrl { get; set; } = "https://openrouter.ai/api/v1";
         public int TimeoutSeconds { get; set; } = 30;
         public int MaxRetries { get; set; } = 3;
-        public string DefaultModel { get; set; } = "qwen/qwen3-coder";
+        public string DefaultModel { get; set; } = "moonshotai/kimi-k2-0905";
     }
 
-        public class NanoGptSettings
+    public class NanoGptSettings
     {
         public string ApiKey { get; set; } = string.Empty;
         public string BaseUrl { get; set; } = "https://api.nanogpt.com";

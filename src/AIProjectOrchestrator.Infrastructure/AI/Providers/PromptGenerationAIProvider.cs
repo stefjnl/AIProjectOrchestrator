@@ -20,11 +20,14 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
         /// <param name="httpClientFactory">Factory for creating HTTP clients with Docker SSL support</param>
         /// <param name="settings">Operation-specific configuration</param>
         /// <param name="logger">Logger for diagnostics</param>
+        /// <param name="providerConfigService">Service for runtime provider configuration</param>
         public PromptGenerationAIProvider(
             IHttpClientFactory httpClientFactory,
             IOptions<AIProviderSettings> settings,
-            ILogger<PromptGenerationAIProvider> logger)
-            : base("PromptGeneration", httpClientFactory, settings, logger)
+            ILogger<PromptGenerationAIProvider> logger,
+            IProviderConfigurationService providerConfigService = null,
+            IServiceProvider serviceProvider = null)
+            : base("PromptGeneration", httpClientFactory, settings, logger, providerConfigService, serviceProvider)
         {
             // This provider is specifically configured for Prompt Generation operations
             // The operation type "PromptGeneration" is used to look up configuration

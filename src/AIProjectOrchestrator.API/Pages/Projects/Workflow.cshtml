@@ -42,6 +42,43 @@
                 </div>
             </div>
         </div>
+
+        <!-- Provider Switching UI -->
+        <div class="provider-control">
+            <h3>AI Provider</h3>
+            <div class="form-group">
+                <select id="provider-select">
+                    <option value="NanoGpt">NanoGpt</option>
+                    <option value="OpenRouter">OpenRouter</option>
+                </select>
+                <button onclick="switchProvider()" id="switch-btn">Switch</button>
+                <span id="provider-status">Loading...</span>
+            </div>
+        </div>
+
+        <style>
+            .provider-control {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin: 10px 0;
+                padding: 10px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                background: #f9f9f9;
+            }
+
+            .form-group {
+                display: flex;
+                gap: 5px;
+            }
+
+            select,
+            button {
+                padding: 5px 10px;
+            }
+        </style>
+
     </div>
 
     <!-- Workflow Pipeline -->
@@ -161,6 +198,7 @@
 
     <!-- Main workflow manager (load last) -->
     <script src="~/js/workflow.js"></script>
+    <script src="~/js/api.js"></script>
     <script>
         // Enhanced workflow initialization with new project support
         async function initializeWorkflow() {
@@ -330,5 +368,97 @@
         function startManualRequirementsAnalysis() {
             analyzeRequirements();
         }
+
+        // Provider switching JS
+        async function loadProviders() {
+            const select = document.getElementById('provider-select');
+            const status = document.getElementById('provider-status');
+            
+            try {
+                // Load available providers
+                const response = await fetch('/api/ProviderManagement/providers');
+                if (!response.ok) throw new Error('Failed to load providers');
+                const providers = await response.json();
+                select.innerHTML = providers.map(p => `<option value="${p}">${p}</option>`).join('');
+                
+                // Load current provider with fallback to OpenRouter
+                const currentResponse = await fetch('/api/ProviderManagement/current');
+                if (!currentResponse.ok) {
+                    // Handle HTTP errors gracefully - fallback to OpenRouter
+                    select.value = 'OpenRouter';
+                    status.textContent = 'Using OpenRouter (default)';
+                    return;
+                }
+                
+                // Try to parse JSON, fall back to OpenRouter if it fails
+                try {
+                    const current = await currentResponse.json();
+                    select.value = current;
+                    status.textContent = `Using ${current}`;
+                } catch (parseError) {
+                    // If JSON parsing fails, use OpenRouter as default
+                    select.value = 'OpenRouter';
+                    status.textContent = 'Using OpenRouter (default)';
+                }
+            } catch (e) {
+                // Handle network errors or other exceptions - fallback to OpenRouter
+                if (select) {
+                    select.innerHTML = '<option value="NanoGpt">NanoGpt</option><option value="OpenRouter" selected>OpenRouter</option><option value="Claude">Claude</option><option value="LMStudio">LMStudio</option>';
+                }
+                if (status) {
+                    status.textContent = 'Using OpenRouter (default)';
+                }
+            }
+        }
+
+        async function switchProvider() {
+            const provider = document.getElementById('provider-select').value;
+            const btn = document.getElementById('switch-btn');
+            const status = document.getElementById('provider-status');
+            btn.disabled = true;
+            status.textContent = 'Switching...';
+            
+            console.log(`switchProvider() called - switching to ${provider}...`);
+            
+            try {
+                console.log(`Sending switch request to /api/ProviderManagement/switch for provider: ${provider}`);
+                const response = await fetch('/api/ProviderManagement/switch', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ Provider: provider }),
+                });
+                
+                console.log('Switch response status:', response.status);
+                const responseText = await response.text();
+                console.log('Switch response raw text:', responseText);
+                
+                if (response.ok) {
+                    let result;
+                    try {
+                        result = JSON.parse(responseText);
+                        console.log('Switch response JSON:', result);
+                    } catch (parseError) {
+                        console.log('Switch response is plain text:', responseText);
+                        result = { message: responseText };
+                    }
+                    status.textContent = `✓ Using ${provider}`;
+                    console.log(`Successfully switched to ${provider}!`);
+                } else {
+                    console.error('Switch failed with status:', response.status, responseText);
+                    status.textContent = '✗ Switch failed';
+                }
+            } catch (e) {
+                console.error('Switch error:', e);
+                console.error('Switch error stack:', e.stack);
+                status.textContent = `✗ Switch failed: ${e.message}`;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // Load on DOM ready
+        document.addEventListener('DOMContentLoaded', loadProviders);
     </script>
 }

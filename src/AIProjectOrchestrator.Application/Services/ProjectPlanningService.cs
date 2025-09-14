@@ -302,13 +302,16 @@ namespace AIProjectOrchestrator.Application.Services
             var projectPlanning = await _projectPlanningRepository.GetByPlanningIdAsync(planningId.ToString(), cancellationToken);
             if (projectPlanning != null)
             {
-                // Get the requirements analysis ID from the database entity
-                var requirementsAnalysis = await _requirementsAnalysisService.GetAnalysisResultsAsync(
-                    Guid.Empty, // We'll need to map this properly
-                    cancellationToken);
-
-                // For now, return the ID from the entity
-                return Guid.NewGuid(); // This needs to be fixed properly
+                // Get the requirements analysis entity to retrieve the AnalysisId (GUID)
+                var requirementsAnalysisEntity = await _requirementsAnalysisRepository.GetByIdAsync(projectPlanning.RequirementsAnalysisId, cancellationToken);
+                if (requirementsAnalysisEntity != null)
+                {
+                    // Parse the AnalysisId string to GUID and return it
+                    if (Guid.TryParse(requirementsAnalysisEntity.AnalysisId, out var analysisId))
+                    {
+                        return analysisId;
+                    }
+                }
             }
 
             return null;

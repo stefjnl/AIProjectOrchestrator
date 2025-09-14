@@ -209,13 +209,13 @@ namespace AIProjectOrchestrator.Application.Services
         }
 
         public async Task<bool> CanAnalyzeRequirementsAsync(
-            Guid projectId,
+            int projectId,
             CancellationToken cancellationToken = default)
         {
             try
             {
                 // Check if requirements analysis already exists for this project
-                var existingAnalysis = await _requirementsAnalysisRepository.GetByProjectIdAsync(projectId.GetHashCode(), cancellationToken);
+                var existingAnalysis = await _requirementsAnalysisRepository.GetByProjectIdAsync(projectId, cancellationToken);
                 return existingAnalysis == null;
             }
             catch (Exception ex)
