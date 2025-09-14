@@ -31,9 +31,9 @@ namespace AIProjectOrchestrator.UnitTests.AI
             _loggerMock = new Mock<ILogger<NanoGptClient>>();
 
             // Create real configuration service with test settings
-            var settings = new AIProviderSettings
+            var settings = new AIProviderCredentials
             {
-                NanoGpt = new NanoGptSettings
+                NanoGpt = new NanoGptCredentials
                 {
                     BaseUrl = "https://nano-gpt.com/api/v1",
                     ApiKey = "test-api-key",
@@ -43,7 +43,7 @@ namespace AIProjectOrchestrator.UnitTests.AI
                 }
             };
 
-            var optionsMock = new Mock<Microsoft.Extensions.Options.IOptions<AIProviderSettings>>();
+            var optionsMock = new Mock<Microsoft.Extensions.Options.IOptions<AIProviderCredentials>>();
             optionsMock.Setup(x => x.Value).Returns(settings);
 
             _configurationService = new AIProviderConfigurationService(optionsMock.Object);

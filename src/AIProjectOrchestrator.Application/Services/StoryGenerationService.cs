@@ -1,21 +1,13 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
+using AIProjectOrchestrator.Domain.Entities;
 using AIProjectOrchestrator.Domain.Interfaces;
-using AIProjectOrchestrator.Domain.Services;
 using AIProjectOrchestrator.Domain.Models;
-using AIProjectOrchestrator.Domain.Models.Stories;
 using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Domain.Models.Review;
-using AIProjectOrchestrator.Infrastructure.AI;
+using AIProjectOrchestrator.Domain.Models.Stories;
+using AIProjectOrchestrator.Domain.Services;
 using AIProjectOrchestrator.Infrastructure.AI.Providers;
-using AIProjectOrchestrator.Domain.Entities;
-using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using System.Text;
 
 namespace AIProjectOrchestrator.Application.Services
 {
@@ -146,6 +138,14 @@ namespace AIProjectOrchestrator.Application.Services
 
                 // Parse AI response to story collection
                 var stories = await ParseAIResponseToStories(aiResponse.Content, cancellationToken);
+                
+                // Debug: Log the parsed stories
+                _logger.LogInformation("Parsed {StoryCount} stories from AI response", stories.Count);
+                foreach (var story in stories)
+                {
+                    _logger.LogDebug("Parsed story: Title='{Title}', Description='{Description}', Priority='{Priority}'",
+                        story.Title, story.Description, story.Priority);
+                }
 
                 // Create and store the story generation entity first to get the entity ID
                 // Get the ProjectPlanning entity ID
@@ -163,6 +163,7 @@ namespace AIProjectOrchestrator.Application.Services
                     Status = StoryGenerationStatus.PendingReview,
                     ReviewId = string.Empty, // Will be updated after review submission
                     CreatedDate = DateTime.UtcNow,
+                    Content = aiResponse.Content, // Store the AI response content
                     Stories = stories // Set the stories collection for cascade insert
                 };
 
@@ -338,80 +339,82 @@ namespace AIProjectOrchestrator.Application.Services
             CancellationToken cancellationToken = default)
         {
             var stories = new List<UserStory>();
+            
+            // Simple junior-level parsing - no regex, just string operations
+            var lines = aiResponse.Split('\n');
+            var currentStory = new UserStory();
+            var inStory = false;
 
-            // Parse structured markdown response
-            // Look for story sections
-            var storyPattern = @"###\s*Story\s*\d+.*?(?=(###\s*Story|$))";
-            var storyMatches = Regex.Matches(aiResponse, storyPattern, RegexOptions.Singleline | RegexOptions.IgnoreCase);
-
-            foreach (Match match in storyMatches)
+            for (int i = 0; i < lines.Length; i++)
             {
-                var storyContent = match.Value;
+                var line = lines[i].Trim();
 
-                // Extract title
-                var titleMatch = Regex.Match(storyContent, @"\*\*Title:\*\*\s*(.+?)(?=\n|\*\*|$)", RegexOptions.Singleline);
-                var title = titleMatch.Success ? titleMatch.Groups[1].Value.Trim() : "Untitled Story";
-
-                // Extract description
-                var descriptionMatch = Regex.Match(storyContent, @"\*\*Description:\*\*\s*(.+?)(?=\n|\*\*|$)", RegexOptions.Singleline);
-                var description = descriptionMatch.Success ? descriptionMatch.Groups[1].Value.Trim() : "";
-
-                // Extract acceptance criteria
-                var criteriaMatch = Regex.Match(storyContent, @"\*\*Acceptance Criteria:\*\*\s*(.+?)(?=\n\*\*|$)", RegexOptions.Singleline);
-                var criteriaText = criteriaMatch.Success ? criteriaMatch.Groups[1].Value.Trim() : "";
-                var acceptanceCriteria = new List<string>();
-
-                if (!string.IsNullOrEmpty(criteriaText))
+                // Check for story start
+                if (line.StartsWith("#### Story"))
                 {
-                    // Split by bullet points or line breaks
-                    var criteriaLines = criteriaText.Split(new[] { '\n', '-' }, StringSplitOptions.RemoveEmptyEntries)
-                        .Select(line => line.Trim())
-                        .Where(line => !string.IsNullOrEmpty(line));
-
-                    acceptanceCriteria.AddRange(criteriaLines);
+                    if (inStory && !string.IsNullOrEmpty(currentStory.Title))
+                    {
+                        // Save previous story
+                        stories.Add(currentStory);
+                        currentStory = new UserStory();
+                    }
+                    inStory = true;
+                    continue;
                 }
 
-                // Extract priority
-                var priorityMatch = Regex.Match(storyContent, @"\*\*Priority:\*\*\s*(.+?)(?=\n|\*\*|$)", RegexOptions.Singleline);
-                var priority = priorityMatch.Success ? priorityMatch.Groups[1].Value.Trim() : "Medium";
+                if (!inStory) continue;
 
-                // Extract estimated complexity
-                var complexityMatch = Regex.Match(storyContent, @"\*\*Estimated Complexity:\*\*\s*(.+?)(?=\n|\*\*|$)", RegexOptions.Singleline);
-                var estimatedComplexity = complexityMatch.Success ? complexityMatch.Groups[1].Value.Trim() : null;
-
-                stories.Add(new UserStory
+                // Simple field extraction
+                if (line.StartsWith("**Title**:"))
                 {
-                    Title = title,
-                    Description = description,
-                    AcceptanceCriteria = acceptanceCriteria,
-                    Priority = priority,
-                    EstimatedComplexity = estimatedComplexity
-                });
+                    currentStory.Title = line.Substring("**Title**:".Length).Trim();
+                }
+                else if (line.StartsWith("**Description**:"))
+                {
+                    currentStory.Description = line.Substring("**Description**:".Length).Trim();
+                }
+                else if (line.StartsWith("**Acceptance Criteria**:"))
+                {
+                    // Collect acceptance criteria until next field
+                    var criteria = new List<string>();
+                    for (int j = i + 1; j < lines.Length; j++)
+                    {
+                        var criteriaLine = lines[j].Trim();
+                        if (criteriaLine.StartsWith("**")) break; // Next field
+                        if (!string.IsNullOrEmpty(criteriaLine))
+                        {
+                            criteria.Add(criteriaLine.Replace("- ", "").Replace("• ", "").Trim());
+                        }
+                    }
+                    currentStory.AcceptanceCriteria = criteria;
+                }
+                else if (line.StartsWith("**Priority**:"))
+                {
+                    currentStory.Priority = line.Substring("**Priority**:".Length).Trim();
+                }
+                else if (line.StartsWith("**Estimated Complexity**:"))
+                {
+                    currentStory.EstimatedComplexity = line.Substring("**Estimated Complexity**:".Length).Trim();
+                }
             }
 
-            // If no stories were parsed, try a simpler approach
-            if (stories.Count == 0)
+            // Don't forget the last story
+            if (inStory && !string.IsNullOrEmpty(currentStory.Title))
             {
-                // Try to parse as a simple list of stories
-                var simpleStoryPattern = @"^\s*\*\s*(.+?)(?:\s*-\s*(.+?))?$";
-                var simpleMatches = Regex.Matches(aiResponse, simpleStoryPattern, RegexOptions.Multiline);
+                stories.Add(currentStory);
+            }
 
-                foreach (Match match in simpleMatches)
-                {
-                    var title = match.Groups[1].Value.Trim();
-                    var description = match.Groups.Count > 2 && !string.IsNullOrEmpty(match.Groups[2].Value)
-                        ? match.Groups[2].Value.Trim()
-                        : string.Empty;
-
-                    stories.Add(new UserStory
-                    {
-                        Title = title,
-                        Description = description,
-                        AcceptanceCriteria = new List<string>(),
-                        Priority = "Medium",
-                        EstimatedComplexity = null
-                    });
-                }
+            // Set defaults for missing values
+            foreach (var story in stories)
+            {
+                if (string.IsNullOrEmpty(story.Title))
+                    story.Title = "Untitled Story";
+                if (string.IsNullOrEmpty(story.Description))
+                    story.Description = "";
+                if (string.IsNullOrEmpty(story.Priority))
+                    story.Priority = "Medium";
+                if (story.AcceptanceCriteria == null)
+                    story.AcceptanceCriteria = new List<string>();
             }
 
             return stories;

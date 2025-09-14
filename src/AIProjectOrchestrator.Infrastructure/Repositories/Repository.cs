@@ -1,3 +1,4 @@
+using AIProjectOrchestrator.Domain.Common;
 using AIProjectOrchestrator.Domain.Interfaces;
 using AIProjectOrchestrator.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +25,7 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         {
             // This is a generic implementation that assumes the entity has an "Id" property of type string
             // For specific entities, we'll override this in specialized repositories
-            var property = typeof(T).GetProperty("Id") ?? typeof(T).GetProperty("ReviewId");
+            var property = typeof(T).GetProperty(PropertyNameConstants.Id) ?? typeof(T).GetProperty(PropertyNameConstants.ReviewId);
             if (property != null)
             {
                 return await _dbSet.FirstOrDefaultAsync(e => 

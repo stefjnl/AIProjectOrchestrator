@@ -1,3 +1,4 @@
+using AIProjectOrchestrator.Domain.Common;
 using AIProjectOrchestrator.Domain.Entities;
 using AIProjectOrchestrator.Domain.Interfaces;
 using AIProjectOrchestrator.Infrastructure.Data;
@@ -22,13 +23,13 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         {
             return entityType.ToLower() switch
             {
-                "requirementsanalysis" => await _context.Reviews
+                EntityTypeConstants.RequirementsAnalysis => await _context.Reviews
                     .FirstOrDefaultAsync(r => r.RequirementsAnalysis != null && r.RequirementsAnalysis.Id == entityId, cancellationToken),
-                "projectplanning" => await _context.Reviews
+                EntityTypeConstants.ProjectPlanning => await _context.Reviews
                     .FirstOrDefaultAsync(r => r.ProjectPlanning != null && r.ProjectPlanning.Id == entityId, cancellationToken),
-                "storygeneration" => await _context.Reviews
+                EntityTypeConstants.StoryGeneration => await _context.Reviews
                     .FirstOrDefaultAsync(r => r.StoryGeneration != null && r.StoryGeneration.Id == entityId, cancellationToken),
-                "promptgeneration" => await _context.Reviews
+                EntityTypeConstants.PromptGeneration => await _context.Reviews
                     .FirstOrDefaultAsync(r => r.PromptGeneration != null && r.PromptGeneration.Id == entityId, cancellationToken),
                 _ => null
             };

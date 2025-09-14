@@ -1,3 +1,4 @@
+using AIProjectOrchestrator.Domain.Common;
 using AIProjectOrchestrator.Domain.Entities;
 using AIProjectOrchestrator.Domain.Interfaces;
 using AIProjectOrchestrator.Infrastructure.Data;
@@ -18,12 +19,12 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
             // Ensure default values for new fields if not set
             if (string.IsNullOrEmpty(project.Status))
             {
-                project.Status = "active";
+                project.Status = ProjectConstants.ActiveStatus;
             }
             
             if (string.IsNullOrEmpty(project.Type))
             {
-                project.Type = "web";
+                project.Type = ProjectConstants.WebType;
             }
             
             return await base.AddAsync(project);

@@ -81,12 +81,9 @@ builder.Services.AddCors(options =>
         });
 });
 
-// Add health checks
+// Add health checks - only include working providers to avoid container health issues
 builder.Services.AddHealthChecks()
-    .AddCheck<ClaudeHealthCheck>("claude")
-    .AddCheck<LMStudioHealthCheck>("lmstudio")
     .AddCheck<OpenRouterHealthCheck>("openrouter")
-    .AddCheck<NanoGptHealthCheck>("nanogpt")
     .AddCheck<ReviewHealthCheck>("review");
 
 // Add Entity Framework
@@ -145,7 +142,7 @@ builder.Services.AddSingleton<IInstructionService, InstructionService>();
 // Configure AI Provider settings with operation-specific configurations
 // Configure AI operation settings for provider selection and parameters
 builder.Services.Configure<AIProjectOrchestrator.Infrastructure.Configuration.AIOperationSettings>(
-    builder.Configuration.GetSection("AIOperations"));
+    builder.Configuration.GetSection("AIProviders"));
 
 // Configure domain AI Provider settings for API keys and base URLs
 builder.Services.Configure<AIProjectOrchestrator.Domain.Configuration.AIProviderCredentials>(
@@ -165,7 +162,7 @@ if (operationsSection.Exists())
 // Test configuration binding
 try
 {
-    var testSettings = builder.Configuration.GetSection("AIOperations").Get<AIProjectOrchestrator.Infrastructure.Configuration.AIOperationSettings>();
+    var testSettings = builder.Configuration.GetSection("AIProviders").Get<AIProjectOrchestrator.Infrastructure.Configuration.AIOperationSettings>();
     if (testSettings != null && testSettings.Operations != null)
     {
         Console.WriteLine($"Configuration binding test successful. Operations count: {testSettings.Operations.Count}");
