@@ -15,6 +15,17 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
             project.CreatedDate = DateTime.UtcNow;
             project.UpdatedDate = DateTime.UtcNow;
             
+            // Ensure default values for new fields if not set
+            if (string.IsNullOrEmpty(project.Status))
+            {
+                project.Status = "active";
+            }
+            
+            if (string.IsNullOrEmpty(project.Type))
+            {
+                project.Type = "web";
+            }
+            
             return await base.AddAsync(project);
         }
 
@@ -26,4 +37,4 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
             return project;
         }
     }
-}
+}

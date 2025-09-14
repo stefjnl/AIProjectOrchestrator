@@ -7,9 +7,9 @@ namespace AIProjectOrchestrator.Domain.Services
 {
     public class AIProviderConfigurationService
     {
-        private readonly IOptions<AIProviderSettings> _settings;
+        private readonly IOptions<AIProviderCredentials> _settings;
 
-        public AIProviderConfigurationService(IOptions<AIProviderSettings> settings)
+        public AIProviderConfigurationService(IOptions<AIProviderCredentials> settings)
         {
             _settings = settings;
         }

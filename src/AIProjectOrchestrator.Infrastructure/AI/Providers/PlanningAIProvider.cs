@@ -7,7 +7,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
 {
     /// <summary>
     /// AI provider specifically configured for Project Planning operations.
-    /// Uses "ProjectPlanning" configuration from AIProviderSettings.
+    /// Uses "ProjectPlanning" configuration from AIOperationSettings.
     /// </summary>
     public class PlanningAIProvider : ConfigurableAIProvider, IPlanningAIProvider
     {
@@ -20,7 +20,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
         /// <param name="providerConfigService">Service for runtime provider configuration</param>
         public PlanningAIProvider(
             IHttpClientFactory httpClientFactory,
-            IOptions<AIProviderSettings> settings,
+            IOptions<AIOperationSettings> settings,
             ILogger<PlanningAIProvider> logger,
             IProviderConfigurationService providerConfigService = null,
             IServiceProvider serviceProvider = null)
