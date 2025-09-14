@@ -82,3 +82,93 @@ Always follow the following best practices when coding:
 23. **Use Value Objects and Aggregates in DDD**: Employ Value Objects for data with no unique identities, and Aggregates to represent complex entities and their related objects as single units, with a unique aggregate root handling all operations on the aggregate.
 24. **Implement Domain Events for Inter-Context Communication**: Use **Domain Events**, often via the Publisher/Subscriber pattern, for communication among Bounded Contexts. This approach maximizes independence between contexts by allowing publishers to broadcast information without needing to know specific subscribers.
 25. **Apply Command Query Responsibility Segregation (CQRS)**: When data storage/update requirements differ significantly from query requirements, use the CQRS pattern. This involves using different structures for storing/updating and querying data, which can lead to more efficient and specialized solutions.
+
+## Clean Architecture Layer Responsibilities
+
+### 🏛️ **Domain Layer**
+**What:** Core business rules and entities
+- **Entities** - Business objects with identity
+- **Value Objects** - Immutable business concepts  
+- **Domain Services** - Business logic that doesn't belong to a single entity
+- **Interfaces** - Contracts for external dependencies
+- **Business Rules** - Validation, calculations, domain logic
+
+**Example:** `ProviderConfiguration.IsValid()`, `User`, `OrderTotal.Calculate()`
+
+### 🔧 **Application Layer** 
+**What:** Use cases and orchestration
+- **Services** - Coordinate between domain and infrastructure
+- **Use Cases** - Application-specific business flows
+- **DTOs** - Data transfer objects for API contracts
+- **Orchestration** - Combine multiple domain services
+- **Transaction Management** - Cross-service coordination
+
+**Example:** `CreateUserService`, `ProcessOrderUseCase`, `ProviderManagementService`
+
+### 🌐 **Infrastructure Layer**
+**What:** External concerns and implementation details
+- **Repositories** - Data access implementations
+- **External APIs** - Third-party service clients
+- **File System** - File operations, logging
+- **Frameworks** - Entity Framework, HTTP clients
+- **Configuration** - Settings, connection strings
+
+**Example:** `SqlUserRepository`, `EmailService`, `ClaudeApiClient`
+
+### 🚫 **Key Rule**
+- **Domain** = No dependencies on anything
+- **Application** = Depends only on Domain
+- **Infrastructure** = Implements Domain interfaces, no business logic
+
+## Development Philosophy
+
+**Minimalist Approach**: 15-20 minute implementations, 2-4 files maximum
+**Ship Fast**: Build functional solution, avoid architectural gold-plating
+**Critical Evaluation**: Question every abstraction and interface
+**Business Focus**: Solve real problems, not theoretical ones
+
+### Recent Success Pattern
+- **Problem**: Provider switching required config file edits
+- **Solution**: Single override point in `ConfigurableAIProvider` with singleton service
+- **Result**: Runtime switching in 15 minutes, 4 files touched
+- **Key Learning**: Find the minimal intervention point, avoid cascading changes
+
+## Technical Standards
+
+**Clean Architecture**: Proper dependency flow without over-abstraction
+**Single Responsibility**: Fat services acceptable if contained to single layer
+**Interface Segregation**: Create interfaces only when multiple implementations exist
+**Dependency Inversion**: Application services calling Infrastructure through Domain interfaces
+
+## Next User Story Guidelines
+
+**Scope**: 15-30 minute implementations maximum
+**Files**: 2-4 files changed/created
+**Testing**: Verify endpoints work, don't build comprehensive test suites
+**Documentation**: Code comments only, no formal documentation
+
+**Avoid**:
+- Multi-week implementation plans
+- Complex component hierarchies
+- Multiple abstraction layers
+- Comprehensive monitoring systems
+- Enterprise-grade configuration management
+
+## Available System Features
+
+- Docker containerization with 3-service setup
+- PostgreSQL (configured, using in-memory for development speed)
+- Comprehensive REST API with health checks
+- Vanilla JavaScript frontend with modular architecture
+- Volume-mounted AI instruction files
+- Review workflow with approval/rejection
+
+## Critical Success Factors
+
+1. **Validate assumptions** about existing system capabilities
+2. **Find minimal intervention points** rather than rebuilding systems
+3. **Question complexity** - if it takes more than 30 minutes, it's probably over-engineered
+4. **Test practically** - does it work end-to-end?
+5. **Ship incrementally** - working solution beats perfect architecture
+
+Focus on building practical solutions that demonstrate senior-level engineering judgment: knowing when to stop optimizing and ship working code.
