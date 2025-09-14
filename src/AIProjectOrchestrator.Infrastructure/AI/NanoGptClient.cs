@@ -69,7 +69,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
 
                 // Log the complete request details for debugging
                 _logger.LogInformation("=== NANO_GPT REQUEST DEBUG ===");
-                _logger.LogInformation("Request URL: {BaseUrl}/v1/chat/completions", _settings.BaseUrl);
+                _logger.LogInformation("Request URL: {BaseUrl}/chat/completions", _settings.BaseUrl);
                 _logger.LogInformation("Request Method: POST");
                 _logger.LogInformation("Request Headers:");
                 _logger.LogInformation("  Authorization: Bearer {ApiKeyPrefix}...", _settings.ApiKey?.Substring(0, Math.Min(10, _settings.ApiKey.Length)) ?? "NULL");
@@ -106,8 +106,8 @@ namespace AIProjectOrchestrator.Infrastructure.AI
 
                 // Log the full request URL being constructed
                 var fullUrl = _httpClient.BaseAddress != null
-                    ? new Uri(_httpClient.BaseAddress, "v1/chat/completions").ToString()
-                    : "v1/chat/completions";
+                    ? new Uri(_httpClient.BaseAddress, "/chat/completions").ToString()
+                    : "/chat/completions";
                 _logger.LogInformation("{ProviderName} Request URL: {RequestUrl}", ProviderName, fullUrl);
 
                 // Log timeout information (configured at DI level)
@@ -147,7 +147,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                 _logger.LogInformation("Response Content Length: {ContentLength} characters", responseContent.Length);
                 _logger.LogInformation("Full Response Content:");
                 _logger.LogInformation("{ResponseContent}", responseContent);
-                
+
                 // Also log a preview of the response
                 var previewLength = Math.Min(500, responseContent.Length);
                 _logger.LogInformation("Response Content Preview (first {PreviewLength} chars):", previewLength);
@@ -161,7 +161,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                         // Parse non-streaming response format (OpenAI-compatible)
                         using var doc = JsonDocument.Parse(responseContent);
                         var root = doc.RootElement;
-                        
+
                         if (root.TryGetProperty("choices", out var choicesElement) &&
                             choicesElement.GetArrayLength() > 0)
                         {
@@ -203,7 +203,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                 {
                     _logger.LogError("{ProviderName} API returned error status: {StatusCode}, content: {ResponseContent}",
                         ProviderName, response.StatusCode, responseContent);
-                    
+
                     // Provide specific guidance based on the status code
                     string errorMessage;
                     if (response.StatusCode == System.Net.HttpStatusCode.NotFound || response.StatusCode == System.Net.HttpStatusCode.MethodNotAllowed)
@@ -214,7 +214,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                     {
                         errorMessage = $"NanoGpt API returned status {response.StatusCode}: {responseContent}";
                     }
-                    
+
                     return new AIResponse
                     {
                         Content = string.Empty,

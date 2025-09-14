@@ -5,6 +5,8 @@ using AIProjectOrchestrator.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using System.Linq;
+using Microsoft.EntityFrameworkCore.Query;
 
 namespace AIProjectOrchestrator.Infrastructure.Repositories
 {
@@ -20,6 +22,7 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         public async Task<StoryGeneration?> GetByGenerationIdAsync(string generationId, CancellationToken cancellationToken = default)
         {
             return await _context.StoryGenerations
+                .Include(sg => sg.Stories)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(sg => sg.GenerationId == generationId, cancellationToken);
         }
@@ -29,6 +32,23 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
             return await _context.StoryGenerations
                 .AsNoTracking()
                 .FirstOrDefaultAsync(sg => sg.ProjectPlanningId == projectPlanningId, cancellationToken);
+        }
+
+        public new async Task<StoryGeneration> AddAsync(StoryGeneration entity, CancellationToken cancellationToken = default)
+        {
+            // Handle cascade insert for UserStory entities by explicitly setting their state
+            if (entity.Stories != null && entity.Stories.Any())
+            {
+                foreach (var story in entity.Stories)
+                {
+                    // Mark each UserStory as Added so Entity Framework will insert them
+                    _context.Entry(story).State = EntityState.Added;
+                }
+            }
+
+            await _dbSet.AddAsync(entity, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
+            return entity;
         }
 
         public async Task<IEnumerable<StoryGeneration>> GetByProjectIdAsync(int projectId, CancellationToken cancellationToken = default)

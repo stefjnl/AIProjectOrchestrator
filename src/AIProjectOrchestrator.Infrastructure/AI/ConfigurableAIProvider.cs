@@ -13,6 +13,19 @@ using System.Net;
 namespace AIProjectOrchestrator.Infrastructure.AI
 {
     /// <summary>
+    /// Interface for accessing runtime provider configuration from Infrastructure layer.
+    /// This is separate from the Application layer interface to maintain Clean Architecture.
+    /// </summary>
+    public interface IProviderConfigurationService
+    {
+        /// <summary>
+        /// Gets the current default provider name, or null if not set.
+        /// </summary>
+        /// <returns>The current default provider name</returns>
+        Task<string?> GetDefaultProviderAsync();
+    }
+
+    /// <summary>
     /// Base implementation of IAIProvider with operation-specific configuration.
     /// Each derived class represents a specific business operation with its own AI configuration.
     /// </summary>
@@ -22,6 +35,8 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IOptions<AIProjectOrchestrator.Infrastructure.Configuration.AIProviderSettings> _settings;
         private readonly ILogger<ConfigurableAIProvider> _logger;
+        private readonly IProviderConfigurationService _providerConfigService;
+        private readonly IServiceProvider _serviceProvider;
 
         /// <summary>
         /// Creates a new instance of ConfigurableAIProvider with specific operation configuration.
@@ -30,26 +45,45 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         /// <param name="httpClientFactory">Factory for creating HTTP clients with Docker SSL support</param>
         /// <param name="settings">Operation-specific configuration</param>
         /// <param name="logger">Logger for diagnostics</param>
+        /// <param name="providerConfigService">Service for runtime provider configuration</param>
         protected ConfigurableAIProvider(string operationType, IHttpClientFactory httpClientFactory,
-            IOptions<AIProjectOrchestrator.Infrastructure.Configuration.AIProviderSettings> settings, ILogger<ConfigurableAIProvider> logger)
+            IOptions<AIProjectOrchestrator.Infrastructure.Configuration.AIProviderSettings> settings, ILogger<ConfigurableAIProvider> logger,
+            IProviderConfigurationService providerConfigService = null, IServiceProvider serviceProvider = null)
         {
             _operationType = operationType ?? throw new ArgumentNullException(nameof(operationType));
             _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _providerConfigService = providerConfigService;
+            _serviceProvider = serviceProvider;
         }
 
         /// <inheritdoc />
-        public string ProviderName => GetOperationConfig().ProviderName;
+        public string ProviderName
+        {
+            get
+            {
+                _logger.LogInformation("=== ProviderName Debug Info ===");
+                var configProvider = GetOperationConfig().ProviderName;
+                var overrideProvider = _providerConfigService?.GetDefaultProviderAsync().Result;
+                var finalProvider = overrideProvider ?? configProvider;
+                
+                _logger.LogInformation("Provider selection for operation '{Operation}': Config={Config}, Override={Override}, Final={Final}",
+                    _operationType, configProvider, overrideProvider ?? "none", finalProvider);
+                _logger.LogInformation("=== End ProviderName Debug Info ===");
+                
+                return finalProvider;
+            }
+        }
 
         /// <inheritdoc />
         public async Task<string> GenerateContentAsync(string prompt, string context = null)
         {
-            _logger.LogDebug("Generating content for operation '{Operation}' with prompt length {PromptLength}", 
+            _logger.LogDebug("Generating content for operation '{Operation}' with prompt length {PromptLength}",
                 _operationType, prompt?.Length ?? 0);
 
             var options = GetOperationConfig();
-            
+
             var aiRequest = new AIRequest
             {
                 Prompt = prompt,
@@ -85,7 +119,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             try
             {
                 var response = await client.CallAsync(aiRequest);
-                
+
                 if (!response.IsSuccess)
                 {
                     _logger.LogError("AI call failed for operation '{Operation}': {ErrorMessage}",
@@ -122,7 +156,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         public async Task<bool> IsAvailableAsync()
         {
             var options = GetOperationConfig();
-            
+
             try
             {
                 // Create HTTP client with Docker SSL support
@@ -188,7 +222,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                 // Add provider-specific headers
                 httpClient.DefaultRequestHeaders.Clear();
                 httpClient.DefaultRequestHeaders.Add("User-Agent", $"AIProjectOrchestrator-Docker/{_operationType}");
-                
+
                 _logger.LogInformation("Successfully configured HTTP client for provider {Provider} and operation {Operation}",
                     options.ProviderName, _operationType);
             }
@@ -232,14 +266,25 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         /// <returns>AI client instance or null if provider not supported</returns>
         private IAIClient CreateAIClient(string providerName, HttpClient httpClient)
         {
-            // Get the domain configuration service - we need to pass Domain AIProviderSettings
-            var domainSettings = new Microsoft.Extensions.Options.OptionsWrapper<AIProjectOrchestrator.Domain.Configuration.AIProviderSettings>(
-                new AIProjectOrchestrator.Domain.Configuration.AIProviderSettings());
-            var configurationService = new AIProviderConfigurationService(domainSettings);
-            
+            // Get the domain configuration service from DI container to get proper settings
+            AIProviderConfigurationService configurationService;
+            if (_serviceProvider != null && providerName.ToLowerInvariant() == "openrouter")
+            {
+                var domainSettings = _serviceProvider.GetRequiredService<IOptions<AIProjectOrchestrator.Domain.Configuration.AIProviderSettings>>();
+                _logger.LogInformation("Using domain configuration service for {ProviderName}", providerName);
+                configurationService = new AIProviderConfigurationService(domainSettings);
+            }
+            else
+            {
+                var domainSettings = new Microsoft.Extensions.Options.OptionsWrapper<AIProjectOrchestrator.Domain.Configuration.AIProviderSettings>(
+                    new AIProjectOrchestrator.Domain.Configuration.AIProviderSettings());
+                configurationService = new AIProviderConfigurationService(domainSettings);
+            }
+            _logger.LogInformation("Created AIProviderConfigurationService for operation {Operation}", _operationType);
+
             // Create loggers using the logger factory approach
             var loggerFactory = new Microsoft.Extensions.Logging.LoggerFactory();
-            
+
             switch (providerName.ToLowerInvariant())
             {
                 case "nanogpt":
@@ -248,8 +293,16 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                         loggerFactory.CreateLogger<NanoGptClient>(),
                         configurationService);
                 case "openrouter":
-                    _logger.LogDebug("Creating OpenRouterClient for operation {Operation}", _operationType);
-                    return new OpenRouterClient(httpClient,
+                    _logger.LogInformation("Creating OpenRouterClient for operation {Operation}", _operationType);
+                    // Create a new HttpClient specifically for OpenRouter to ensure proper authentication
+                    var openRouterHttpClient = _httpClientFactory.CreateClient(nameof(OpenRouterClient));
+                    _logger.LogInformation("OpenRouter HttpClient created - BaseAddress: {BaseAddress}", openRouterHttpClient.BaseAddress?.ToString() ?? "NULL");
+                    _logger.LogInformation("OpenRouter HttpClient default headers count: {HeaderCount}", openRouterHttpClient.DefaultRequestHeaders.Count());
+                    foreach (var header in openRouterHttpClient.DefaultRequestHeaders)
+                    {
+                        _logger.LogInformation("OpenRouter HttpClient header: {HeaderName} = {HeaderValue}", header.Key, string.Join(", ", header.Value));
+                    }
+                    return new OpenRouterClient(openRouterHttpClient,
                         loggerFactory.CreateLogger<OpenRouterClient>(),
                         configurationService);
                 case "claude":
@@ -274,9 +327,10 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         /// <returns>Operation-specific configuration</returns>
         private OperationConfig GetOperationConfig()
         {
-            _logger.LogDebug("Looking for operation type '{Operation}' in configuration", _operationType);
-            _logger.LogDebug("Available operations: {Operations}", string.Join(", ", _settings.Value.Operations.Keys));
-            
+            _logger.LogInformation("=== GetOperationConfig Debug Info ===");
+            _logger.LogInformation("Looking for operation type '{Operation}' in configuration", _operationType);
+            _logger.LogInformation("Available operations: {Operations}", string.Join(", ", _settings.Value.Operations.Keys));
+
             if (_settings.Value.Operations == null)
             {
                 _logger.LogError("Operations configuration is null");
@@ -293,7 +347,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             var config = _settings.Value.Operations[_operationType];
             _logger.LogDebug("Found configuration for operation '{Operation}': Provider={Provider}, Model={Model}",
                 _operationType, config.ProviderName, config.Model);
-            
+
             return config;
         }
     }

@@ -163,12 +163,18 @@ namespace AIProjectOrchestrator.Application.Services
                     Status = StoryGenerationStatus.PendingReview,
                     ReviewId = string.Empty, // Will be updated after review submission
                     CreatedDate = DateTime.UtcNow,
-                    Stories = stories
+                    Stories = stories // Set the stories collection for cascade insert
                 };
 
-                // Save to database
+                // Save the StoryGeneration entity - this will cascade insert the UserStory entities
                 await _storyGenerationRepository.AddAsync(storyGenerationEntity, cancellationToken);
                 var savedStoryGenerationId = storyGenerationEntity.Id; // Get the database-generated int ID
+
+                // Update each story with the correct StoryGenerationId for consistency
+                foreach (var story in stories)
+                {
+                    story.StoryGenerationId = savedStoryGenerationId;
+                }
 
                 // Submit for review
                 _logger.LogDebug("Submitting AI response for review in story generation {GenerationId}", generationId);
@@ -426,13 +432,21 @@ namespace AIProjectOrchestrator.Application.Services
             }
 
             // Check that requirements analysis is approved
-            var canAnalyzeRequirements = await _requirementsAnalysisService.CanAnalyzeRequirementsAsync(
+            // First get the project ID from the requirements analysis
+            var requirementsAnalysis = await _requirementsAnalysisService.GetAnalysisResultsAsync(
                 requirementsAnalysisId.Value, cancellationToken);
-
-            if (!canAnalyzeRequirements)
+            if (requirementsAnalysis == null)
             {
-                _logger.LogWarning("Story generation failed: Requirements analysis {RequirementsAnalysisId} is not approved",
+                _logger.LogWarning("Story generation failed: Requirements analysis {RequirementsAnalysisId} not found",
                     requirementsAnalysisId.Value);
+                throw new InvalidOperationException("Requirements analysis not found");
+            }
+            
+            // Check that requirements analysis is approved
+            if (requirementsAnalysis.Status != RequirementsAnalysisStatus.Approved)
+            {
+                _logger.LogWarning("Story generation failed: Requirements analysis {RequirementsAnalysisId} is not approved (status: {Status})",
+                    requirementsAnalysisId.Value, requirementsAnalysis.Status);
                 throw new InvalidOperationException("Requirements analysis is not approved");
             }
 

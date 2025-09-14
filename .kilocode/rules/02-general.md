@@ -6,3 +6,7 @@ if needed, you can run the following:
 docker compose down api; docker compose build --no-cache api; docker compose up -d api
 
 no "curl" commands, use "Invoke-Webrequest" (PS) instead.
+
+keep changes to a minimum, if possible
+
+aways verify your edits, make sure the application builds

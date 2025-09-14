@@ -6,10 +6,10 @@ using Serilog;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using AIProjectOrchestrator.Infrastructure.Data;
+using AIProjectOrchestrator.Application.Services;
 using AIProjectOrchestrator.Domain.Interfaces;
 using AIProjectOrchestrator.Infrastructure.Repositories;
 using AIProjectOrchestrator.Application.Interfaces;
-using AIProjectOrchestrator.Application.Services;
 using AIProjectOrchestrator.Domain.Services;
 using AIProjectOrchestrator.Domain.Configuration;
 using Microsoft.Extensions.Configuration;
@@ -137,6 +137,10 @@ builder.Services.AddSingleton<IInstructionService, InstructionService>();
 // Configure AI Provider settings with operation-specific configurations
 builder.Services.Configure<AIProjectOrchestrator.Infrastructure.Configuration.AIProviderSettings>(
     builder.Configuration.GetSection("AIProviders"));
+
+// Configure domain AI Provider settings for API keys and base URLs
+builder.Services.Configure<AIProjectOrchestrator.Domain.Configuration.AIProviderSettings>(
+    builder.Configuration.GetSection("AIProviderConfigurations"));
 
 // Log the configuration for debugging
 var aiProvidersSection = builder.Configuration.GetSection("AIProviders");
@@ -299,6 +303,15 @@ builder.Services.AddSingleton<IAIClient, LMStudioClient>();
 
 // Register factory for accessing specific clients
 builder.Services.AddSingleton<IAIClientFactory, AIClientFactory>();
+
+// Register default provider service
+builder.Services.AddSingleton<IDefaultProviderService, AIProjectOrchestrator.Application.Services.DefaultProviderService>();
+
+// Register provider configuration service for Infrastructure layer
+builder.Services.AddSingleton<IProviderConfigurationService, ProviderConfigurationService>();
+
+// Register provider management service
+builder.Services.AddScoped<IProviderManagementService, ProviderManagementService>();
 
 // Register new service-specific AI providers (Clean Architecture approach)
 // These providers will eliminate DRY violations by centralizing AI configuration

@@ -249,4 +249,19 @@ window.APIClient = {
         return this.post('/playground-prompt-generation', { promptContent });
     },
 
+    // Provider management methods
+    async getProviders() {
+        const result = await this.get('/ProviderManagement/providers');
+        // Ensure we always return an array
+        return Array.isArray(result) ? result : [];
+    },
+
+    async getCurrentProvider() {
+        return this.get('/ProviderManagement/current');
+    },
+
+    async switchProvider(provider) {
+        return this.post('/ProviderManagement/switch', { Provider: provider });
+    },
+
 };

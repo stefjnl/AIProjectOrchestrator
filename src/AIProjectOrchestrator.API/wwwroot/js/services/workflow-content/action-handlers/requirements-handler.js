@@ -44,17 +44,27 @@ class RequirementsHandler {
                 // Get project details to pre-populate requirements
                 const project = await this.apiClient.getProject(this.workflowManager.projectId);
 
+                // Try to get the detailed requirements from localStorage (passed during project creation)
+                const detailedRequirements = localStorage.getItem(`project_requirements_${this.workflowManager.projectId}`);
+                
                 let requirementsInput = '';
 
-                // If this is a new project, suggest using the project description
-                if (this.workflowManager.isNewProject && project.description) {
+                // If this is a new project, suggest using the project description + detailed requirements
+                if (this.workflowManager.isNewProject && (project.description || detailedRequirements)) {
+                    const combinedDescription = [
+                        project.description,
+                        detailedRequirements ? `\n\nDetailed Requirements:\n${detailedRequirements}` : ''
+                    ].filter(Boolean).join('');
+                    
+                    const previewText = combinedDescription.substring(0, 300) + (combinedDescription.length > 300 ? '...' : '');
+                    
                     const useProjectDescription = confirm(
-                        'We found your project description. Would you like to use it as a starting point for requirements analysis?\n\n' +
-                        'Project Description: ' + project.description.substring(0, 200) + '...'
+                        'We found your project information. Would you like to use it as a starting point for requirements analysis?\n\n' +
+                        'Project Information: ' + previewText
                     );
 
                     if (useProjectDescription) {
-                        requirementsInput = project.description;
+                        requirementsInput = combinedDescription;
                     }
                 }
 
@@ -75,6 +85,11 @@ class RequirementsHandler {
 
                     // Re-show loading overlay since we're proceeding
                     loadingOverlay = this.showLoading('Preparing requirements analysis...');
+                }
+
+                // Clean up localStorage after use
+                if (detailedRequirements) {
+                    localStorage.removeItem(`project_requirements_${this.workflowManager.projectId}`);
                 }
 
                 // Create the requirements analysis request
