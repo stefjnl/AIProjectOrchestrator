@@ -14,7 +14,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
     public class ClaudeClient : BaseAIClientHandler, IAIClient
     {
         private readonly AIProviderConfigurationService _configurationService;
-        private readonly ClaudeSettings _settings;
+        private readonly ClaudeCredentials _settings;
 
         public override string ProviderName => "Claude";
 
@@ -22,7 +22,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             : base(httpClient, logger)
         {
             _configurationService = configurationService;
-            _settings = _configurationService.GetProviderSettings<ClaudeSettings>(ProviderName);
+            _settings = _configurationService.GetProviderSettings<ClaudeCredentials>(ProviderName);
 
             // Log settings for debugging
             _logger.LogInformation("{ProviderName} Settings - BaseUrl: {BaseUrl}, ApiKey Length: {ApiKeyLength}, DefaultModel: {DefaultModel}",

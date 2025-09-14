@@ -10,7 +10,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
 {
     /// <summary>
     /// AI provider specifically configured for Prompt Generation operations.
-    /// Uses "PromptGeneration" configuration from AIProviderSettings.
+    /// Uses "PromptGeneration" configuration from AIOperationSettings.
     /// </summary>
     public class PromptGenerationAIProvider : ConfigurableAIProvider, IPromptGenerationAIProvider
     {
@@ -23,7 +23,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
         /// <param name="providerConfigService">Service for runtime provider configuration</param>
         public PromptGenerationAIProvider(
             IHttpClientFactory httpClientFactory,
-            IOptions<AIProviderSettings> settings,
+            IOptions<AIOperationSettings> settings,
             ILogger<PromptGenerationAIProvider> logger,
             IProviderConfigurationService providerConfigService = null,
             IServiceProvider serviceProvider = null)

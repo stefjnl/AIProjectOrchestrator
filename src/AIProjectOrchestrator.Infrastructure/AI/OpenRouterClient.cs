@@ -14,7 +14,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
     public class OpenRouterClient : BaseAIClientHandler, IAIClient
     {
         private readonly AIProviderConfigurationService _configurationService;
-        private readonly OpenRouterSettings _settings;
+        private readonly OpenRouterCredentials _settings;
 
         public override string ProviderName => "OpenRouter";
 
@@ -23,7 +23,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         {
             _configurationService = configurationService;
             _logger.LogInformation("OpenRouterClient constructor called");
-            _settings = _configurationService.GetProviderSettings<OpenRouterSettings>(ProviderName);
+            _settings = _configurationService.GetProviderSettings<OpenRouterCredentials>(ProviderName);
 
             // Log settings for debugging
             _logger.LogInformation("{ProviderName} Settings - BaseUrl: {BaseUrl}, ApiKey Length: {ApiKeyLength}, DefaultModel: {DefaultModel}",

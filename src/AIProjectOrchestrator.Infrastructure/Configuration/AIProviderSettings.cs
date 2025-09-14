@@ -6,20 +6,20 @@ namespace AIProjectOrchestrator.Infrastructure.Configuration
     /// Configuration for AI providers with operation-specific settings.
     /// Each operation (RequirementsAnalysis, ProjectPlanning, etc.) can have different AI configurations.
     /// </summary>
-    public class AIProviderSettings
+    public class AIOperationSettings
     {
         /// <summary>
         /// Operation-specific AI provider configurations.
         /// Key: Operation type (RequirementsAnalysis, ProjectPlanning, StoryGeneration, etc.)
         /// Value: Configuration for that specific operation
         /// </summary>
-        public Dictionary<string, OperationConfig> Operations { get; set; } = new();
+        public Dictionary<string, AIOperationConfig> Operations { get; set; } = new();
     }
 
     /// <summary>
     /// Configuration for a specific AI operation.
     /// </summary>
-    public class OperationConfig
+    public class AIOperationConfig
     {
         /// <summary>
         /// AI provider name (NanoGpt, OpenRouter, LMStudio, etc.)

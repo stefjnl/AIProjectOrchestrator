@@ -33,7 +33,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
     {
         private readonly string _operationType;
         private readonly IHttpClientFactory _httpClientFactory;
-        private readonly IOptions<AIProjectOrchestrator.Infrastructure.Configuration.AIProviderSettings> _settings;
+        private readonly IOptions<AIProjectOrchestrator.Infrastructure.Configuration.AIOperationSettings> _settings;
         private readonly ILogger<ConfigurableAIProvider> _logger;
         private readonly IProviderConfigurationService _providerConfigService;
         private readonly IServiceProvider _serviceProvider;
@@ -47,7 +47,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         /// <param name="logger">Logger for diagnostics</param>
         /// <param name="providerConfigService">Service for runtime provider configuration</param>
         protected ConfigurableAIProvider(string operationType, IHttpClientFactory httpClientFactory,
-            IOptions<AIProjectOrchestrator.Infrastructure.Configuration.AIProviderSettings> settings, ILogger<ConfigurableAIProvider> logger,
+            IOptions<AIProjectOrchestrator.Infrastructure.Configuration.AIOperationSettings> settings, ILogger<ConfigurableAIProvider> logger,
             IProviderConfigurationService providerConfigService = null, IServiceProvider serviceProvider = null)
         {
             _operationType = operationType ?? throw new ArgumentNullException(nameof(operationType));
@@ -64,7 +64,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             get
             {
                 _logger.LogInformation("=== ProviderName Debug Info ===");
-                var configProvider = GetOperationConfig().ProviderName;
+                var configProvider = GetAIOperationConfig().ProviderName;
                 var overrideProvider = _providerConfigService?.GetDefaultProviderAsync().Result;
                 var finalProvider = overrideProvider ?? configProvider;
                 
@@ -82,7 +82,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             _logger.LogDebug("Generating content for operation '{Operation}' with prompt length {PromptLength}",
                 _operationType, prompt?.Length ?? 0);
 
-            var options = GetOperationConfig();
+            var options = GetAIOperationConfig();
 
             var aiRequest = new AIRequest
             {
@@ -155,7 +155,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         /// <inheritdoc />
         public async Task<bool> IsAvailableAsync()
         {
-            var options = GetOperationConfig();
+            var options = GetAIOperationConfig();
 
             try
             {
@@ -197,7 +197,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         /// </summary>
         /// <param name="httpClient">HTTP client to configure</param>
         /// <param name="options">Operation configuration</param>
-        private void ConfigureHttpClient(HttpClient httpClient, OperationConfig options)
+        private void ConfigureHttpClient(HttpClient httpClient, AIOperationConfig options)
         {
             try
             {
@@ -270,14 +270,14 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             AIProviderConfigurationService configurationService;
             if (_serviceProvider != null && providerName.ToLowerInvariant() == "openrouter")
             {
-                var domainSettings = _serviceProvider.GetRequiredService<IOptions<AIProjectOrchestrator.Domain.Configuration.AIProviderSettings>>();
+                var domainSettings = _serviceProvider.GetRequiredService<IOptions<AIProjectOrchestrator.Domain.Configuration.AIProviderCredentials>>();
                 _logger.LogInformation("Using domain configuration service for {ProviderName}", providerName);
                 configurationService = new AIProviderConfigurationService(domainSettings);
             }
             else
             {
-                var domainSettings = new Microsoft.Extensions.Options.OptionsWrapper<AIProjectOrchestrator.Domain.Configuration.AIProviderSettings>(
-                    new AIProjectOrchestrator.Domain.Configuration.AIProviderSettings());
+                var domainSettings = new Microsoft.Extensions.Options.OptionsWrapper<AIProjectOrchestrator.Domain.Configuration.AIProviderCredentials>(
+                    new AIProjectOrchestrator.Domain.Configuration.AIProviderCredentials());
                 configurationService = new AIProviderConfigurationService(domainSettings);
             }
             _logger.LogInformation("Created AIProviderConfigurationService for operation {Operation}", _operationType);
@@ -325,7 +325,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         /// Gets the configuration for the specific operation type.
         /// </summary>
         /// <returns>Operation-specific configuration</returns>
-        private OperationConfig GetOperationConfig()
+        private AIOperationConfig GetAIOperationConfig()
         {
             _logger.LogInformation("=== GetOperationConfig Debug Info ===");
             _logger.LogInformation("Looking for operation type '{Operation}' in configuration", _operationType);

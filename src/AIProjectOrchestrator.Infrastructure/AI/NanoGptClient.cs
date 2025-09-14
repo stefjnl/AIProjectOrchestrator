@@ -14,7 +14,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
     public class NanoGptClient : BaseAIClientHandler, IAIClient
     {
         private readonly AIProviderConfigurationService _configurationService;
-        private readonly NanoGptSettings _settings;
+        private readonly NanoGptCredentials _settings;
 
         public override string ProviderName => "NanoGpt";
 
@@ -22,7 +22,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             : base(httpClient, logger)
         {
             _configurationService = configurationService;
-            _settings = _configurationService.GetProviderSettings<NanoGptSettings>(ProviderName);
+            _settings = _configurationService.GetProviderSettings<NanoGptCredentials>(ProviderName);
 
             // Log settings for debugging
             _logger.LogInformation("{ProviderName} Settings - BaseUrl: {BaseUrl}, ApiKey Length: {ApiKeyLength}, DefaultModel: {DefaultModel}",

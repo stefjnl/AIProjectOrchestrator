@@ -116,6 +116,14 @@ builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IPromptTemplateRepository, PromptTemplateRepository>();
 builder.Services.AddScoped<IPromptTemplateService, PromptTemplateService>();
 
+// Add AI provider credentials configuration
+builder.Services.Configure<AIProviderCredentials>(
+    builder.Configuration.GetSection(AIProviderCredentials.SectionName));
+
+// Add AI operation settings configuration
+builder.Services.Configure<AIOperationSettings>(
+    builder.Configuration.GetSection("AIOperations"));
+
 // Add AI model configuration service
 builder.Services.AddSingleton<AIProviderConfigurationService>();
 builder.Services.AddSingleton<AIClientFallbackService>();
@@ -135,11 +143,12 @@ builder.Services.Configure<InstructionSettings>(
 builder.Services.AddSingleton<IInstructionService, InstructionService>();
 
 // Configure AI Provider settings with operation-specific configurations
-builder.Services.Configure<AIProjectOrchestrator.Infrastructure.Configuration.AIProviderSettings>(
-    builder.Configuration.GetSection("AIProviders"));
+// Configure AI operation settings for provider selection and parameters
+builder.Services.Configure<AIProjectOrchestrator.Infrastructure.Configuration.AIOperationSettings>(
+    builder.Configuration.GetSection("AIOperations"));
 
 // Configure domain AI Provider settings for API keys and base URLs
-builder.Services.Configure<AIProjectOrchestrator.Domain.Configuration.AIProviderSettings>(
+builder.Services.Configure<AIProjectOrchestrator.Domain.Configuration.AIProviderCredentials>(
     builder.Configuration.GetSection("AIProviderConfigurations"));
 
 // Log the configuration for debugging
@@ -156,7 +165,7 @@ if (operationsSection.Exists())
 // Test configuration binding
 try
 {
-    var testSettings = builder.Configuration.GetSection("AIProviders").Get<AIProjectOrchestrator.Infrastructure.Configuration.AIProviderSettings>();
+    var testSettings = builder.Configuration.GetSection("AIOperations").Get<AIProjectOrchestrator.Infrastructure.Configuration.AIOperationSettings>();
     if (testSettings != null && testSettings.Operations != null)
     {
         Console.WriteLine($"Configuration binding test successful. Operations count: {testSettings.Operations.Count}");
@@ -180,7 +189,7 @@ builder.Services.Configure<ReviewSettings>(
 builder.Services.AddHttpClient<ClaudeClient>()
     .ConfigureHttpClient((serviceProvider, client) =>
     {
-        var settings = serviceProvider.GetRequiredService<IOptions<AIProjectOrchestrator.Domain.Configuration.AIProviderSettings>>().Value.Claude;
+        var settings = serviceProvider.GetRequiredService<IOptions<AIProjectOrchestrator.Domain.Configuration.AIProviderCredentials>>().Value.Claude;
         client.BaseAddress = new Uri(settings.BaseUrl);
         client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
     })
@@ -196,7 +205,7 @@ builder.Services.AddHttpClient<ClaudeClient>()
 builder.Services.AddHttpClient<LMStudioClient>()
     .ConfigureHttpClient((serviceProvider, client) =>
     {
-        var settings = serviceProvider.GetRequiredService<IOptions<AIProjectOrchestrator.Domain.Configuration.AIProviderSettings>>().Value.LMStudio;
+        var settings = serviceProvider.GetRequiredService<IOptions<AIProjectOrchestrator.Domain.Configuration.AIProviderCredentials>>().Value.LMStudio;
         client.BaseAddress = new Uri(settings.BaseUrl);
         // Set a longer base timeout to handle large prompts - we'll manage individual request timeouts in the client
         client.Timeout = TimeSpan.FromSeconds(Math.Max(settings.TimeoutSeconds, 120)); // Minimum 2 minutes, max from config
@@ -213,7 +222,7 @@ builder.Services.AddHttpClient<LMStudioClient>()
 builder.Services.AddHttpClient<OpenRouterClient>()
     .ConfigureHttpClient((serviceProvider, client) =>
     {
-        var settings = serviceProvider.GetRequiredService<IOptions<AIProjectOrchestrator.Domain.Configuration.AIProviderSettings>>().Value.OpenRouter;
+        var settings = serviceProvider.GetRequiredService<IOptions<AIProjectOrchestrator.Domain.Configuration.AIProviderCredentials>>().Value.OpenRouter;
         // Ensure BaseAddress ends with trailing slash for proper URL construction
         var baseUrl = settings.BaseUrl.TrimEnd('/') + "/";
         client.BaseAddress = new Uri(baseUrl);
@@ -232,7 +241,7 @@ builder.Services.AddHttpClient<OpenRouterClient>()
 builder.Services.AddHttpClient<NanoGptClient>()
     .ConfigureHttpClient((serviceProvider, client) =>
     {
-        var settings = serviceProvider.GetRequiredService<IOptions<AIProjectOrchestrator.Domain.Configuration.AIProviderSettings>>().Value.NanoGpt;
+        var settings = serviceProvider.GetRequiredService<IOptions<AIProjectOrchestrator.Domain.Configuration.AIProviderCredentials>>().Value.NanoGpt;
         client.BaseAddress = new Uri(settings.BaseUrl);
         // Set a longer base timeout to handle large prompts - we'll manage individual request timeouts in the client
         client.Timeout = TimeSpan.FromSeconds(Math.Max(settings.TimeoutSeconds, 120)); // Minimum 2 minutes, max from config

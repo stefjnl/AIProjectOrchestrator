@@ -14,7 +14,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
     public class LMStudioClient : BaseAIClientHandler, IAIClient
     {
         private readonly AIProviderConfigurationService _configurationService;
-        private readonly LMStudioSettings _settings;
+        private readonly LMStudioCredentials _settings;
 
         public override string ProviderName => "LMStudio";
 
@@ -22,7 +22,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             : base(httpClient, logger)
         {
             _configurationService = configurationService;
-            _settings = configurationService.GetProviderSettings<LMStudioSettings>(ProviderName);
+            _settings = configurationService.GetProviderSettings<LMStudioCredentials>(ProviderName);
 
             // Log settings for debugging
             _logger.LogInformation("{ProviderName} Settings - BaseUrl: {BaseUrl}, DefaultModel: {DefaultModel}",

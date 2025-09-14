@@ -7,7 +7,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
 {
     /// <summary>
     /// AI provider specifically configured for Requirements Analysis operations.
-    /// Uses "RequirementsAnalysis" configuration from AIProviderSettings.
+    /// Uses "RequirementsAnalysis" configuration from AIOperationSettings.
     /// </summary>
     public class RequirementsAIProvider : ConfigurableAIProvider, IRequirementsAIProvider
     {
@@ -20,7 +20,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
         /// <param name="providerConfigService">Service for runtime provider configuration</param>
         public RequirementsAIProvider(
             IHttpClientFactory httpClientFactory,
-            IOptions<AIProviderSettings> settings,
+            IOptions<AIOperationSettings> settings,
             ILogger<RequirementsAIProvider> logger,
             IProviderConfigurationService providerConfigService = null,
             IServiceProvider serviceProvider = null)

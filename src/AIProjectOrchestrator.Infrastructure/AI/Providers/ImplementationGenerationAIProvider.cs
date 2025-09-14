@@ -19,7 +19,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
         /// <param name="logger">Logger for diagnostics</param>
         public ImplementationGenerationAIProvider(
             IHttpClientFactory httpClientFactory,
-            IOptions<AIProviderSettings> settings,
+            IOptions<AIOperationSettings> settings,
             ILogger<ImplementationGenerationAIProvider> logger,
             IProviderConfigurationService providerConfigService = null,
             IServiceProvider serviceProvider = null)

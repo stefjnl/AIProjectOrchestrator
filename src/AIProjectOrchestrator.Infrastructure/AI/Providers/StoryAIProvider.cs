@@ -7,7 +7,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
 {
     /// <summary>
     /// AI provider specifically configured for Story Generation operations.
-    /// Uses "StoryGeneration" configuration from AIProviderSettings.
+    /// Uses "StoryGeneration" configuration from AIOperationSettings.
     /// </summary>
     public class StoryAIProvider : ConfigurableAIProvider, IStoryAIProvider
     {
@@ -19,7 +19,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
         /// <param name="logger">Logger for diagnostics</param>
         public StoryAIProvider(
             IHttpClientFactory httpClientFactory,
-            IOptions<AIProviderSettings> settings,
+            IOptions<AIOperationSettings> settings,
             ILogger<StoryAIProvider> logger,
             IProviderConfigurationService providerConfigService = null,
             IServiceProvider serviceProvider = null)

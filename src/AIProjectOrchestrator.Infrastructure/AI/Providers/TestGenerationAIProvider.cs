@@ -7,7 +7,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
 {
     /// <summary>
     /// AI provider specifically configured for Test Generation operations.
-    /// Uses "TestGeneration" configuration from AIProviderSettings.
+    /// Uses "TestGeneration" configuration from AIOperationSettings.
     /// </summary>
     public class TestGenerationAIProvider : ConfigurableAIProvider, ITestGenerationAIProvider
     {
@@ -19,7 +19,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
         /// <param name="logger">Logger for diagnostics</param>
         public TestGenerationAIProvider(
             IHttpClientFactory httpClientFactory,
-            IOptions<AIProviderSettings> settings,
+            IOptions<AIOperationSettings> settings,
             ILogger<TestGenerationAIProvider> logger,
             IProviderConfigurationService providerConfigService = null,
             IServiceProvider serviceProvider = null)
