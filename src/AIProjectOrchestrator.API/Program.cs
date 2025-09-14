@@ -7,6 +7,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using AIProjectOrchestrator.Infrastructure.Data;
 using AIProjectOrchestrator.Application.Services;
+using AIProjectOrchestrator.Application.Services.Builders;
+using AIProjectOrchestrator.Application.Services.Handlers;
+using AIProjectOrchestrator.Application.Services.Orchestrators;
+using AIProjectOrchestrator.Application.Services.Parsers;
+using AIProjectOrchestrator.Application.Services.Validators;
 using AIProjectOrchestrator.Domain.Interfaces;
 using AIProjectOrchestrator.Infrastructure.Repositories;
 using AIProjectOrchestrator.Application.Interfaces;
@@ -105,6 +110,14 @@ builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IRequirementsAnalysisService, RequirementsAnalysisService>();
 builder.Services.AddScoped<IProjectPlanningService, ProjectPlanningService>();
 builder.Services.AddScoped<IStoryGenerationService, StoryGenerationService>();
+
+// Register new story generation components
+builder.Services.AddScoped<IStoryDependencyValidator, StoryDependencyValidator>();
+builder.Services.AddScoped<IStoryContextBuilder, StoryContextBuilder>();
+builder.Services.AddScoped<IStoryAIOrchestrator, StoryAIOrchestrator>();
+builder.Services.AddScoped<IStoryParser, StoryParser>();
+builder.Services.AddScoped<IStoryPersistenceHandler, StoryPersistenceHandler>();
+
 builder.Services.AddScoped<ICodeGenerationService, CodeGenerationService>();
 builder.Services.AddScoped<IPromptGenerationService, PromptGenerationService>();
 builder.Services.AddScoped<PromptContextAssembler>();
