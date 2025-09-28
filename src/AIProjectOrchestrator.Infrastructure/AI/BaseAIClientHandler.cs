@@ -37,11 +37,14 @@ namespace AIProjectOrchestrator.Infrastructure.AI
 
             for (int attempt = 0; attempt <= maxRetries; attempt++)
             {
+                _logger.LogInformation("Provider {ProviderName}: Starting attempt {Attempt} of {MaxRetries}...", ProviderName, attempt + 1, maxRetries + 1);
                 try
                 {
                     // Create a new request message for each attempt
                     var requestMessage = requestMessageFactory();
+                    _logger.LogInformation("Provider {ProviderName}: Sending request for attempt {Attempt}...", ProviderName, attempt + 1);
                     response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+                    _logger.LogInformation("Provider {ProviderName}: Received response for attempt {Attempt} with status {StatusCode}.", ProviderName, attempt + 1, response.StatusCode);
 
                     // If successful or not a retryable status code, return the response
                     if (response.IsSuccessStatusCode ||
@@ -60,7 +63,10 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                     if (attempt == maxRetries) break;
 
                     // Wait before retrying with exponential backoff
-                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)), cancellationToken);
+                    var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt));
+                    _logger.LogInformation("Provider {ProviderName}: Waiting for {Delay} before next retry (attempt {Attempt})...", ProviderName, delay, attempt + 1);
+                    await Task.Delay(delay, cancellationToken);
+                    _logger.LogInformation("Provider {ProviderName}: Resuming after delay for attempt {Attempt}.", ProviderName, attempt + 1);
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -78,7 +84,10 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                     if (attempt == maxRetries) break;
 
                     // Wait before retrying with exponential backoff
-                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)), cancellationToken);
+                    var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt));
+                    _logger.LogInformation("Provider {ProviderName}: Waiting for {Delay} before next retry (attempt {Attempt})...", ProviderName, delay, attempt + 1);
+                    await Task.Delay(delay, cancellationToken);
+                    _logger.LogInformation("Provider {ProviderName}: Resuming after delay for attempt {Attempt}.", ProviderName, attempt + 1);
                 }
                 catch (Exception ex)
                 {

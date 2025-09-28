@@ -29,50 +29,24 @@ namespace AIProjectOrchestrator.Application.Services
             _cache = new ConcurrentDictionary<string, CachedInstruction>();
             
             var baseDirectory = AppContext.BaseDirectory;
-            var currentDirectory = Directory.GetCurrentDirectory();
+            var directory = new DirectoryInfo(baseDirectory);
 
-            // First, try the path relative to AppContext.BaseDirectory
-            _fullInstructionsPath = Path.Combine(baseDirectory, _settings.InstructionsPath);
-            _logger.LogInformation("Attempting to find instructions at AppContext.BaseDirectory path: {Path}", _fullInstructionsPath);
-
-            // If not found, try relative to Current Directory
-            if (!Directory.Exists(_fullInstructionsPath))
+            // Search up the directory tree from the assembly location to find the solution root
+            while (directory != null && !directory.GetFiles("AIProjectOrchestrator.sln").Any())
             {
-                var currentDirPath = Path.Combine(currentDirectory, _settings.InstructionsPath);
-                _logger.LogInformation("AppContext.BaseDirectory path not found. Attempting Current Directory path: {Path}", currentDirPath);
-                if (Directory.Exists(currentDirPath))
-                {
-                    _fullInstructionsPath = currentDirPath;
-                }
+                directory = directory.Parent;
             }
-            
-            // Log the contents of the directory for debugging
-            if (Directory.Exists(_fullInstructionsPath))
+
+            if (directory != null)
             {
-                var files = Directory.GetFiles(_fullInstructionsPath);
-                _logger.LogInformation("Found {Count} files in instructions directory: {Files}", files.Length, string.Join(", ", files.Select(Path.GetFileName)));
+                _fullInstructionsPath = Path.Combine(directory.FullName, _settings.InstructionsPath);
+                _logger.LogInformation("Solution root found at {SolutionRoot}. Instructions path set to: {Path}", directory.FullName, _fullInstructionsPath);
             }
             else
             {
-                _logger.LogWarning("Instructions directory not found at final path: {Path}", _fullInstructionsPath);
-                
-                // Try to find the directory in parent directories for fallback (original logic)
-                var tempPath = baseDirectory;
-                for (int i = 0; i < 5; i++)
-                {
-                    var parentDir = Directory.GetParent(tempPath)?.FullName;
-                    if (string.IsNullOrEmpty(parentDir))
-                        break;
-                        
-                    var possiblePath = Path.Combine(parentDir, _settings.InstructionsPath);
-                    if (Directory.Exists(possiblePath))
-                    {
-                        _fullInstructionsPath = possiblePath;
-                        _logger.LogInformation("Found instructions directory at fallback parent path: {Path}", _fullInstructionsPath);
-                        break;
-                    }
-                    tempPath = parentDir;
-                }
+                // Fallback if the .sln file is not found
+                _fullInstructionsPath = Path.Combine(Directory.GetCurrentDirectory(), _settings.InstructionsPath);
+                _logger.LogWarning("Could not find solution root. Falling back to current directory for instructions: {Path}", _fullInstructionsPath);
             }
         }
 

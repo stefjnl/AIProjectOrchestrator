@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>3d9c45dc-96e0-4bf5-a293-9c7d69981102</UserSecretsId>
+    <IsAspireProject>true</IsAspireProject>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,10 +23,14 @@
     <ProjectReference Include="..\AIProjectOrchestrator.Application\AIProjectOrchestrator.Application.csproj" />
     <ProjectReference Include="..\AIProjectOrchestrator.Infrastructure\AIProjectOrchestrator.Infrastructure.csproj" />
     <ProjectReference Include="..\AIProjectOrchestrator.Domain\AIProjectOrchestrator.Domain.csproj" />
+    <ProjectReference Include="..\AIProjectOrchestrator.ServiceDefaults\AIProjectOrchestrator.ServiceDefaults.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\..\..\Instructions\**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\Instructions\**\*.*">
+      <Link>Instructions\%(RecursiveDir)%(FileName)%(Extension)</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>

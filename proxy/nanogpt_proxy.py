@@ -108,7 +108,7 @@ def chat_completions():
             {"role": "user", "content": "User prompt"}
         ],
         "temperature": 0.7,
-        "max_tokens": 1500,
+        "max_tokens": 10000,
         "stream": false
     }
     """

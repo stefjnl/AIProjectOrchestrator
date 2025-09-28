@@ -1,3 +1,4 @@
+using AIProjectOrchestrator.ServiceDefaults;
 using System.Linq;
 using System.Net;
 using System.Net.Security;
@@ -30,6 +31,8 @@ using AIProjectOrchestrator.API.Configuration;
 using Microsoft.AspNetCore.ResponseCompression;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults();
 
 // Configure SSL certificate validation for development/production environments
 if (builder.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("DisableSslValidation"))
@@ -398,19 +401,8 @@ app.UseResponseCompression();
 // Enable CORS
 app.UseCors("AllowFrontend");
 
-// Enable default files (index.html) and static file serving
 app.UseDefaultFiles();
-app.UseStaticFiles(new StaticFileOptions
-{
-    OnPrepareResponse = ctx =>
-    {
-        // Cache static files for 1 hour in production
-        if (!app.Environment.IsDevelopment())
-        {
-            ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=3600");
-        }
-    }
-});
+app.UseStaticFiles();
 
 // Map controllers
 app.MapControllers();

@@ -56,6 +56,32 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _providerConfigService = providerConfigService;
             _serviceProvider = serviceProvider;
+
+            // Add detailed logging to diagnose configuration issues
+            _logger.LogInformation("--- ConfigurableAIProvider Constructor Debug ---");
+            _logger.LogInformation("Operation Type: {OperationType}", _operationType);
+            if (_settings.Value == null)
+            {
+                _logger.LogWarning("AIOperationSettings.Value is NULL");
+            }
+            else if (_settings.Value.Operations == null)
+            {
+                _logger.LogWarning("AIOperationSettings.Value.Operations is NULL");
+            }
+            else
+            {
+                _logger.LogInformation("Available Operations: {Operations}", string.Join(", ", _settings.Value.Operations.Keys));
+                if (_settings.Value.Operations.TryGetValue(_operationType, out var config))
+                {
+                    _logger.LogInformation("Configuration for '{OperationType}': Provider={Provider}, Model={Model}, MaxTokens={MaxTokens}",
+                        _operationType, config.ProviderName, config.Model, config.MaxTokens);
+                }
+                else
+                {
+                    _logger.LogWarning("No configuration found for operation type: {OperationType}", _operationType);
+                }
+            }
+            _logger.LogInformation("--- End Constructor Debug ---");
         }
 
         /// <inheritdoc />
