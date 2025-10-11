@@ -76,7 +76,7 @@ public class CodeValidator : ICodeValidator
         return allValid;
     }
 
-    public async Task<List<string>> ValidateCSharpSyntaxAsync(string codeContent, CancellationToken cancellationToken = default)
+    public Task<List<string>> ValidateCSharpSyntaxAsync(string codeContent, CancellationToken cancellationToken = default)
     {
         // In a real implementation, this would use Roslyn or similar to validate C# syntax
         // For now, we'll do basic checks
@@ -102,7 +102,7 @@ public class CodeValidator : ICodeValidator
             // This is a very basic check - in a real implementation we'd use proper parsing
         }
 
-        return errors;
+        return Task.FromResult(errors);
     }
 
     private TestCoverageInfo AnalyzeTestCoverage(string testContent)

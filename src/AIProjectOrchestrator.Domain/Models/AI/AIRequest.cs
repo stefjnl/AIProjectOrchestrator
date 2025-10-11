@@ -5,7 +5,7 @@ namespace AIProjectOrchestrator.Domain.Models.AI
     public class AIRequest
     {
         public string Prompt { get; set; } = string.Empty;
-        public string SystemMessage { get; set; } = string.Empty;
+        public string? SystemMessage { get; set; }
         public string ModelName { get; set; } = string.Empty;
         public double Temperature { get; set; } = 0.7;
         public int MaxTokens { get; set; } = 1000;

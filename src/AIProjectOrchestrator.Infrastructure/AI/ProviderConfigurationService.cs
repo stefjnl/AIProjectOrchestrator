@@ -58,9 +58,18 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                     return null;
                 }
 
-                var result = await (Task<string?>)method.Invoke(defaultProviderService, null);
-                _logger.LogDebug("ProviderConfigurationService: Successfully retrieved default provider: {Provider}", result ?? "null");
-                return result;
+                var invokeResult = method.Invoke(defaultProviderService, null);
+                if (invokeResult is Task<string?> resultTask)
+                {
+                    var result = await resultTask;
+                    _logger.LogDebug("ProviderConfigurationService: Successfully retrieved default provider: {Provider}", result ?? "null");
+                    return result;
+                }
+                else
+                {
+                    _logger.LogWarning("ProviderConfigurationService: Invoke result was not of expected type Task<string?>");
+                    return null;
+                }
             }
             catch (Exception ex)
             {

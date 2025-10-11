@@ -290,7 +290,7 @@ namespace AIProjectOrchestrator.Application.Services
             return result;
         }
 
-        public async Task<PromptGenerationStatus> GetPromptStatusAsync(Guid promptId, CancellationToken cancellationToken = default)
+        public Task<PromptGenerationStatus> GetPromptStatusAsync(Guid promptId, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -298,12 +298,12 @@ namespace AIProjectOrchestrator.Application.Services
 
                 // For now, we'll assume prompts are always approved once generated
                 // In a real implementation, this would check the database
-                return PromptGenerationStatus.Approved;
+                return Task.FromResult(PromptGenerationStatus.Approved);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting prompt status for ID: {PromptId}", promptId);
-                return PromptGenerationStatus.Failed;
+                return Task.FromResult(PromptGenerationStatus.Failed);
             }
         }
 

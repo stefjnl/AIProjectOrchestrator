@@ -7,5 +7,6 @@ namespace AIProjectOrchestrator.Domain.Services
     {
         IAIClient? GetClient(string providerName);
         IEnumerable<IAIClient> GetAllClients();
+        Task<IEnumerable<string>> GetModelsAsync(string providerName);
     }
 }

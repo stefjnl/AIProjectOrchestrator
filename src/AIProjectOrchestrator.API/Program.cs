@@ -34,33 +34,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 
-// Configure SSL certificate validation for development/production environments
-if (builder.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("DisableSslValidation"))
-{
-    // Allow all certificates in development or when explicitly disabled
-    ServicePointManager.ServerCertificateValidationCallback =
-        (sender, certificate, chain, sslPolicyErrors) => true;
-}
-else
-{
-    // In production, implement proper certificate validation
-    ServicePointManager.ServerCertificateValidationCallback =
-        (sender, certificate, chain, sslPolicyErrors) =>
-        {
-            // Log SSL validation issues for debugging
-            if (sslPolicyErrors != SslPolicyErrors.None)
-            {
-                Console.WriteLine($"SSL Validation Error: {sslPolicyErrors}");
-                if (certificate != null)
-                {
-                    Console.WriteLine($"Certificate Subject: {certificate.Subject}");
-                    Console.WriteLine($"Certificate Issuer: {certificate.Issuer}");
-                }
-            }
-            // For now, allow all certificates - in production, implement proper validation
-            return true;
-        };
-}
+// Configure SSL certificate validation for development/production environments via HttpClient handlers
+// The ServicePointManager is obsolete, so we'll configure this via HttpClientHandler instead
+// This is handled in the HttpClient configurations below
 
 // Enhanced Serilog configuration for structured logging
 Log.Logger = new LoggerConfiguration()

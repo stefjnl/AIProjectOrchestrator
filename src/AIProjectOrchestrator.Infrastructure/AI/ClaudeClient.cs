@@ -159,5 +159,31 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                 return false;
             }
         }
+
+        public override Task<IEnumerable<string>> GetModelsAsync()
+        {
+            try
+            {
+                // Claude API doesn't have a direct models endpoint like OpenAI
+                // Instead, return the default models that Claude supports
+                var defaultClaudeModels = new[]
+                {
+                    "claude-3-5-sonnet-20241022",
+                    "claude-3-5-sonnet-latest",
+                    "claude-3-opus-20240229",
+                    "claude-3-sonnet-20240229",
+                    "claude-3-haiku-20240307",
+                    _settings.DefaultModel // Include the configured default model
+                };
+
+                // Filter out any null/empty entries
+                return Task.FromResult(defaultClaudeModels.Where(m => !string.IsNullOrEmpty(m)).Distinct());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in ClaudeClient.GetModelsAsync for provider {ProviderName}", ProviderName);
+                return Task.FromResult<IEnumerable<string>>(new List<string>());
+            }
+        }
     }
 }

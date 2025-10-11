@@ -10,7 +10,7 @@ namespace AIProjectOrchestrator.Domain.Services
         Task<PromptGenerationStatus> GetPromptStatusAsync(Guid promptId, CancellationToken cancellationToken = default);
         Task<bool> CanGeneratePromptAsync(Guid storyGenerationId, int storyIndex, CancellationToken cancellationToken = default);
         Task<AIResponse> GeneratePromptFromPlaygroundAsync(string promptContent, CancellationToken cancellationToken = default);
-        Task<PromptGenerationResponse> GetPromptAsync(Guid promptId, CancellationToken cancellationToken = default);
+        Task<PromptGenerationResponse?> GetPromptAsync(Guid promptId, CancellationToken cancellationToken = default);
         Task<IEnumerable<PromptGenerationResponse>> GetPromptsByProjectAsync(int projectId, CancellationToken cancellationToken = default);
     }
 }

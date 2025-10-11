@@ -22,8 +22,8 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
             IHttpClientFactory httpClientFactory,
             IOptions<AIOperationSettings> settings,
             ILogger<PlanningAIProvider> logger,
-            IProviderConfigurationService providerConfigService = null,
-            IServiceProvider serviceProvider = null)
+            IProviderConfigurationService? providerConfigService = null,
+            IServiceProvider? serviceProvider = null)
             : base("ProjectPlanning", httpClientFactory, settings, logger, providerConfigService, serviceProvider)
         {
             // This provider is specifically configured for Project Planning operations

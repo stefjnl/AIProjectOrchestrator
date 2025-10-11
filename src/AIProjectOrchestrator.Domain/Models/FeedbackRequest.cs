@@ -2,6 +2,6 @@ namespace AIProjectOrchestrator.Domain.Models
 {
     public class FeedbackRequest
     {
-        public string Feedback { get; set; }
+        public string Feedback { get; set; } = string.Empty;
     }
 }

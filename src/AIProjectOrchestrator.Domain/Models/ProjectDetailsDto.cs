@@ -15,6 +15,6 @@ public class ProjectDetailsDto
 
 public class ExecutionStatusDto
 {
-    public string Status { get; set; }
+    public string Status { get; set; } = string.Empty;
     public int? ExecutionId { get; set; }
 }

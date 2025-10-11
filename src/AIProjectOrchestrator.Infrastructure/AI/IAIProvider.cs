@@ -14,7 +14,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         /// <param name="prompt">The business prompt to generate content for</param>
         /// <param name="context">Optional business context (instructions, constraints, etc.)</param>
         /// <returns>Generated content as string</returns>
-        Task<string> GenerateContentAsync(string prompt, string context = null);
+        Task<string> GenerateContentAsync(string prompt, string? context = null);
         
         /// <summary>
         /// Checks if the AI provider is available and healthy.

@@ -23,7 +23,7 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
                 .FirstOrDefaultAsync(pp => pp.RequirementsAnalysisId == requirementsAnalysisId, cancellationToken);
         }
 
-        public async Task<ProjectPlanning?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+        public new async Task<ProjectPlanning?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
             return await _context.ProjectPlannings
                 .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);

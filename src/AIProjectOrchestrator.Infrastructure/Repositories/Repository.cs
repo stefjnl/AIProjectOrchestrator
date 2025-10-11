@@ -16,20 +16,22 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
             _dbSet = context.Set<T>();
         }
 
-        public async Task<T> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+        public async Task<T?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
             return await _dbSet.FindAsync(new object[] { id }, cancellationToken);
         }
 
-        public async Task<T> GetByStringIdAsync(string id, CancellationToken cancellationToken = default)
+        public async Task<T?> GetByStringIdAsync(string id, CancellationToken cancellationToken = default)
         {
             // This is a generic implementation that assumes the entity has an "Id" property of type string
             // For specific entities, we'll override this in specialized repositories
             var property = typeof(T).GetProperty(PropertyNameConstants.Id) ?? typeof(T).GetProperty(PropertyNameConstants.ReviewId);
             if (property != null)
             {
-                return await _dbSet.FirstOrDefaultAsync(e => 
+                return await _dbSet.FirstOrDefaultAsync(e =>
+#pragma warning disable CS8602
                     property.GetValue(e) != null && property.GetValue(e).ToString() == id, cancellationToken);
+#pragma warning restore CS8602
             }
             
             throw new InvalidOperationException($"Entity {typeof(T).Name} does not have an Id property");

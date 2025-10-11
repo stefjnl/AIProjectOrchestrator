@@ -60,7 +60,7 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
                 .ToListAsync(cancellationToken);
         }
 
-        public async Task<StoryGeneration?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+        public new async Task<StoryGeneration?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
             return await _context.StoryGenerations
                 .AsNoTracking()

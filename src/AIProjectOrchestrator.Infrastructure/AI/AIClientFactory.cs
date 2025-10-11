@@ -50,5 +50,17 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         {
             return _clients;
         }
+
+        public async Task<IEnumerable<string>> GetModelsAsync(string providerName)
+        {
+            var client = GetClient(providerName);
+            if (client == null)
+            {
+                _logger?.LogWarning("No client found for provider: {ProviderName}", providerName);
+                return new List<string>();
+            }
+
+            return await client.GetModelsAsync();
+        }
     }
 }

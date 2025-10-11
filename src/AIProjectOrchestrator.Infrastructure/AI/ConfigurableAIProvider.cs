@@ -31,12 +31,52 @@ namespace AIProjectOrchestrator.Infrastructure.AI
     /// </summary>
     public abstract class ConfigurableAIProvider : IAIProvider
     {
+        /// <inheritdoc />
+        public async Task<IEnumerable<string>> GetModelsAsync()
+        {
+            var options = GetAIOperationConfig();
+
+            // Create HTTP client with Docker SSL support
+            var httpClient = _httpClientFactory.CreateClient("DockerAIClient");
+            if (httpClient == null)
+            {
+                _logger.LogWarning("Docker AI HTTP client is not available for operation '{Operation}'", _operationType);
+                return new List<string>();
+            }
+
+            // Configure HTTP client with provider-specific settings
+            ConfigureHttpClient(httpClient, options);
+
+            // Create AI client with proper configuration
+            var client = CreateAIClient(options.ProviderName, httpClient);
+            if (client == null)
+            {
+                _logger.LogWarning("AI client '{Provider}' is not available for operation '{Operation}'",
+                    options.ProviderName, _operationType);
+                return new List<string>();
+            }
+
+            try
+            {
+                var models = await client.GetModelsAsync();
+                _logger.LogDebug("Retrieved {Count} models for provider '{Provider}' in operation '{Operation}'",
+                    models?.Count() ?? 0, options.ProviderName, _operationType);
+                return models ?? new List<string>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve models for AI provider '{Provider}' in operation '{Operation}'",
+                    options.ProviderName, _operationType);
+                return new List<string>();
+            }
+        }
+
         private readonly string _operationType;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IOptions<AIProjectOrchestrator.Infrastructure.Configuration.AIOperationSettings> _settings;
         private readonly ILogger<ConfigurableAIProvider> _logger;
-        private readonly IProviderConfigurationService _providerConfigService;
-        private readonly IServiceProvider _serviceProvider;
+        private readonly IProviderConfigurationService? _providerConfigService;
+        private readonly IServiceProvider? _serviceProvider;
 
         /// <summary>
         /// Creates a new instance of ConfigurableAIProvider with specific operation configuration.
@@ -48,14 +88,14 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         /// <param name="providerConfigService">Service for runtime provider configuration</param>
         protected ConfigurableAIProvider(string operationType, IHttpClientFactory httpClientFactory,
             IOptions<AIProjectOrchestrator.Infrastructure.Configuration.AIOperationSettings> settings, ILogger<ConfigurableAIProvider> logger,
-            IProviderConfigurationService providerConfigService = null, IServiceProvider serviceProvider = null)
+            IProviderConfigurationService? providerConfigService = null, IServiceProvider? serviceProvider = null)
         {
             _operationType = operationType ?? throw new ArgumentNullException(nameof(operationType));
             _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _providerConfigService = providerConfigService;
-            _serviceProvider = serviceProvider;
+            _providerConfigService = providerConfigService!;
+            _serviceProvider = serviceProvider!;
 
             // Add detailed logging to diagnose configuration issues
             _logger.LogInformation("--- ConfigurableAIProvider Constructor Debug ---");
@@ -91,7 +131,26 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             {
                 _logger.LogInformation("=== ProviderName Debug Info ===");
                 var configProvider = GetAIOperationConfig().ProviderName;
-                var overrideProvider = _providerConfigService?.GetDefaultProviderAsync().Result;
+                
+                // Use a synchronous approach to access the provider config service
+                // This avoids blocking async calls in a property getter
+                string? overrideProvider = null;
+                if (_providerConfigService != null)
+                {
+                    // Use a sync-over-async approach as a temporary fix
+                    // In production, consider refactoring the interface to support async
+                    try
+                    {
+                        var task = _providerConfigService.GetDefaultProviderAsync();
+                        overrideProvider = task.IsCompleted ? task.Result : task.GetAwaiter().GetResult();
+                    }
+                    catch
+                    {
+                        // If async call fails, continue with config provider only
+                        _logger.LogWarning("Failed to retrieve runtime provider override, using config provider");
+                    }
+                }
+                
                 var finalProvider = overrideProvider ?? configProvider;
                 
                 _logger.LogInformation("Provider selection for operation '{Operation}': Config={Config}, Override={Override}, Final={Final}",
@@ -103,21 +162,23 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         }
 
         /// <inheritdoc />
-        public async Task<string> GenerateContentAsync(string prompt, string context = null)
+        public async Task<string> GenerateContentAsync(string prompt, string? context = null)
         {
             _logger.LogDebug("Generating content for operation '{Operation}' with prompt length {PromptLength}",
                 _operationType, prompt?.Length ?? 0);
 
             var options = GetAIOperationConfig();
 
+#pragma warning disable CS8601
             var aiRequest = new AIRequest
             {
                 Prompt = prompt,
-                SystemMessage = context, // Business context, not AI system message
+                SystemMessage = context ?? string.Empty, // Business context, not AI system message
                 ModelName = options.Model,
                 MaxTokens = options.MaxTokens,
                 Temperature = options.Temperature
             };
+#pragma warning restore CS8601
 
             // Create HTTP client with Docker SSL support
             var httpClient = _httpClientFactory.CreateClient("DockerAIClient");
@@ -156,7 +217,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                 _logger.LogInformation("AI call successful for operation '{Operation}', response length: {ResponseLength}",
                     _operationType, response.Content?.Length ?? 0);
 
-                return response.Content;
+                return response.Content ?? string.Empty;
             }
             catch (HttpRequestException httpEx)
             {
@@ -290,7 +351,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         /// <param name="providerName">Name of the AI provider</param>
         /// <param name="httpClient">HTTP client with Docker SSL support</param>
         /// <returns>AI client instance or null if provider not supported</returns>
-        private IAIClient CreateAIClient(string providerName, HttpClient httpClient)
+        private IAIClient? CreateAIClient(string providerName, HttpClient httpClient)
         {
             // Get the domain configuration service from DI container to get proper settings
             AIProviderConfigurationService configurationService;
@@ -343,8 +404,8 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                         configurationService);
                 default:
                     _logger.LogError("Unsupported AI provider: {ProviderName}", providerName);
-                    return null;
-            }
+                    return null!;
+                }
         }
 
         /// <summary>

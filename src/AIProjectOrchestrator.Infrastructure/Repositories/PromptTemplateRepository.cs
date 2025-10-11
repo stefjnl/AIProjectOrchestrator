@@ -26,12 +26,12 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
             return promptTemplate;
         }
 
-        public async Task<PromptTemplate> GetByIdAsync(Guid id)
+        public async Task<PromptTemplate?> GetByIdAsync(Guid id)
         {
             return await _dbSet.FindAsync(new object[] { id });
         }
 
-        public async Task<PromptTemplate> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        public async Task<PromptTemplate?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
             return await _dbSet.FindAsync(new object[] { id }, cancellationToken);
         }

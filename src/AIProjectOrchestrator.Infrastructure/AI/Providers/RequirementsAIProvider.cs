@@ -22,8 +22,8 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
             IHttpClientFactory httpClientFactory,
             IOptions<AIOperationSettings> settings,
             ILogger<RequirementsAIProvider> logger,
-            IProviderConfigurationService providerConfigService = null,
-            IServiceProvider serviceProvider = null)
+            IProviderConfigurationService? providerConfigService = null,
+            IServiceProvider? serviceProvider = null)
             : base("RequirementsAnalysis", httpClientFactory, settings, logger, providerConfigService, serviceProvider)
         {
             // This provider is specifically configured for Requirements Analysis operations

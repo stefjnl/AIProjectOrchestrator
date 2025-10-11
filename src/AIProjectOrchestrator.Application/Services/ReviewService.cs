@@ -390,15 +390,15 @@ namespace AIProjectOrchestrator.Application.Services
             return dashboardData;
         }
 
-        public async Task<WorkflowStatusItem?> GetWorkflowStatusAsync(Guid projectId, CancellationToken cancellationToken = default)
+        public Task<WorkflowStatusItem?> GetWorkflowStatusAsync(Guid projectId, CancellationToken cancellationToken = default)
         {
             // Track complete workflow status across all services
             // Requirements status, Planning status, Stories status
             // Return current stage and next required action
-
+            
             // This is a placeholder implementation
             // In a real implementation, we would query the actual workflow status
-            return null;
+            return Task.FromResult<WorkflowStatusItem?>(null);
         }
 
         public async Task NotifyReviewApprovedAsync(Guid reviewId, ReviewSubmission review, CancellationToken cancellationToken = default)

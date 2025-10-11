@@ -227,19 +227,19 @@ namespace AIProjectOrchestrator.Application.Services
             }
         }
 
-        public async Task<CodeGenerationStatus> GetStatusAsync(Guid codeGenerationId, CancellationToken cancellationToken = default)
+        public Task<CodeGenerationStatus> GetStatusAsync(Guid codeGenerationId, CancellationToken cancellationToken = default)
         {
             if (_generationResults.TryGetValue(codeGenerationId, out var result))
             {
-                return result.Status;
+                return Task.FromResult(result.Status);
             }
 
             // If we don't have the status in memory, it might have been cleaned up
             // In a production system, we would check a persistent store
-            return CodeGenerationStatus.Failed;
+            return Task.FromResult(CodeGenerationStatus.Failed);
         }
 
-        public async Task<CodeArtifactsResult> GetGeneratedCodeAsync(Guid codeGenerationId, CancellationToken cancellationToken = default)
+        public Task<CodeArtifactsResult> GetGeneratedCodeAsync(Guid codeGenerationId, CancellationToken cancellationToken = default)
         {
             if (_generationResults.TryGetValue(codeGenerationId, out var result))
             {
@@ -266,7 +266,7 @@ namespace AIProjectOrchestrator.Application.Services
                     totalSize += Encoding.UTF8.GetByteCount(file.Content);
                 }
 
-                return new CodeArtifactsResult
+                return Task.FromResult(new CodeArtifactsResult
                 {
                     GenerationId = codeGenerationId,
                     Artifacts = allFiles,
@@ -275,16 +275,16 @@ namespace AIProjectOrchestrator.Application.Services
                     TotalSizeBytes = totalSize,
                     FileCount = allFiles.Count,
                     FileTypes = fileTypes
-                };
+                });
             }
 
             // If we don't have the result in memory, it might have been cleaned up
             // In a production system, we would check a persistent store
-            return new CodeArtifactsResult
+            return Task.FromResult(new CodeArtifactsResult
             {
                 GenerationId = codeGenerationId,
                 Artifacts = new List<CodeArtifact>()
-            };
+            });
         }
 
         public async Task<bool> CanGenerateCodeAsync(

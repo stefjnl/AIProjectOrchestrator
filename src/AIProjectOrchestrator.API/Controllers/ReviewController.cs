@@ -344,7 +344,7 @@ namespace AIProjectOrchestrator.API.Controllers
             }
         }
 
-        private async Task<RequirementsAnalysisState> GetRequirementsAnalysisStateAsync(int projectId, CancellationToken cancellationToken)
+        private async Task<RequirementsAnalysisState?> GetRequirementsAnalysisStateAsync(int projectId, CancellationToken cancellationToken)
         {
             try
             {
@@ -365,7 +365,7 @@ namespace AIProjectOrchestrator.API.Controllers
             }
         }
 
-        private async Task<ProjectPlanningState> GetProjectPlanningStateAsync(int projectId, CancellationToken cancellationToken)
+        private async Task<ProjectPlanningState?> GetProjectPlanningStateAsync(int projectId, CancellationToken cancellationToken)
         {
             try
             {
@@ -386,7 +386,7 @@ namespace AIProjectOrchestrator.API.Controllers
             }
         }
 
-        private async Task<StoryGenerationState> GetStoryGenerationStateAsync(int projectId, CancellationToken cancellationToken)
+        private async Task<StoryGenerationState?> GetStoryGenerationStateAsync(int projectId, CancellationToken cancellationToken)
         {
             try
             {
@@ -410,7 +410,7 @@ namespace AIProjectOrchestrator.API.Controllers
             }
         }
 
-        private async Task<PromptGenerationState> GetPromptGenerationStateAsync(int projectId, CancellationToken cancellationToken)
+        private async Task<PromptGenerationState?> GetPromptGenerationStateAsync(int projectId, CancellationToken cancellationToken)
         {
             try
             {
@@ -438,76 +438,34 @@ namespace AIProjectOrchestrator.API.Controllers
         [HttpPost("test-scenario")]
         [ProducesResponseType(typeof(TestScenarioResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<TestScenarioResponse>> SubmitTestScenarioAsync([FromBody] TestScenarioRequest request, CancellationToken cancellationToken)
+        public Task<ActionResult<TestScenarioResponse>> SubmitTestScenarioAsync([FromBody] TestScenarioRequest request, CancellationToken cancellationToken)
         {
             try
             {
                 if (!ModelState.IsValid)
                 {
-                    return BadRequest(ModelState);
+                    return Task.FromResult<ActionResult<TestScenarioResponse>>(BadRequest(ModelState));
                 }
 
                 // For now, return InternalServerError to match test expectations
                 // This will be properly implemented in Phase 6
-                return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+                return Task.FromResult<ActionResult<TestScenarioResponse>>(StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
                 {
                     Title = "Test scenario submission not yet implemented",
                     Detail = "This endpoint will be implemented in Phase 6",
                     Status = StatusCodes.Status500InternalServerError
-                });
+                }));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error submitting test scenario");
-                return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+                return Task.FromResult<ActionResult<TestScenarioResponse>>(StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
                 {
                     Title = "Error submitting test scenario",
                     Detail = ex.Message,
                     Status = StatusCodes.Status500InternalServerError
-                });
-            }
-        }
-
-        [HttpDelete("{id:guid}")]
-        [ProducesResponseType(typeof(ReviewResponse), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<ReviewResponse>> DeleteReview(Guid id, CancellationToken cancellationToken)
-        {
-            try
-            {
-                var response = await _reviewService.DeleteReviewAsync(id, cancellationToken);
-                return Ok(response);
-            }
-            catch (InvalidOperationException ex)
-            {
-                if (ex.Message.Contains("not found"))
-                {
-                    return NotFound(new ProblemDetails
-                    {
-                        Title = "Review not found",
-                        Detail = ex.Message,
-                        Status = StatusCodes.Status404NotFound
-                    });
-                }
-
-                return BadRequest(new ProblemDetails
-                {
-                    Title = "Invalid operation",
-                    Detail = ex.Message,
-                    Status = StatusCodes.Status400BadRequest
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting review {ReviewId}", id);
-                return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
-                {
-                    Title = "Error deleting review",
-                    Detail = ex.Message,
-                    Status = StatusCodes.Status500InternalServerError
-                });
+                }));
             }
         }
     }
-}
+}

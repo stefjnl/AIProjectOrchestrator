@@ -13,7 +13,7 @@ namespace AIProjectOrchestrator.Domain.Repositories
         Task<StoryGeneration?> GetByGenerationIdAsync(string generationId, CancellationToken cancellationToken = default);
         Task<StoryGeneration?> GetByProjectPlanningIdAsync(int projectPlanningId, CancellationToken cancellationToken = default);
         Task<IEnumerable<StoryGeneration>> GetByProjectIdAsync(int projectId, CancellationToken cancellationToken = default);
-        Task<StoryGeneration?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
+        new Task<StoryGeneration?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
 
         // New methods for individual story management
         Task<UserStory?> GetStoryByIdAsync(Guid storyId, CancellationToken cancellationToken = default);

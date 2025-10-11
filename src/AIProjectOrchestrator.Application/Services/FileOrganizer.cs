@@ -166,8 +166,8 @@ public class FileOrganizer : IFileOrganizer
             using var readmeWriter = new StreamWriter(readmeStream);
             await readmeWriter.WriteAsync(GenerateImplementationGuide(new CodeGenerationResponse
             {
-                GeneratedFiles = generatedFiles,
-                TestFiles = testFiles
+                GeneratedFiles = generatedFiles ?? new List<CodeArtifact>(),
+                TestFiles = testFiles ?? new List<CodeArtifact>()
             }));
         }
 

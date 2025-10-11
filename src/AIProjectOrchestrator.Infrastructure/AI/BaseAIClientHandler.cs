@@ -27,6 +27,8 @@ namespace AIProjectOrchestrator.Infrastructure.AI
 
         public abstract Task<bool> IsHealthyAsync(CancellationToken cancellationToken = default);
 
+        public abstract Task<IEnumerable<string>> GetModelsAsync();
+
         protected async Task<HttpResponseMessage> SendRequestWithRetryAsync(
             Func<HttpRequestMessage> requestMessageFactory,
             int maxRetries,

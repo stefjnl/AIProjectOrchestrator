@@ -205,5 +205,44 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                 return false;
             }
         }
+
+        public override async Task<IEnumerable<string>> GetModelsAsync()
+        {
+            try
+            {
+                // Call the models endpoint for OpenRouter
+                var response = await _httpClient.GetAsync("v1/models", CancellationToken.None);
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    using var doc = JsonDocument.Parse(responseContent);
+                    var data = doc.RootElement.GetProperty("data");
+                    
+                    var models = new List<string>();
+                    foreach (var model in data.EnumerateArray())
+                    {
+                        var id = model.GetProperty("id").GetString();
+                        if (!string.IsNullOrEmpty(id))
+                        {
+                            models.Add(id);
+                        }
+                    }
+                    
+                    return models;
+                }
+                else
+                {
+                    _logger.LogWarning("OpenRouterClient failed to retrieve models, status: {StatusCode}", response.StatusCode);
+                    // Return a default empty list if the endpoint is not available
+                    return new List<string> { _settings.DefaultModel };
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in OpenRouterClient.GetModelsAsync for provider {ProviderName}", ProviderName);
+                return new List<string> { _settings.DefaultModel };
+            }
+        }
     }
 }

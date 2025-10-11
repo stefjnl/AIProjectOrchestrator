@@ -66,19 +66,19 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
             // Delete reviews associated with ProjectPlanning entities for the project
             // We need to join through RequirementsAnalysis to get to ProjectPlanning
             var projectPlanningReviews = await _context.Reviews
-                .Where(r => r.ProjectPlanning != null && r.ProjectPlanning.RequirementsAnalysis.ProjectId == projectId)
+                .Where(r => r.ProjectPlanning != null && r.ProjectPlanning.RequirementsAnalysis != null && r.ProjectPlanning.RequirementsAnalysis.ProjectId == projectId)
                 .ToListAsync(cancellationToken);
 
             // Delete reviews associated with StoryGeneration entities for the project
             // We need to join through RequirementsAnalysis -> ProjectPlanning to get to StoryGeneration
             var storyGenerationReviews = await _context.Reviews
-                .Where(r => r.StoryGeneration != null && r.StoryGeneration.ProjectPlanning.RequirementsAnalysis.ProjectId == projectId)
+                .Where(r => r.StoryGeneration != null && r.StoryGeneration.ProjectPlanning != null && r.StoryGeneration.ProjectPlanning.RequirementsAnalysis != null && r.StoryGeneration.ProjectPlanning.RequirementsAnalysis.ProjectId == projectId)
                 .ToListAsync(cancellationToken);
 
             // Delete reviews associated with PromptGeneration entities for the project
             // We need to join through RequirementsAnalysis -> ProjectPlanning -> StoryGeneration to get to PromptGeneration
             var promptGenerationReviews = await _context.Reviews
-                .Where(r => r.PromptGeneration != null && r.PromptGeneration.UserStory.StoryGeneration.ProjectPlanning.RequirementsAnalysis.ProjectId == projectId)
+                .Where(r => r.PromptGeneration != null && r.PromptGeneration.UserStory != null && r.PromptGeneration.UserStory.StoryGeneration != null && r.PromptGeneration.UserStory.StoryGeneration.ProjectPlanning != null && r.PromptGeneration.UserStory.StoryGeneration.ProjectPlanning.RequirementsAnalysis != null && r.PromptGeneration.UserStory.StoryGeneration.ProjectPlanning.RequirementsAnalysis.ProjectId == projectId)
                 .ToListAsync(cancellationToken);
 
             // Combine all reviews to delete
@@ -104,9 +104,11 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
             return await _context.Reviews
                 .Where(r => r.Status == ReviewStatus.Pending)
                 .Include(r => r.RequirementsAnalysis).ThenInclude(ra => ra.Project)
-                .Include(r => r.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
+                .Include(r => r.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis!).ThenInclude(ra => ra.Project!)
+#pragma warning disable CS8602
                 .Include(r => r.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
                 .Include(r => r.PromptGeneration).ThenInclude(pg => pg.UserStory).ThenInclude(us => us.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
+#pragma warning restore CS8602
                 .ToListAsync(cancellationToken);
         }
 
@@ -114,9 +116,11 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         {
             return await _context.Reviews
                 .Include(r => r.RequirementsAnalysis).ThenInclude(ra => ra.Project)
-                .Include(r => r.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
+                .Include(r => r.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis!).ThenInclude(ra => ra.Project!)
+#pragma warning disable CS8602
                 .Include(r => r.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
                 .Include(r => r.PromptGeneration).ThenInclude(pg => pg.UserStory).ThenInclude(us => us.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
+#pragma warning restore CS8602
                 .FirstOrDefaultAsync(r => r.ReviewId == reviewId, cancellationToken);
         }
 
