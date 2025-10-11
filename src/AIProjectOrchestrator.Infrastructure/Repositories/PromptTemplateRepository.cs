@@ -14,16 +14,31 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         {
             promptTemplate.CreatedAt = DateTime.UtcNow;
             promptTemplate.UpdatedAt = DateTime.UtcNow;
-
+            
             return await base.AddAsync(promptTemplate);
+        }
+
+        public async Task<PromptTemplate> AddAsync(PromptTemplate promptTemplate, CancellationToken cancellationToken = default)
+        {
+            promptTemplate.CreatedAt = DateTime.UtcNow;
+            promptTemplate.UpdatedAt = DateTime.UtcNow;
+            
+            return await base.AddAsync(promptTemplate, cancellationToken);
         }
 
         public async Task<PromptTemplate> UpdateAsync(PromptTemplate promptTemplate)
         {
             promptTemplate.UpdatedAt = DateTime.UtcNow;
-
+            
             await base.UpdateAsync(promptTemplate);
             return promptTemplate;
+        }
+
+        public async Task UpdateAsync(PromptTemplate promptTemplate, CancellationToken cancellationToken = default)
+        {
+            promptTemplate.UpdatedAt = DateTime.UtcNow;
+            
+            await base.UpdateAsync(promptTemplate, cancellationToken);
         }
 
         public async Task<PromptTemplate?> GetByIdAsync(Guid id)
