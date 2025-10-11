@@ -104,7 +104,7 @@ public class AIRequest
 
     public float Temperature { get; set; } = 0.7f;
 
-    public int MaxTokens { get; set; } = 1500;
+    public int MaxTokens { get; set; } = 10000;
 
 }
 

@@ -105,17 +105,7 @@
 
                 if (data.name || data.description) {
                     previewSection.style.display = 'block';
-                    previewContent.innerHTML = `
-                                                <div class="preview-card">
-                                                    <h4>${data.name || 'Untitled Project'}</h4>
-                                                    <p class="preview-description">${data.description || 'No description provided'}</p>
-                                                    <div class="preview-meta">
-                                                        ${data.type ? `<span>Type: ${data.type}</span>` : ''}
-                                                        ${data.techStack ? `<span>Tech Stack: ${data.techStack}</span>` : ''}
-                                                        ${data.timeline ? `<span>Timeline: ${data.timeline}</span>` : ''}
-                                                    </div>
-                                                </div>
-                                            `;
+                    previewContent.innerHTML = `# ${data.name || 'Untitled Project'}\n\n${data.description || 'No description provided'}\n\n---\n\n**Type:** ${data.type || 'N/A'}\n**Tech Stack:** ${data.techStack || 'N/A'}\n**Timeline:** ${data.timeline || 'N/A'}`;
                 } else {
                     previewSection.style.display = 'none';
                 }

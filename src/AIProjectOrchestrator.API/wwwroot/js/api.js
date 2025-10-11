@@ -11,6 +11,11 @@ window.APIClient = {
             });
             throw new Error(error.detail || error.title || 'An unexpected error occurred');
         }
+
+        if (response.status === 204) {
+            return null;
+        }
+
         return response.json();
     },
 
