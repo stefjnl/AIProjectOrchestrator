@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using AIProjectOrchestrator.Domain.Services;
 using AIProjectOrchestrator.Domain.Models;
 using AIProjectOrchestrator.Domain.Models.AI;
@@ -11,7 +12,9 @@ using AIProjectOrchestrator.Infrastructure.AI.Providers;
 using AIProjectOrchestrator.Domain.Interfaces;
 using AIProjectOrchestrator.Domain.Entities;
 using AIProjectOrchestrator.Domain.Exceptions;
-
+using AIProjectOrchestrator.Domain.Configuration;
+using AIProjectOrchestrator.Infrastructure.Data;
+ 
 namespace AIProjectOrchestrator.Application.Services
 {
     public class RequirementsAnalysisService : IRequirementsAnalysisService
@@ -21,19 +24,25 @@ namespace AIProjectOrchestrator.Application.Services
         private readonly Lazy<IReviewService> _reviewService;
         private readonly ILogger<RequirementsAnalysisService> _logger;
         private readonly IRequirementsAnalysisRepository _requirementsAnalysisRepository;
+        private readonly IOptions<ReviewSettings> _reviewSettings;
+        private readonly AppDbContext _dbContext;
 
         public RequirementsAnalysisService(
             IInstructionService instructionService,
             IRequirementsAIProvider requirementsAIProvider,
             Lazy<IReviewService> reviewService,
             ILogger<RequirementsAnalysisService> logger,
-            IRequirementsAnalysisRepository requirementsAnalysisRepository)
+            IRequirementsAnalysisRepository requirementsAnalysisRepository,
+            IOptions<ReviewSettings> reviewSettings,
+            AppDbContext dbContext)
         {
             _instructionService = instructionService;
             _requirementsAIProvider = requirementsAIProvider;
             _reviewService = reviewService;
             _logger = logger;
             _requirementsAnalysisRepository = requirementsAnalysisRepository;
+            _reviewSettings = reviewSettings;
+            _dbContext = dbContext;
         }
 
         public async Task<RequirementsAnalysisResponse> AnalyzeRequirementsAsync(
@@ -46,7 +55,7 @@ namespace AIProjectOrchestrator.Application.Services
             {
                 ["Operation"] = "AnalyzeRequirements",
                 ["AnalysisId"] = analysisId,
-                ["ProjectId"] = request.ProjectId
+                ["ProjectId"] = request.ProjectId ?? "unknown"
             });
 
             _logger.LogInformation("Starting requirements analysis for project");
@@ -102,6 +111,20 @@ namespace AIProjectOrchestrator.Application.Services
                     ErrorMessage = null
                 };
 
+                // Validate AI response content before persistence
+                if (string.IsNullOrWhiteSpace(aiResponse.Content))
+                {
+                    _logger.LogError("AI response content is null or empty for analysis {AnalysisId}", analysisId);
+                    throw new InvalidOperationException("AI response cannot be null or empty");
+                }
+
+                var maxLen = _reviewSettings.Value?.MaxContentLength ?? int.MaxValue;
+                if (aiResponse.Content.Length > maxLen)
+                {
+                    _logger.LogError("AI response length {Length} exceeds maximum {Max} for analysis {AnalysisId}", aiResponse.Content.Length, maxLen, analysisId);
+                    throw new InvalidOperationException($"AI response exceeds maximum length of {maxLen}");
+                }
+
                 // Create and store the analysis entity first to get the entity ID
                 var analysisEntity = new RequirementsAnalysis
                 {
@@ -113,44 +136,58 @@ namespace AIProjectOrchestrator.Application.Services
                     CreatedDate = DateTime.UtcNow
                 };
 
-                await _requirementsAnalysisRepository.AddAsync(analysisEntity, cancellationToken);
-                var savedAnalysisId = analysisEntity.Id; // Get the database-generated int ID
-
-                // Submit for review
-                _logger.LogDebug("Submitting AI response for review");
-                var correlationId = Guid.NewGuid().ToString();
-                var reviewRequest = new SubmitReviewRequest
+                // Persist and review within a transaction for consistency
+                using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+                try
                 {
-                    ServiceName = "RequirementsAnalysis",
-                    Content = aiResponse.Content,
-                    CorrelationId = correlationId,
-                    PipelineStage = "Analysis",
-                    OriginalRequest = aiRequest,
-                    AIResponse = aiResponse,
-                    Metadata = new System.Collections.Generic.Dictionary<string, object>
+                    await _requirementsAnalysisRepository.AddAsync(analysisEntity, cancellationToken);
+                    var savedAnalysisId = analysisEntity.Id; // Get the database-generated int ID
+
+                    // Submit for review
+                    _logger.LogDebug("Submitting AI response for review");
+                    var correlationId = Guid.NewGuid().ToString();
+                    var reviewRequest = new SubmitReviewRequest
                     {
-                        { "AnalysisId", analysisId },
-                        { "EntityId", savedAnalysisId }, // Pass the entity int ID for FK linking
-                        { "ProjectDescription", request.ProjectDescription },
-                        { "ProjectId", request.ProjectId ?? "unknown" } // Include project ID for workflow correlation
-                    }
-                };
+                        ServiceName = "RequirementsAnalysis",
+                        Content = aiResponse.Content,
+                        CorrelationId = correlationId,
+                        PipelineStage = "Analysis",
+                        OriginalRequest = aiRequest,
+                        AIResponse = aiResponse,
+                        Metadata = new System.Collections.Generic.Dictionary<string, object>
+                        {
+                            { "AnalysisId", analysisId },
+                            { "EntityId", savedAnalysisId }, // Pass the entity int ID for FK linking
+                            { "ProjectDescription", request.ProjectDescription },
+                            { "ProjectId", request.ProjectId ?? "unknown" } // Include project ID for workflow correlation
+                        }
+                    };
 
-                var reviewResponse = await _reviewService.Value.SubmitForReviewAsync(reviewRequest, cancellationToken);
+                    var reviewResponse = await _reviewService.Value.SubmitForReviewAsync(reviewRequest, cancellationToken);
 
-                // Update the analysis entity with the review ID
-                analysisEntity.ReviewId = reviewResponse.ReviewId.ToString();
-                await _requirementsAnalysisRepository.UpdateAsync(analysisEntity, cancellationToken);
+                    // Update the analysis entity with the review ID
+                    analysisEntity.ReviewId = reviewResponse.ReviewId.ToString();
+                    await _requirementsAnalysisRepository.UpdateAsync(analysisEntity, cancellationToken);
 
-                _logger.LogInformation("Requirements analysis completed successfully. Review ID: {ReviewId}",
-                    reviewResponse.ReviewId);
+                    // Ensure changes are flushed before commit
+                    await _dbContext.SaveChangesAsync(cancellationToken);
+                    await transaction.CommitAsync(cancellationToken);
+
+                    _logger.LogInformation("Requirements analysis persisted and review linked within transaction. Review ID: {ReviewId}",
+                        reviewResponse.ReviewId);
+                }
+                catch
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    throw;
+                }
 
                 var response = new RequirementsAnalysisResponse
                 {
                     AnalysisId = Guid.Parse(analysisId),
                     ProjectDescription = request.ProjectDescription,
                     AnalysisResult = aiResponse.Content,
-                    ReviewId = reviewResponse.ReviewId,
+                    ReviewId = Guid.Parse(analysisEntity.ReviewId),
                     Status = RequirementsAnalysisStatus.PendingReview,
                     CreatedAt = DateTime.UtcNow,
                     ProjectId = request.ProjectId

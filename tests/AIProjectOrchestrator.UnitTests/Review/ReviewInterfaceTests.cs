@@ -90,7 +90,8 @@ namespace AIProjectOrchestrator.UnitTests.Review
             var projectId = Guid.NewGuid();
             // This test will be updated when we implement the actual method
             // For now, we're just ensuring the test structure is in place
-            Assert.True(true); // Placeholder
+            await Task.CompletedTask;
+Assert.True(true); // Placeholder
         }
 
         [Fact]
@@ -156,7 +157,8 @@ namespace AIProjectOrchestrator.UnitTests.Review
         {
             // This test will be updated when we implement the actual method
             // For now, we're just ensuring the test structure is in place
-            Assert.True(true); // Placeholder
+            await Task.CompletedTask;
+Assert.True(true); // Placeholder
         }
 
         [Fact]
@@ -164,7 +166,8 @@ namespace AIProjectOrchestrator.UnitTests.Review
         {
             // This test will be updated when we implement the actual method
             // For now, we're just ensuring the test structure is in place
-            Assert.True(true); // Placeholder
+            await Task.CompletedTask;
+Assert.True(true); // Placeholder
         }
 
         [Fact]
@@ -172,7 +175,8 @@ namespace AIProjectOrchestrator.UnitTests.Review
         {
             // This test will be updated when we implement the actual method
             // For now, we're just ensuring the test structure is in place
-            Assert.True(true); // Placeholder
+            await Task.CompletedTask;
+Assert.True(true); // Placeholder
         }
 
         [Fact]
@@ -180,7 +184,8 @@ namespace AIProjectOrchestrator.UnitTests.Review
         {
             // This test will be updated when we implement the actual method
             // For now, we're just ensuring the test structure is in place
-            Assert.True(true); // Placeholder
+            await Task.CompletedTask;
+Assert.True(true); // Placeholder
         }
     }
 }

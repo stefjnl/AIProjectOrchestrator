@@ -61,10 +61,12 @@ namespace AIProjectOrchestrator.IntegrationTests.Review
             submitResponse.EnsureSuccessStatusCode();
 
             var submitResult = await submitResponse.Content.ReadFromJsonAsync<ReviewResponse>();
+            Assert.NotNull(submitResult);
+            var reviewId = submitResult!.ReviewId;
 
             // Act
             var approveContent = new StringContent("{}", Encoding.UTF8, "application/json");
-            var approveResponse = await _client.PostAsync($"/api/review/{submitResult.ReviewId}/approve", approveContent);
+            var approveResponse = await _client.PostAsync($"/api/review/{reviewId}/approve", approveContent);
 
             // Assert
             Assert.Equal(HttpStatusCode.OK, approveResponse.StatusCode);

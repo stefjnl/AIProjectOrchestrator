@@ -236,7 +236,17 @@ namespace AIProjectOrchestrator.API.Controllers
             _logger.LogInformation("EditStory called for storyId: {StoryId}", storyId);
             _logger.LogInformation("Received UpdateStoryDto: Title='{Title}', Description='{Description}', Status={Status}",
                 updatedStory?.Title, updatedStory?.Description, updatedStory?.Status);
-
+            
+            if (updatedStory == null)
+            {
+                _logger.LogWarning("EditStory validation failed: UpdatedStory is null for {StoryId}", storyId);
+                return BadRequest(new
+                {
+                    error = "Validation failed",
+                    message = "UpdatedStory payload is required"
+                });
+            }
+            
             if (!ModelState.IsValid)
             {
                 _logger.LogWarning("Model validation failed for story {StoryId}: {ModelState}", storyId, ModelState);
@@ -253,14 +263,14 @@ namespace AIProjectOrchestrator.API.Controllers
                 var userStory = new UserStory
                 {
                     Id = storyId,
-                    Title = updatedStory.Title ?? string.Empty,
-                    Description = updatedStory.Description ?? string.Empty,
-                    AcceptanceCriteria = updatedStory.AcceptanceCriteria ?? new List<string>(),
-                    Priority = updatedStory.Priority ?? string.Empty,
-                    StoryPoints = updatedStory.StoryPoints,
-                    Tags = updatedStory.Tags ?? new List<string>(),
-                    EstimatedComplexity = updatedStory.EstimatedComplexity,
-                    Status = updatedStory.Status
+                    Title = updatedStory!.Title ?? string.Empty,
+                    Description = updatedStory!.Description ?? string.Empty,
+                    AcceptanceCriteria = updatedStory!.AcceptanceCriteria ?? new List<string>(),
+                    Priority = updatedStory!.Priority ?? string.Empty,
+                    StoryPoints = updatedStory!.StoryPoints,
+                    Tags = updatedStory!.Tags ?? new List<string>(),
+                    EstimatedComplexity = updatedStory!.EstimatedComplexity,
+                    Status = updatedStory!.Status
                 };
 
                 _logger.LogInformation("Calling UpdateStoryAsync with UserStory: Id={Id}, Title='{Title}', Description='{Description}'",

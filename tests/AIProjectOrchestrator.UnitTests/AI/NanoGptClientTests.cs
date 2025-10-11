@@ -129,7 +129,7 @@ namespace AIProjectOrchestrator.UnitTests.AI
                 Content = new StringContent(responseContent)
             };
 
-            HttpRequestMessage capturedRequest = null;
+            HttpRequestMessage? capturedRequest = null;
 
             _httpMessageHandlerMock.Protected()
                 .Setup<Task<HttpResponseMessage>>(
@@ -146,7 +146,7 @@ namespace AIProjectOrchestrator.UnitTests.AI
             Assert.True(response.IsSuccess);
             Assert.Equal("Test response", response.Content);
             Assert.NotNull(capturedRequest);
-            Assert.EndsWith("v1/v1/chat/completions", capturedRequest.RequestUri?.ToString());
+            Assert.EndsWith("v1/v1/chat/completions", capturedRequest!.RequestUri?.ToString());
             Assert.DoesNotContain("/api/api", capturedRequest.RequestUri?.ToString()); // Ensure no double /api in URL
         }
 
@@ -169,7 +169,7 @@ namespace AIProjectOrchestrator.UnitTests.AI
                 Content = new StringContent(responseContent)
             };
 
-            HttpRequestMessage capturedRequest = null;
+            HttpRequestMessage? capturedRequest = null;
 
             _httpMessageHandlerMock.Protected()
                 .Setup<Task<HttpResponseMessage>>(
@@ -190,7 +190,7 @@ namespace AIProjectOrchestrator.UnitTests.AI
 
             // Verify endpoint path
             Assert.NotNull(capturedRequest);
-            Assert.EndsWith("v1/chat/completions", capturedRequest.RequestUri?.ToString());
+            Assert.EndsWith("v1/chat/completions", capturedRequest!.RequestUri?.ToString());
 
             // Verify request body format matches OpenAI API
             Assert.NotNull(capturedRequest.Content);
@@ -204,12 +204,12 @@ namespace AIProjectOrchestrator.UnitTests.AI
             Assert.Contains("\"stream\":false", capturedRequestBody);
 
             // Verify headers
-            Assert.True(capturedRequest.Headers.Contains("Authorization"));
-            var authHeader = capturedRequest.Headers.GetValues("Authorization").FirstOrDefault();
+            Assert.True(capturedRequest!.Headers.Contains("Authorization"));
+            string? authHeader = capturedRequest!.Headers.GetValues("Authorization").FirstOrDefault();
             Assert.NotNull(authHeader);
             Assert.StartsWith("Bearer test-api-key", authHeader);
-            Assert.True(capturedRequest.Headers.Contains("Accept"));
-            var acceptHeader = capturedRequest.Headers.GetValues("Accept").FirstOrDefault();
+            Assert.True(capturedRequest!.Headers.Contains("Accept"));
+            string? acceptHeader = capturedRequest!.Headers.GetValues("Accept").FirstOrDefault();
             Assert.NotNull(acceptHeader);
             Assert.Contains("text/event-stream", acceptHeader);
         }
@@ -255,7 +255,7 @@ namespace AIProjectOrchestrator.UnitTests.AI
             _httpMessageHandlerMock.Protected()
                 .Setup<Task<HttpResponseMessage>>(
                     "SendAsync",
-                    ItExpr.Is<HttpRequestMessage>(req => req.Method == HttpMethod.Get && req.RequestUri.ToString() == "https://nano-gpt.com/api/v1"),
+                    ItExpr.Is<HttpRequestMessage>(req => req.Method == HttpMethod.Get && req.RequestUri != null && req.RequestUri.ToString() == "https://nano-gpt.com/api/v1"),
                     ItExpr.IsAny<CancellationToken>())
                 .ReturnsAsync(httpResponse);
 
@@ -275,7 +275,7 @@ namespace AIProjectOrchestrator.UnitTests.AI
             _httpMessageHandlerMock.Protected()
                 .Setup<Task<HttpResponseMessage>>(
                     "SendAsync",
-                    ItExpr.Is<HttpRequestMessage>(req => req.Method == HttpMethod.Get && req.RequestUri.ToString() == "https://nano-gpt.com/api/v1"),
+                    ItExpr.Is<HttpRequestMessage>(req => req.Method == HttpMethod.Get && req.RequestUri != null && req.RequestUri.ToString() == "https://nano-gpt.com/api/v1"),
                     ItExpr.IsAny<CancellationToken>())
                 .ReturnsAsync(httpResponse);
 

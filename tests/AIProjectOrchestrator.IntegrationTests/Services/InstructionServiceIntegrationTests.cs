@@ -23,10 +23,11 @@ namespace AIProjectOrchestrator.IntegrationTests.Services
             // Arrange
             var scope = _factory.Services.CreateScope();
             var serviceProvider = scope.ServiceProvider;
-
+            
             // Act
             var instructionService = serviceProvider.GetService<IInstructionService>();
-
+            await Task.CompletedTask; // Ensure async test contains an await to satisfy CS1998
+            
             // Assert
             Assert.NotNull(instructionService);
             Assert.IsType<InstructionService>(instructionService);

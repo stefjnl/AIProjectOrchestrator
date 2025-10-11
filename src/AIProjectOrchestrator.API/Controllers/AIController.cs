@@ -3,6 +3,7 @@ using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Domain.Services;
 using AIProjectOrchestrator.Infrastructure.AI;
 using System.Threading.Tasks;
+using AIProjectOrchestrator.Domain.Configuration;
 
 namespace AIProjectOrchestrator.API.Controllers
 {
@@ -22,7 +23,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             // For the prompt playground, we'll use a default model
             // In a real implementation, this might be configurable
-            var client = _clientFactory.GetClient("Claude");
+            var client = _clientFactory.GetClient(ProviderNames.Claude);
             if (client == null)
             {
                 return BadRequest("AI client not available");
