@@ -23,6 +23,7 @@ AI Project Orchestrator is an advanced .NET 9 application that automates the ent
 AI Project Orchestrator automates the software development process by breaking it down into a 5-stage workflow pipeline that leverages specialized AI models for different aspects of the development lifecycle. The system ensures quality and consistency through a review mechanism at each stage, providing an auditable trail of all AI interactions and decisions.
 
 The application follows Clean Architecture principles with a Domain-Driven Design approach, ensuring separation of concerns and maintainability. It uses .NET Aspire for containerized orchestration and supports multiple AI providers through a unified interface.
+![AIProjectOrchestrator](https://github.com/user-attachments/assets/41bce4af-42b4-4dee-be18-5112f002ed4a)
 
 ## Architecture
 
