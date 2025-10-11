@@ -25,9 +25,10 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
             IHttpClientFactory httpClientFactory,
             IOptions<AIOperationSettings> settings,
             ILogger<PromptGenerationAIProvider> logger,
+            ILoggerFactory loggerFactory,
             IProviderConfigurationService? providerConfigService = null,
             IServiceProvider? serviceProvider = null)
-            : base("PromptGeneration", httpClientFactory, settings, logger, providerConfigService, serviceProvider)
+            : base("PromptGeneration", httpClientFactory, settings, logger, loggerFactory, providerConfigService, serviceProvider)
         {
             // This provider is specifically configured for Prompt Generation operations
             // The operation type "PromptGeneration" is used to look up configuration

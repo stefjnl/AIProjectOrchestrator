@@ -39,7 +39,7 @@ namespace AIProjectOrchestrator.API.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<PromptTemplate>> CreateOrUpdate(PromptTemplate promptTemplate)
+        public async Task<ActionResult<PromptTemplate>> CreateOrUpdate(PromptTemplate? promptTemplate)
         {
             _logger.LogInformation("Received prompt template: {@PromptTemplate}", promptTemplate);
 

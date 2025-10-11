@@ -250,7 +250,7 @@ namespace AIProjectOrchestrator.UnitTests.PromptTemplateTests
             var controller = new PromptTemplatesController(mockService.Object, _mockLogger.Object);
 
             // Act
-            var result = await controller.CreateOrUpdate(null as Domain.Entities.PromptTemplate);
+            var result = await controller.CreateOrUpdate(null! as Domain.Entities.PromptTemplate);
 
             // Assert
             var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
@@ -316,7 +316,7 @@ namespace AIProjectOrchestrator.UnitTests.PromptTemplateTests
             var controller = new PromptTemplatesController(mockService.Object, _mockLogger.Object);
             var id = Guid.NewGuid();
 
-            mockService.Setup(s => s.GetTemplateByIdAsync(id)).ReturnsAsync((Domain.Entities.PromptTemplate)null);
+            mockService.Setup(s => s.GetTemplateByIdAsync(id)).ReturnsAsync((Domain.Entities.PromptTemplate)null!);
 
             // Act
             var result = await controller.GetById(id);
@@ -423,10 +423,11 @@ namespace AIProjectOrchestrator.UnitTests.PromptTemplateTests
             var updateResult = await controller.CreateOrUpdate(createdTemplate);
             var okResult = Assert.IsType<OkObjectResult>(updateResult.Result);
             var updatedTemplate = okResult.Value as Domain.Entities.PromptTemplate;
-
+            
             // Assert - Update
-            Assert.Equal("Updated Title", updatedTemplate.Title);
-            Assert.NotNull(updatedTemplate.UpdatedAt);
+            Assert.NotNull(updatedTemplate);
+            Assert.Equal("Updated Title", updatedTemplate!.Title);
+            Assert.NotNull(updatedTemplate!.UpdatedAt);
 
             // Act - Delete
             var deleteResult = await controller.Delete(createdTemplate.Id) as NoContentResult;
@@ -494,18 +495,20 @@ namespace AIProjectOrchestrator.UnitTests.PromptTemplateTests
             var updateResult = await controller.CreateOrUpdate(createdTemplate1);
             var updateOkResult = Assert.IsType<OkObjectResult>(updateResult.Result);
             var updatedTemplate = updateOkResult.Value as Domain.Entities.PromptTemplate;
-
+            
             // Assert - Update
-            Assert.Equal("Updated Template 1", updatedTemplate.Title);
-            Assert.NotNull(updatedTemplate.UpdatedAt);
+            Assert.NotNull(updatedTemplate);
+            Assert.Equal("Updated Template 1", updatedTemplate!.Title);
+            Assert.NotNull(updatedTemplate!.UpdatedAt);
 
             // Act - Get Updated
             var getUpdatedResult = await controller.GetById(createdTemplate1.Id);
             var getUpdatedOkResult = Assert.IsType<OkObjectResult>(getUpdatedResult.Result);
             var retrievedUpdated = getUpdatedOkResult.Value as Domain.Entities.PromptTemplate;
-
+            
             // Assert - Updated retrieved correctly
-            Assert.Equal("Updated Template 1", retrievedUpdated.Title);
+            Assert.NotNull(retrievedUpdated);
+            Assert.Equal("Updated Template 1", retrievedUpdated!.Title);
 
             // Act - Delete Template 2
             var deleteResult = await controller.Delete(createdTemplate2.Id) as NoContentResult;
@@ -518,10 +521,11 @@ namespace AIProjectOrchestrator.UnitTests.PromptTemplateTests
             var getAllAfterDeleteResult = await controller.GetAll();
             var getAllOkResult = Assert.IsType<OkObjectResult>(getAllAfterDeleteResult.Result);
             var allAfterDelete = getAllOkResult.Value as List<Domain.Entities.PromptTemplate>;
-
+            
             // Assert - One template left
-            Assert.Single(allAfterDelete);
-            Assert.Contains(allAfterDelete, t => t.Title == "Updated Template 1");
+            Assert.NotNull(allAfterDelete);
+            Assert.Single(allAfterDelete!);
+            Assert.Contains(allAfterDelete!, t => t.Title == "Updated Template 1");
 
             // Act - Delete remaining template
             var finalDeleteResult = await controller.Delete(createdTemplate1.Id) as NoContentResult;

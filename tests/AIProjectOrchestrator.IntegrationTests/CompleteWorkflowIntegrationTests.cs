@@ -52,9 +52,20 @@ namespace AIProjectOrchestrator.IntegrationTests
             var projectResponse = await client.PostAsync("/api/projects", projectContent);
             projectResponse.EnsureSuccessStatusCode();
             var projectJson = await projectResponse.Content.ReadAsStringAsync();
-            var project = JsonSerializer.Deserialize<dynamic>(projectJson);
-            Assert.NotNull(project);
-            var projectId = (Guid)project.Id!;
+            using var projectDoc = JsonDocument.Parse(projectJson);
+            Guid projectId;
+            if (projectDoc.RootElement.TryGetProperty("Id", out var projIdProp))
+            {
+                projectId = projIdProp.GetGuid();
+            }
+            else if (projectDoc.RootElement.TryGetProperty("id", out projIdProp))
+            {
+                projectId = projIdProp.GetGuid();
+            }
+            else
+            {
+                throw new InvalidOperationException("Project response missing Id");
+            }
 
             // 2. Submit requirements analysis  
             var reqData = new { ProjectId = projectId, Description = "Analyze requirements for this project" };
@@ -62,19 +73,46 @@ namespace AIProjectOrchestrator.IntegrationTests
             var reqResponse = await client.PostAsync("/api/requirements/analyze", reqContent);
             reqResponse.EnsureSuccessStatusCode();
             var reqJson = await reqResponse.Content.ReadAsStringAsync();
-            var req = JsonSerializer.Deserialize<dynamic>(reqJson);
-            Assert.NotNull(req);
-            var analysisId = (Guid)req.Id!;
+            using var reqDoc = JsonDocument.Parse(reqJson);
+            Guid analysisId;
+            if (reqDoc.RootElement.TryGetProperty("Id", out var reqIdProp))
+            {
+                analysisId = reqIdProp.GetGuid();
+            }
+            else if (reqDoc.RootElement.TryGetProperty("id", out reqIdProp))
+            {
+                analysisId = reqIdProp.GetGuid();
+            }
+            else
+            {
+                throw new InvalidOperationException("Requirements response missing Id");
+            }
 
             // 3. Approve requirements (assume review is created, get pending and approve first)
             await Task.Delay(100); // Small delay for background processing if needed
             var pendingReviewsResponse = await client.GetAsync("/api/review/pending");
             pendingReviewsResponse.EnsureSuccessStatusCode();
             var pendingReviewsJson = await pendingReviewsResponse.Content.ReadAsStringAsync();
-            var pendingReviews = JsonSerializer.Deserialize<List<dynamic>>(pendingReviewsJson);
-            Assert.NotNull(pendingReviews);
-            Assert.True(pendingReviews.Count > 0);
-            var reviewId = (Guid)pendingReviews[0].Id!;
+            using var pendingReviewsDoc = JsonDocument.Parse(pendingReviewsJson);
+            var reviewsEnumerator = pendingReviewsDoc.RootElement.EnumerateArray();
+            if (!reviewsEnumerator.MoveNext())
+            {
+                throw new InvalidOperationException("No pending reviews found");
+            }
+            var firstReview = reviewsEnumerator.Current;
+            Guid reviewId;
+            if (firstReview.TryGetProperty("Id", out var reviewIdProp))
+            {
+                reviewId = reviewIdProp.GetGuid();
+            }
+            else if (firstReview.TryGetProperty("id", out reviewIdProp))
+            {
+                reviewId = reviewIdProp.GetGuid();
+            }
+            else
+            {
+                throw new InvalidOperationException("Pending review missing Id");
+            }
             var approveContent = new StringContent("{}", Encoding.UTF8, "application/json");
             var approveReqResponse = await client.PostAsync($"/api/review/{reviewId}/approve", approveContent);
             approveReqResponse.EnsureSuccessStatusCode();
@@ -88,19 +126,46 @@ namespace AIProjectOrchestrator.IntegrationTests
             var planResponse = await client.PostAsync("/api/projectplanning/create", planContent);
             planResponse.EnsureSuccessStatusCode();
             var planJson = await planResponse.Content.ReadAsStringAsync();
-            var plan = JsonSerializer.Deserialize<dynamic>(planJson);
-            Assert.NotNull(plan);
-            var planningId = (Guid)plan.Id!;
+            using var planDoc = JsonDocument.Parse(planJson);
+            Guid planningId;
+            if (planDoc.RootElement.TryGetProperty("Id", out var planIdProp))
+            {
+                planningId = planIdProp.GetGuid();
+            }
+            else if (planDoc.RootElement.TryGetProperty("id", out planIdProp))
+            {
+                planningId = planIdProp.GetGuid();
+            }
+            else
+            {
+                throw new InvalidOperationException("Planning response missing Id");
+            }
 
             // 5. Approve planning
             await Task.Delay(100);
             var pendingPlanResponse = await client.GetAsync("/api/review/pending");
             pendingPlanResponse.EnsureSuccessStatusCode();
             var pendingPlanJson = await pendingPlanResponse.Content.ReadAsStringAsync();
-            var pendingPlans = JsonSerializer.Deserialize<List<dynamic>>(pendingPlanJson);
-            Assert.NotNull(pendingPlans);
-            Assert.True(pendingPlans.Count > 0);
-            var planReviewId = (Guid)pendingPlans[0].Id!;
+            using var pendingPlansDoc = JsonDocument.Parse(pendingPlanJson);
+            var plansEnumerator = pendingPlansDoc.RootElement.EnumerateArray();
+            if (!plansEnumerator.MoveNext())
+            {
+                throw new InvalidOperationException("No pending plans found");
+            }
+            var firstPlanReview = plansEnumerator.Current;
+            Guid planReviewId;
+            if (firstPlanReview.TryGetProperty("Id", out var planReviewIdProp))
+            {
+                planReviewId = planReviewIdProp.GetGuid();
+            }
+            else if (firstPlanReview.TryGetProperty("id", out planReviewIdProp))
+            {
+                planReviewId = planReviewIdProp.GetGuid();
+            }
+            else
+            {
+                throw new InvalidOperationException("Pending plan review missing Id");
+            }
             var approvePlanResponse = await client.PostAsync($"/api/review/{planReviewId}/approve", approveContent);
             approvePlanResponse.EnsureSuccessStatusCode();
 
@@ -113,19 +178,46 @@ namespace AIProjectOrchestrator.IntegrationTests
             var storyResponse = await client.PostAsync("/api/stories/generate", storyContent);
             storyResponse.EnsureSuccessStatusCode();
             var storyJson = await storyResponse.Content.ReadAsStringAsync();
-            var story = JsonSerializer.Deserialize<dynamic>(storyJson);
-            Assert.NotNull(story);
-            var storyGenerationId = (Guid)story.Id!;
+            using var storyDoc = JsonDocument.Parse(storyJson);
+            Guid storyGenerationId;
+            if (storyDoc.RootElement.TryGetProperty("Id", out var storyIdProp))
+            {
+                storyGenerationId = storyIdProp.GetGuid();
+            }
+            else if (storyDoc.RootElement.TryGetProperty("id", out storyIdProp))
+            {
+                storyGenerationId = storyIdProp.GetGuid();
+            }
+            else
+            {
+                throw new InvalidOperationException("Story generation response missing Id");
+            }
 
             // 7. Approve stories
             await Task.Delay(100);
             var pendingStoryResponse = await client.GetAsync("/api/review/pending");
             pendingStoryResponse.EnsureSuccessStatusCode();
             var pendingStoryJson = await pendingStoryResponse.Content.ReadAsStringAsync();
-            var pendingStories = JsonSerializer.Deserialize<List<dynamic>>(pendingStoryJson);
-            Assert.NotNull(pendingStories);
-            Assert.True(pendingStories.Count > 0);
-            var storyReviewId = (Guid)pendingStories[0].Id!;
+            using var pendingStoriesDoc = JsonDocument.Parse(pendingStoryJson);
+            var storiesEnumerator = pendingStoriesDoc.RootElement.EnumerateArray();
+            if (!storiesEnumerator.MoveNext())
+            {
+                throw new InvalidOperationException("No pending stories found");
+            }
+            var firstStoryReview = storiesEnumerator.Current;
+            Guid storyReviewId;
+            if (firstStoryReview.TryGetProperty("Id", out var storyReviewIdProp))
+            {
+                storyReviewId = storyReviewIdProp.GetGuid();
+            }
+            else if (firstStoryReview.TryGetProperty("id", out storyReviewIdProp))
+            {
+                storyReviewId = storyReviewIdProp.GetGuid();
+            }
+            else
+            {
+                throw new InvalidOperationException("Pending story review missing Id");
+            }
             var approveStoryResponse = await client.PostAsync($"/api/review/{storyReviewId}/approve", approveContent);
             approveStoryResponse.EnsureSuccessStatusCode();
 

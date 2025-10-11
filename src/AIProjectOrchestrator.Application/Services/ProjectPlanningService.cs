@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using AIProjectOrchestrator.Domain.Services;
 using AIProjectOrchestrator.Domain.Models;
 using AIProjectOrchestrator.Domain.Models.AI;
@@ -11,6 +12,8 @@ using AIProjectOrchestrator.Infrastructure.AI.Providers;
 using System.Text;
 using AIProjectOrchestrator.Domain.Interfaces;
 using AIProjectOrchestrator.Domain.Entities;
+using AIProjectOrchestrator.Domain.Configuration;
+using AIProjectOrchestrator.Infrastructure.Data;
 
 namespace AIProjectOrchestrator.Application.Services
 {
@@ -23,6 +26,8 @@ namespace AIProjectOrchestrator.Application.Services
         private readonly ILogger<ProjectPlanningService> _logger;
         private readonly IProjectPlanningRepository _projectPlanningRepository;
         private readonly IRequirementsAnalysisRepository _requirementsAnalysisRepository;
+        private readonly IOptions<ReviewSettings> _reviewSettings;
+        private readonly AppDbContext _dbContext;
 
         public ProjectPlanningService(
             IRequirementsAnalysisService requirementsAnalysisService,
@@ -31,7 +36,9 @@ namespace AIProjectOrchestrator.Application.Services
             Lazy<IReviewService> reviewService,
             ILogger<ProjectPlanningService> logger,
             IProjectPlanningRepository projectPlanningRepository,
-            IRequirementsAnalysisRepository requirementsAnalysisRepository)
+            IRequirementsAnalysisRepository requirementsAnalysisRepository,
+            IOptions<ReviewSettings> reviewSettings,
+            AppDbContext dbContext)
         {
             _requirementsAnalysisService = requirementsAnalysisService;
             _instructionService = instructionService;
@@ -40,6 +47,8 @@ namespace AIProjectOrchestrator.Application.Services
             _logger = logger;
             _projectPlanningRepository = projectPlanningRepository;
             _requirementsAnalysisRepository = requirementsAnalysisRepository;
+            _reviewSettings = reviewSettings;
+            _dbContext = dbContext;
         }
 
         public async Task<ProjectPlanningResponse> CreateProjectPlanAsync(
@@ -127,6 +136,20 @@ namespace AIProjectOrchestrator.Application.Services
                     ErrorMessage = null
                 };
 
+                // Validate AI response content before persistence
+                if (string.IsNullOrWhiteSpace(aiResponse.Content))
+                {
+                    _logger.LogError("AI response content is null or empty for planning {PlanningId}", planningId);
+                    throw new InvalidOperationException("AI response cannot be null or empty");
+                }
+
+                var maxLen = _reviewSettings.Value?.MaxContentLength ?? int.MaxValue;
+                if (aiResponse.Content.Length > maxLen)
+                {
+                    _logger.LogError("AI response length {Length} exceeds maximum {Max} for planning {PlanningId}", aiResponse.Content.Length, maxLen, planningId);
+                    throw new InvalidOperationException($"AI response exceeds maximum length of {maxLen}");
+                }
+
                 // Await metadata save completion
                 await metadataTask;
 
@@ -152,44 +175,58 @@ namespace AIProjectOrchestrator.Application.Services
                     CreatedDate = DateTime.UtcNow
                 };
 
-                await _projectPlanningRepository.AddAsync(projectPlanningEntity, cancellationToken);
-                var savedPlanningId = projectPlanningEntity.Id; // Get the database-generated int ID
-
-                // Submit for review
-                _logger.LogDebug("Submitting AI response for review in project planning {PlanningId}", planningId);
-                var correlationId = Guid.NewGuid().ToString();
-                // Get project ID from requirements analysis if available
-                string projectId = "unknown";
-                if (requirementsAnalysis != null)
+                // Persist and review within a transaction for consistency
+                using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+                try
                 {
-                    projectId = requirementsAnalysis.ProjectId ?? "unknown";
-                }
+                    await _projectPlanningRepository.AddAsync(projectPlanningEntity, cancellationToken);
+                    var savedPlanningId = projectPlanningEntity.Id; // Get the database-generated int ID
 
-                var reviewRequest = new SubmitReviewRequest
-                {
-                    ServiceName = "ProjectPlanning",
-                    Content = aiResponse.Content,
-                    CorrelationId = correlationId,
-                    PipelineStage = "Planning",
-                    OriginalRequest = aiRequest,
-                    AIResponse = aiResponse,
-                    Metadata = new System.Collections.Generic.Dictionary<string, object>
+                    // Submit for review
+                    _logger.LogDebug("Submitting AI response for review in project planning {PlanningId}", planningId);
+                    var correlationId = Guid.NewGuid().ToString();
+                    // Get project ID from requirements analysis if available
+                    string projectId = "unknown";
+                    if (requirementsAnalysis != null)
                     {
-                        { "PlanningId", planningId },
-                        { "EntityId", savedPlanningId }, // Pass the entity int ID for FK linking
-                        { "RequirementsAnalysisId", request.RequirementsAnalysisId },
-                        { "ProjectId", projectId }
+                        projectId = requirementsAnalysis.ProjectId ?? "unknown";
                     }
-                };
 
-                var reviewResponse = await _reviewService.Value.SubmitForReviewAsync(reviewRequest, cancellationToken);
+                    var reviewRequest = new SubmitReviewRequest
+                    {
+                        ServiceName = "ProjectPlanning",
+                        Content = aiResponse.Content,
+                        CorrelationId = correlationId,
+                        PipelineStage = "Planning",
+                        OriginalRequest = aiRequest,
+                        AIResponse = aiResponse,
+                        Metadata = new System.Collections.Generic.Dictionary<string, object>
+                        {
+                            { "PlanningId", planningId },
+                            { "EntityId", savedPlanningId }, // Pass the entity int ID for FK linking
+                            { "RequirementsAnalysisId", request.RequirementsAnalysisId },
+                            { "ProjectId", projectId }
+                        }
+                    };
 
-                // Update the project planning entity with the review ID
-                projectPlanningEntity.ReviewId = reviewResponse.ReviewId.ToString();
-                await _projectPlanningRepository.UpdateAsync(projectPlanningEntity, cancellationToken);
+                    var reviewResponse = await _reviewService.Value.SubmitForReviewAsync(reviewRequest, cancellationToken);
 
-                _logger.LogInformation("Project planning {PlanningId} completed successfully. Review ID: {ReviewId}",
-                    planningId, reviewResponse.ReviewId);
+                    // Update the project planning entity with the review ID
+                    projectPlanningEntity.ReviewId = reviewResponse.ReviewId.ToString();
+                    await _projectPlanningRepository.UpdateAsync(projectPlanningEntity, cancellationToken);
+
+                    // Ensure changes are flushed before commit
+                    await _dbContext.SaveChangesAsync(cancellationToken);
+                    await transaction.CommitAsync(cancellationToken);
+
+                    _logger.LogInformation("Project planning {PlanningId} persisted and review linked within transaction. Review ID: {ReviewId}",
+                        planningId, reviewResponse.ReviewId);
+                }
+                catch
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    throw;
+                }
 
                 var response = new ProjectPlanningResponse
                 {
@@ -198,7 +235,7 @@ namespace AIProjectOrchestrator.Application.Services
                     ProjectRoadmap = parsedResponse.ProjectRoadmap,
                     ArchitecturalDecisions = parsedResponse.ArchitecturalDecisions,
                     Milestones = parsedResponse.Milestones,
-                    ReviewId = reviewResponse.ReviewId,
+                    ReviewId = Guid.Parse(projectPlanningEntity.ReviewId),
                     Status = ProjectPlanningStatus.PendingReview,
                     CreatedAt = DateTime.UtcNow
                 };

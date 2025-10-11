@@ -180,7 +180,7 @@ namespace AIProjectOrchestrator.UnitTests.Review
             var reviewId = Guid.NewGuid();
 
             _mockReviewService.Setup(s => s.GetReviewAsync(reviewId, CancellationToken.None))
-                .ReturnsAsync((ReviewSubmission)null);
+                .ReturnsAsync((ReviewSubmission)null!);
 
             // Act
             var result = await _controller.GetReview(reviewId, CancellationToken.None);

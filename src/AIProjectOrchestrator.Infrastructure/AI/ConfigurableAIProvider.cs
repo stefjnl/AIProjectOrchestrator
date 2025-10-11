@@ -36,16 +36,13 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         {
             var options = GetAIOperationConfig();
 
-            // Create HTTP client with Docker SSL support
-            var httpClient = _httpClientFactory.CreateClient("DockerAIClient");
+            // Use DI-configured, provider-specific HttpClient
+            var httpClient = GetProviderHttpClient(options.ProviderName);
             if (httpClient == null)
             {
-                _logger.LogWarning("Docker AI HTTP client is not available for operation '{Operation}'", _operationType);
+                _logger.LogWarning("Provider HttpClient is not available for operation '{Operation}'", _operationType);
                 return new List<string>();
             }
-
-            // Configure HTTP client with provider-specific settings
-            ConfigureHttpClient(httpClient, options);
 
             // Create AI client with proper configuration
             var client = CreateAIClient(options.ProviderName, httpClient);
@@ -75,6 +72,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IOptions<AIProjectOrchestrator.Infrastructure.Configuration.AIOperationSettings> _settings;
         private readonly ILogger<ConfigurableAIProvider> _logger;
+        private readonly ILoggerFactory _loggerFactory;
         private readonly IProviderConfigurationService? _providerConfigService;
         private readonly IServiceProvider? _serviceProvider;
 
@@ -88,12 +86,13 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         /// <param name="providerConfigService">Service for runtime provider configuration</param>
         protected ConfigurableAIProvider(string operationType, IHttpClientFactory httpClientFactory,
             IOptions<AIProjectOrchestrator.Infrastructure.Configuration.AIOperationSettings> settings, ILogger<ConfigurableAIProvider> logger,
-            IProviderConfigurationService? providerConfigService = null, IServiceProvider? serviceProvider = null)
+            ILoggerFactory loggerFactory, IProviderConfigurationService? providerConfigService = null, IServiceProvider? serviceProvider = null)
         {
             _operationType = operationType ?? throw new ArgumentNullException(nameof(operationType));
             _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
             _providerConfigService = providerConfigService!;
             _serviceProvider = serviceProvider!;
 
@@ -180,16 +179,13 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             };
 #pragma warning restore CS8601
 
-            // Create HTTP client with Docker SSL support
-            var httpClient = _httpClientFactory.CreateClient("DockerAIClient");
+            // Use DI-configured, provider-specific HttpClient
+            var httpClient = GetProviderHttpClient(options.ProviderName);
             if (httpClient == null)
             {
-                _logger.LogError("Docker AI HTTP client is not available for operation '{Operation}'", _operationType);
-                throw new InvalidOperationException($"Docker AI HTTP client is not available for operation '{_operationType}'");
+                _logger.LogError("Provider HttpClient is not available for operation '{Operation}'", _operationType);
+                throw new InvalidOperationException($"Provider HttpClient is not available for operation '{_operationType}'");
             }
-
-            // Configure HTTP client with provider-specific settings
-            ConfigureHttpClient(httpClient, options);
 
             // Create AI client with proper configuration
             var client = CreateAIClient(options.ProviderName, httpClient);
@@ -246,16 +242,13 @@ namespace AIProjectOrchestrator.Infrastructure.AI
 
             try
             {
-                // Create HTTP client with Docker SSL support
-                var httpClient = _httpClientFactory.CreateClient("DockerAIClient");
+                // Use DI-configured, provider-specific HttpClient
+                var httpClient = GetProviderHttpClient(options.ProviderName);
                 if (httpClient == null)
                 {
-                    _logger.LogWarning("Docker AI HTTP client is not available for operation '{Operation}'", _operationType);
+                    _logger.LogWarning("Provider HttpClient is not available for operation '{Operation}'", _operationType);
                     return false;
                 }
-
-                // Configure HTTP client with provider-specific settings
-                ConfigureHttpClient(httpClient, options);
 
                 // Create AI client with proper configuration
                 var client = CreateAIClient(options.ProviderName, httpClient);
@@ -280,70 +273,28 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         }
 
         /// <summary>
-        /// Configures the HTTP client with provider-specific settings for Docker environments.
+        /// Gets a DI-configured HttpClient for the specified provider.
         /// </summary>
-        /// <param name="httpClient">HTTP client to configure</param>
-        /// <param name="options">Operation configuration</param>
-        private void ConfigureHttpClient(HttpClient httpClient, AIOperationConfig options)
+        /// <param name="providerName">Provider identifier</param>
+        /// <returns>Named HttpClient or null if unsupported</returns>
+        private HttpClient? GetProviderHttpClient(string providerName)
         {
-            try
-            {
-                // Get provider-specific base URL from settings
-                var baseUrl = GetProviderBaseUrl(options.ProviderName);
-                if (!string.IsNullOrEmpty(baseUrl))
-                {
-                    httpClient.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
-                    _logger.LogDebug("Configured HTTP client BaseAddress: {BaseAddress} for provider {Provider}",
-                        httpClient.BaseAddress, options.ProviderName);
-                }
-                else
-                {
-                    _logger.LogWarning("No BaseUrl configured for provider {Provider}, using default", options.ProviderName);
-                }
-
-                // Set timeout based on operation configuration
-                httpClient.Timeout = TimeSpan.FromSeconds(Math.Max(options.TimeoutSeconds, 120)); // Minimum 2 minutes for Docker
-                _logger.LogDebug("Configured HTTP client timeout: {Timeout} seconds for operation {Operation}",
-                    httpClient.Timeout.TotalSeconds, _operationType);
-
-                // Add provider-specific headers
-                httpClient.DefaultRequestHeaders.Clear();
-                httpClient.DefaultRequestHeaders.Add("User-Agent", $"AIProjectOrchestrator-Docker/{_operationType}");
-
-                _logger.LogInformation("Successfully configured HTTP client for provider {Provider} and operation {Operation}",
-                    options.ProviderName, _operationType);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to configure HTTP client for provider {Provider} and operation {Operation}",
-                    options.ProviderName, _operationType);
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// Gets the base URL for a specific provider.
-        /// </summary>
-        /// <param name="providerName">Name of the AI provider</param>
-        /// <returns>Base URL or empty string if not found</returns>
-        private string GetProviderBaseUrl(string providerName)
-        {
-            // Use default URLs for known providers since Infrastructure AIProviderSettings doesn't have provider properties
             switch (providerName.ToLowerInvariant())
             {
                 case "nanogpt":
-                    return "https://api.nanogpt.com/api/v1";
+                    return _httpClientFactory.CreateClient(nameof(NanoGptClient));
                 case "openrouter":
-                    return "https://openrouter.ai/api/v1";
+                    return _httpClientFactory.CreateClient(nameof(OpenRouterClient));
                 case "claude":
-                    return "https://api.anthropic.com";
+                    return _httpClientFactory.CreateClient(nameof(ClaudeClient));
                 case "lmstudio":
-                    return "http://100.74.43.85:1234";
+                    return _httpClientFactory.CreateClient(nameof(LMStudioClient));
                 default:
-                    _logger.LogWarning("No BaseUrl configured for provider: {ProviderName}", providerName);
-                    return string.Empty;
+                    _logger.LogWarning("Unsupported provider for HttpClient creation: {ProviderName}", providerName);
+                    return null;
             }
         }
+
 
         /// <summary>
         /// Creates an AI client instance with proper Docker SSL configuration.
@@ -355,10 +306,9 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         {
             // Get the domain configuration service from DI container to get proper settings
             AIProviderConfigurationService configurationService;
-            if (_serviceProvider != null && providerName.ToLowerInvariant() == "openrouter")
+            if (_serviceProvider != null)
             {
                 var domainSettings = _serviceProvider.GetRequiredService<IOptions<AIProjectOrchestrator.Domain.Configuration.AIProviderCredentials>>();
-                _logger.LogInformation("Using domain configuration service for {ProviderName}", providerName);
                 configurationService = new AIProviderConfigurationService(domainSettings);
             }
             else
@@ -369,8 +319,8 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             }
             _logger.LogInformation("Created AIProviderConfigurationService for operation {Operation}", _operationType);
 
-            // Create loggers using the logger factory approach
-            var loggerFactory = new Microsoft.Extensions.Logging.LoggerFactory();
+            // Create loggers using the logger factory approach (will be replaced in refactoring 3)
+            var loggerFactory = _loggerFactory;
 
             switch (providerName.ToLowerInvariant())
             {
@@ -381,15 +331,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                         configurationService);
                 case "openrouter":
                     _logger.LogInformation("Creating OpenRouterClient for operation {Operation}", _operationType);
-                    // Create a new HttpClient specifically for OpenRouter to ensure proper authentication
-                    var openRouterHttpClient = _httpClientFactory.CreateClient(nameof(OpenRouterClient));
-                    _logger.LogInformation("OpenRouter HttpClient created - BaseAddress: {BaseAddress}", openRouterHttpClient.BaseAddress?.ToString() ?? "NULL");
-                    _logger.LogInformation("OpenRouter HttpClient default headers count: {HeaderCount}", openRouterHttpClient.DefaultRequestHeaders.Count());
-                    foreach (var header in openRouterHttpClient.DefaultRequestHeaders)
-                    {
-                        _logger.LogInformation("OpenRouter HttpClient header: {HeaderName} = {HeaderValue}", header.Key, string.Join(", ", header.Value));
-                    }
-                    return new OpenRouterClient(openRouterHttpClient,
+                    return new OpenRouterClient(httpClient,
                         loggerFactory.CreateLogger<OpenRouterClient>(),
                         configurationService);
                 case "claude":
@@ -405,7 +347,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                 default:
                     _logger.LogError("Unsupported AI provider: {ProviderName}", providerName);
                     return null!;
-                }
+            }
         }
 
         /// <summary>

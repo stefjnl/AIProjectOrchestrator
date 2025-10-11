@@ -21,9 +21,10 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
             IHttpClientFactory httpClientFactory,
             IOptions<AIOperationSettings> settings,
             ILogger<TestGenerationAIProvider> logger,
+            ILoggerFactory loggerFactory,
             IProviderConfigurationService? providerConfigService = null,
             IServiceProvider? serviceProvider = null)
-            : base("TestGeneration", httpClientFactory, settings, logger, providerConfigService, serviceProvider)
+            : base("TestGeneration", httpClientFactory, settings, logger, loggerFactory, providerConfigService, serviceProvider)
         {
             // This provider is specifically configured for Test Generation operations
             // The operation type "TestGeneration" is used to look up configuration

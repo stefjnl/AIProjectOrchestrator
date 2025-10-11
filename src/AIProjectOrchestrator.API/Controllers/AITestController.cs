@@ -3,6 +3,7 @@ using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Domain.Services;
 using AIProjectOrchestrator.Infrastructure.AI;
 using System.Threading.Tasks;
+using AIProjectOrchestrator.Domain.Configuration;
 
 namespace AIProjectOrchestrator.API.Controllers
 {
@@ -20,7 +21,7 @@ namespace AIProjectOrchestrator.API.Controllers
         [HttpPost("claude")]
         public async Task<ActionResult<AIResponse>> TestClaude([FromBody] AIRequest request)
         {
-            var client = _clientFactory.GetClient("Claude");
+            var client = _clientFactory.GetClient(ProviderNames.Claude);
             if (client == null)
             {
                 return BadRequest("Claude client not available");
@@ -33,7 +34,7 @@ namespace AIProjectOrchestrator.API.Controllers
         [HttpPost("lmstudio")]
         public async Task<ActionResult<AIResponse>> TestLMStudio([FromBody] AIRequest request)
         {
-            var client = _clientFactory.GetClient("LMStudio");
+            var client = _clientFactory.GetClient(ProviderNames.LMStudio);
             if (client == null)
             {
                 return BadRequest("LMStudio client not available");
@@ -46,7 +47,7 @@ namespace AIProjectOrchestrator.API.Controllers
         [HttpPost("openrouter")]
         public async Task<ActionResult<AIResponse>> TestOpenRouter([FromBody] AIRequest request)
         {
-            var client = _clientFactory.GetClient("OpenRouter");
+            var client = _clientFactory.GetClient(ProviderNames.OpenRouter);
             if (client == null)
             {
                 return BadRequest("OpenRouter client not available");

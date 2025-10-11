@@ -21,9 +21,10 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
             IHttpClientFactory httpClientFactory,
             IOptions<AIOperationSettings> settings,
             ILogger<ImplementationGenerationAIProvider> logger,
+            ILoggerFactory loggerFactory,
             IProviderConfigurationService? providerConfigService = null,
             IServiceProvider? serviceProvider = null)
-            : base("ImplementationGeneration", httpClientFactory, settings, logger, providerConfigService, serviceProvider)
+            : base("ImplementationGeneration", httpClientFactory, settings, logger, loggerFactory, providerConfigService, serviceProvider)
         {
             // This provider is specifically configured for Implementation Generation operations
             // The operation type "ImplementationGeneration" is used to look up configuration

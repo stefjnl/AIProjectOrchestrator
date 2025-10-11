@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using AIProjectOrchestrator.Domain.Services;
 using Microsoft.Extensions.Logging;
+using AIProjectOrchestrator.Domain.Configuration;
 
 namespace AIProjectOrchestrator.Domain.Services
 {
@@ -14,7 +15,7 @@ namespace AIProjectOrchestrator.Domain.Services
         {
             _clients = clients;
             _logger = logger;
-            _fallbackOrder = new List<string> { "NanoGpt", "Claude", "LMStudio", "OpenRouter" };
+            _fallbackOrder = new List<string> { ProviderNames.NanoGpt, ProviderNames.Claude, ProviderNames.LMStudio, ProviderNames.OpenRouter };
         }
 
         public IAIClient? GetFallbackClient(string providerName)

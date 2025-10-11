@@ -39,6 +39,11 @@ public class PromptContextAssembler
 
         // Retrieve individual story
         var stories = await _storyGenerationService.GetGenerationResultsAsync(storyGenerationId, cancellationToken);
+        if (stories == null)
+        {
+            _logger.LogError("No stories returned for generation {StoryGenerationId}", storyGenerationId);
+            throw new InvalidOperationException("Story generation results cannot be null");
+        }
         if (storyIndex < 0 || storyIndex >= stories.Count)
         {
             _logger.LogWarning("Invalid story index {StoryIndex} for generation {StoryGenerationId}", storyIndex, storyGenerationId);
@@ -85,6 +90,12 @@ public class PromptContextAssembler
         _logger.LogInformation("Getting related stories for index {CurrentIndex} in {StoryGenerationId}", currentIndex, storyGenerationId);
 
         var allStories = await _storyGenerationService.GetGenerationResultsAsync(storyGenerationId, cancellationToken);
+
+        if (allStories == null || allStories.Count == 0)
+        {
+            _logger.LogWarning("No stories found for generation {StoryGenerationId}", storyGenerationId);
+            return new List<UserStory>();
+        }
         
         // Limit to essential context: up to 2 before and 2 after, max 4 total
         var related = new List<UserStory>();

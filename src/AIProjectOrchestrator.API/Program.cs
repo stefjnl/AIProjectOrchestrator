@@ -123,13 +123,7 @@ builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IPromptTemplateRepository, PromptTemplateRepository>();
 builder.Services.AddScoped<IPromptTemplateService, PromptTemplateService>();
 
-// Add AI provider credentials configuration
-builder.Services.Configure<AIProviderCredentials>(
-    builder.Configuration.GetSection(AIProviderCredentials.SectionName));
-
-// Add AI operation settings configuration
-builder.Services.Configure<AIOperationSettings>(
-    builder.Configuration.GetSection("AIOperations"));
+// Unified AI configuration is bound below. Removed legacy bindings to avoid duplication.
 
 // Add AI model configuration service
 builder.Services.AddSingleton<AIProviderConfigurationService>();
@@ -154,9 +148,9 @@ builder.Services.AddSingleton<IInstructionService, InstructionService>();
 builder.Services.Configure<AIProjectOrchestrator.Infrastructure.Configuration.AIOperationSettings>(
     builder.Configuration.GetSection("AIProviders"));
 
-// Configure domain AI Provider settings for API keys and base URLs
+// Configure domain AI Provider credentials from unified 'AIProviders:Providers' section
 builder.Services.Configure<AIProjectOrchestrator.Domain.Configuration.AIProviderCredentials>(
-    builder.Configuration.GetSection("AIProviderConfigurations"));
+    builder.Configuration.GetSection("AIProviders").GetSection("Providers"));
 
 // Log the configuration for debugging
 var aiProvidersSection = builder.Configuration.GetSection("AIProviders");
