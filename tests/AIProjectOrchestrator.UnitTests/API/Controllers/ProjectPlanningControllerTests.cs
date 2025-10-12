@@ -75,7 +75,7 @@ namespace AIProjectOrchestrator.UnitTests.API.Controllers
             // Arrange
             var planningId = Guid.NewGuid();
             _mockService.Setup(s => s.GetPlanningResultsAsync(planningId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync((ProjectPlanningResponse)null);
+                .ReturnsAsync((ProjectPlanningResponse)null!);
 
             // Act
             var result = await _controller.GetPlanning(planningId, CancellationToken.None);

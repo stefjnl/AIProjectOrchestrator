@@ -9,7 +9,7 @@ using Xunit;
 
 namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 {
-    public class ProjectRepositoryTests : IDisposable
+    public class ProjectRepositoryTests : IAsyncLifetime
     {
         private readonly IProjectRepository _repository;
         private readonly AppDbContext _context;
@@ -37,7 +37,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             
             var savedEntity = await _context.Projects.FindAsync(result.Id);
             savedEntity.Should().NotBeNull();
-            savedEntity.Name.Should().Be(project.Name);
+            savedEntity?.Name.Should().Be(project.Name);
         }
 
         [Fact]
@@ -59,8 +59,8 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             
             var updatedEntity = await _context.Projects.FindAsync(addedEntity.Id);
             updatedEntity.Should().NotBeNull();
-            updatedEntity.Name.Should().Be("Updated Name");
-            updatedEntity.UpdatedDate.Should().BeAfter(originalUpdatedDate);
+            updatedEntity?.Name.Should().Be("Updated Name");
+            updatedEntity?.UpdatedDate.Should().BeAfter(originalUpdatedDate);
         }
 
         [Fact]
@@ -75,8 +75,8 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.Id.Should().Be(addedEntity.Id);
-            result.Name.Should().Be(project.Name);
+            result?.Id.Should().Be(addedEntity.Id);
+            result?.Name.Should().Be(project.Name);
         }
 
         [Fact]
@@ -101,7 +101,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.Id.Should().Be(addedEntity.Id);
+            result?.Id.Should().Be(addedEntity.Id);
         }
 
         [Fact(Skip = "GetByStringIdAsync has implementation issues with expression translation")]
@@ -147,7 +147,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             // Assert
             var updatedEntity = await _context.Projects.FindAsync(addedEntity.Id);
             updatedEntity.Should().NotBeNull();
-            updatedEntity.Name.Should().Be("Updated Name");
+            updatedEntity?.Name.Should().Be("Updated Name");
         }
 
         [Fact]
@@ -165,9 +165,16 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             deletedEntity.Should().BeNull();
         }
 
-        public void Dispose()
+        public async Task InitializeAsync()
+        {
+            // Initialization logic if needed
+            await Task.CompletedTask;
+        }
+
+        public async Task DisposeAsync()
         {
             _context?.Dispose();
+            await Task.CompletedTask;
         }
     }
 }

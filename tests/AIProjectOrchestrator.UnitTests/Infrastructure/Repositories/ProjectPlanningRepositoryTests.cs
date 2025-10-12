@@ -9,7 +9,7 @@ using Xunit;
 
 namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 {
-    public class ProjectPlanningRepositoryTests : IDisposable
+    public class ProjectPlanningRepositoryTests : IAsyncLifetime
     {
         private readonly IProjectPlanningRepository _repository;
         private readonly AppDbContext _context;
@@ -18,6 +18,18 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
         {
             _context = TestDbContextFactory.CreateContext();
             _repository = new ProjectPlanningRepository(_context);
+        }
+
+        public async Task InitializeAsync()
+        {
+            // Initialize resources if needed
+            await Task.CompletedTask;
+        }
+
+        public async Task DisposeAsync()
+        {
+            _context?.Dispose();
+            await Task.CompletedTask;
         }
 
         [Fact]
@@ -44,7 +56,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             
             var savedEntity = await _context.ProjectPlannings.FindAsync(result.Id);
             savedEntity.Should().NotBeNull();
-            savedEntity.PlanningId.Should().Be(projectPlanning.PlanningId);
+            savedEntity?.PlanningId.Should().Be(projectPlanning.PlanningId);
         }
 
         [Fact]
@@ -67,8 +79,8 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.Id.Should().Be(addedEntity.Id);
-            result.PlanningId.Should().Be(projectPlanning.PlanningId);
+            result?.Id.Should().Be(addedEntity.Id);
+            result?.PlanningId.Should().Be(projectPlanning.PlanningId);
         }
 
         [Fact]
@@ -101,7 +113,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.PlanningId.Should().Be("test-planning-123");
+            result?.PlanningId.Should().Be("test-planning-123");
         }
 
         [Fact]
@@ -134,7 +146,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.RequirementsAnalysisId.Should().Be(requirementsAnalysis.Id);
+            result?.RequirementsAnalysisId.Should().Be(requirementsAnalysis.Id);
         }
 
         [Fact]
@@ -196,7 +208,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             // Assert
             var updatedEntity = await _context.ProjectPlannings.FindAsync(addedEntity.Id);
             updatedEntity.Should().NotBeNull();
-            updatedEntity.Content.Should().Be("Updated Content");
+            updatedEntity?.Content.Should().Be("Updated Content");
         }
 
         [Fact]
@@ -222,9 +234,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             deletedEntity.Should().BeNull();
         }
 
-        public void Dispose()
-        {
-            _context?.Dispose();
-        }
+        // The Dispose method is not needed when implementing IAsyncLifetime
+        // Use DisposeAsync instead which is already implemented above
     }
 }

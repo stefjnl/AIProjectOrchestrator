@@ -10,13 +10,25 @@ using Xunit;
 
 namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 {
-    public class ReviewRepositoryTests : IDisposable
+    public class ReviewRepositoryTests : IAsyncLifetime
     {
         private readonly AppDbContext _sharedContext;
 
         public ReviewRepositoryTests()
         {
             _sharedContext = TestDbContextFactory.CreateContext();
+        }
+
+        public async Task InitializeAsync()
+        {
+            // Initialize resources if needed
+            await Task.CompletedTask;
+        }
+
+        public async Task DisposeAsync()
+        {
+            _sharedContext?.Dispose();
+            await Task.CompletedTask;
         }
 
         [Fact]
@@ -37,7 +49,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             
             var savedEntity = await context.Reviews.FindAsync(result.Id);
             savedEntity.Should().NotBeNull();
-            savedEntity.Content.Should().Be(review.Content);
+            savedEntity?.Content.Should().Be(review.Content);
             
             context.Dispose();
         }
@@ -56,8 +68,8 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.Id.Should().Be(addedEntity.Id);
-            result.Content.Should().Be(review.Content);
+            result?.Id.Should().Be(addedEntity.Id);
+            result?.Content.Should().Be(review.Content);
             
             context.Dispose();
         }
@@ -92,7 +104,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.ReviewId.Should().Be(addedEntity.ReviewId);
+            result?.ReviewId.Should().Be(addedEntity.ReviewId);
             
             context.Dispose();
         }
@@ -135,7 +147,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.Id.Should().Be(addedEntity.Id);
+            result?.Id.Should().Be(addedEntity?.Id);
             
             context.Dispose();
         }
@@ -166,7 +178,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.Id.Should().Be(addedEntity.Id);
+            result?.Id.Should().Be(addedEntity?.Id);
             
             context.Dispose();
         }
@@ -201,7 +213,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.Id.Should().Be(addedEntity.Id);
+            result?.Id.Should().Be(addedEntity?.Id);
             
             context.Dispose();
         }
@@ -245,7 +257,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.Id.Should().Be(addedEntity.Id);
+            result?.Id.Should().Be(addedEntity?.Id);
             
             context.Dispose();
         }
@@ -384,7 +396,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             // Assert
             var updatedEntity = await context.Reviews.FindAsync(addedEntity.Id);
             updatedEntity.Should().NotBeNull();
-            updatedEntity.Content.Should().Be("Updated Content");
+            updatedEntity?.Content.Should().Be("Updated Content");
             
             context.Dispose();
         }
@@ -408,9 +420,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             context.Dispose();
         }
 
-        public void Dispose()
-        {
-            _sharedContext?.Dispose();
-        }
+        // The Dispose method is not needed when implementing IAsyncLifetime
+        // Use DisposeAsync instead which is already implemented above
     }
 }

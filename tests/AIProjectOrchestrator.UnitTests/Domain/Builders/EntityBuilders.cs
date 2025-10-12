@@ -48,8 +48,8 @@ namespace AIProjectOrchestrator.UnitTests.Domain.Builders
                 Content = content,
                 ReviewId = reviewId,
                 CreatedDate = createdDate ?? DateTime.UtcNow,
-                Project = null,
-                Review = null,
+                Project = TestDefaults.DefaultProject(),
+                Review = TestDefaults.DefaultReview(),
                 ProjectPlannings = new List<ProjectPlanning>()
             };
         }
@@ -72,8 +72,8 @@ namespace AIProjectOrchestrator.UnitTests.Domain.Builders
                 Content = content,
                 ReviewId = reviewId,
                 CreatedDate = createdDate ?? DateTime.UtcNow,
-                RequirementsAnalysis = null,
-                Review = null,
+                RequirementsAnalysis = TestDefaults.DefaultRequirementsAnalysis(),
+                Review = TestDefaults.DefaultReview(),
                 StoryGenerations = new List<StoryGeneration>()
             };
         }
@@ -98,8 +98,8 @@ namespace AIProjectOrchestrator.UnitTests.Domain.Builders
                 ReviewId = reviewId,
                 CreatedDate = createdDate ?? DateTime.UtcNow,
                 StoriesJson = storiesJson,
-                ProjectPlanning = null,
-                Review = null,
+                ProjectPlanning = TestDefaults.DefaultProjectPlanning(),
+                Review = TestDefaults.DefaultReview(),
                 PromptGenerations = new List<PromptGeneration>(),
                 Stories = new List<UserStory>()
             };
@@ -133,7 +133,7 @@ namespace AIProjectOrchestrator.UnitTests.Domain.Builders
                 Status = status,
                 HasPrompt = hasPrompt,
                 PromptId = promptId,
-                StoryGeneration = null,
+                StoryGeneration = TestDefaults.DefaultStoryGeneration(),
                 PromptGenerations = new List<PromptGeneration>()
             };
         }
@@ -161,8 +161,8 @@ namespace AIProjectOrchestrator.UnitTests.Domain.Builders
                 Content = content,
                 ReviewId = reviewId,
                 CreatedDate = createdDate ?? DateTime.UtcNow,
-                UserStory = null,
-                Review = null
+                UserStory = TestDefaults.DefaultUserStory(),
+                Review = TestDefaults.DefaultReview()
             };
         }
 
@@ -179,7 +179,7 @@ namespace AIProjectOrchestrator.UnitTests.Domain.Builders
                 Title = title,
                 Content = content,
                 CreatedAt = createdAt ?? DateTime.UtcNow,
-                UpdatedAt = updatedAt
+                UpdatedAt = updatedAt ?? DateTime.UtcNow
             };
         }
 
@@ -213,10 +213,10 @@ namespace AIProjectOrchestrator.UnitTests.Domain.Builders
                 ProjectPlanningId = projectPlanningId,
                 StoryGenerationId = storyGenerationId,
                 PromptGenerationId = promptGenerationId,
-                RequirementsAnalysis = null,
-                ProjectPlanning = null,
-                StoryGeneration = null,
-                PromptGeneration = null
+                RequirementsAnalysis = TestDefaults.DefaultRequirementsAnalysis(),
+                ProjectPlanning = TestDefaults.DefaultProjectPlanning(),
+                StoryGeneration = TestDefaults.DefaultStoryGeneration(),
+                PromptGeneration = TestDefaults.DefaultPromptGeneration()
             };
         }
     }

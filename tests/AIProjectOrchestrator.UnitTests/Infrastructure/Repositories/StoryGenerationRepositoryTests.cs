@@ -12,7 +12,7 @@ using Xunit;
 
 namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 {
-    public class StoryGenerationRepositoryTests
+    public class StoryGenerationRepositoryTests : IAsyncLifetime
     {
         private Mock<ILogger<StoryGenerationRepository>> CreateLoggerMock()
         {
@@ -23,21 +23,20 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
         public async Task AddAsync_PersistsEntity()
         {
             // Arrange
-            var context = CreateNewContext();
             var loggerMock = CreateLoggerMock();
-            var repository = CreateRepository(context, loggerMock);
+            var repository = CreateRepository(Context, loggerMock);
             
             var project = EntityBuilders.BuildProject();
-            await context.Projects.AddAsync(project);
-            await context.SaveChangesAsync();
+            await Context.Projects.AddAsync(project);
+            await Context.SaveChangesAsync();
             
             var requirementsAnalysis = EntityBuilders.BuildRequirementsAnalysis(projectId: project.Id);
-            await context.RequirementsAnalyses.AddAsync(requirementsAnalysis);
-            await context.SaveChangesAsync();
+            await Context.RequirementsAnalyses.AddAsync(requirementsAnalysis);
+            await Context.SaveChangesAsync();
             
             var projectPlanning = EntityBuilders.BuildProjectPlanning(requirementsAnalysisId: requirementsAnalysis.Id);
-            await context.ProjectPlannings.AddAsync(projectPlanning);
-            await context.SaveChangesAsync();
+            await Context.ProjectPlannings.AddAsync(projectPlanning);
+            await Context.SaveChangesAsync();
             
             var storyGeneration = EntityBuilders.BuildStoryGeneration(projectPlanningId: projectPlanning.Id);
 
@@ -49,11 +48,9 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             result.Id.Should().BeGreaterThan(0);
             result.ProjectPlanningId.Should().Be(projectPlanning.Id);
             
-            var savedEntity = await context.StoryGenerations.FindAsync(result.Id);
+            var savedEntity = await Context.StoryGenerations.FindAsync(result.Id);
             savedEntity.Should().NotBeNull();
-            savedEntity.GenerationId.Should().Be(storyGeneration.GenerationId);
-            
-            context.Dispose();
+            savedEntity?.GenerationId.Should().Be(storyGeneration.GenerationId);
         }
 
         [Fact]
@@ -84,8 +81,8 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.Id.Should().Be(addedEntity.Id);
-            result.GenerationId.Should().Be(storyGeneration.GenerationId);
+            result?.Id.Should().Be(addedEntity.Id);
+            result?.GenerationId.Should().Be(storyGeneration.GenerationId);
             
             context.Dispose();
         }
@@ -136,7 +133,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.GenerationId.Should().Be(testGenerationId);
+            result?.GenerationId.Should().Be(testGenerationId);
             
             context.Dispose();
         }
@@ -186,7 +183,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.ProjectPlanningId.Should().Be(projectPlanning.Id);
+            result?.ProjectPlanningId.Should().Be(projectPlanning.Id);
             
             context.Dispose();
         }
@@ -238,7 +235,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             result.Should().NotBeNull();
             var storyGenerations = result.ToList();
             storyGenerations.Should().HaveCount(1);
-            storyGenerations.First().ProjectPlanningId.Should().Be(projectPlanning.Id);
+            storyGenerations.First()?.ProjectPlanningId.Should().Be(projectPlanning.Id);
             
             context.Dispose();
         }
@@ -295,7 +292,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.Id.Should().Be(userStory.Id);
+            result?.Id.Should().Be(userStory.Id);
             
             context.Dispose();
         }
@@ -354,7 +351,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             // Assert
             var updatedEntity = await context.UserStories.FindAsync(userStory.Id);
             updatedEntity.Should().NotBeNull();
-            updatedEntity.Title.Should().Be("Updated Title");
+            updatedEntity?.Title.Should().Be("Updated Title");
             
             context.Dispose();
         }
@@ -393,7 +390,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.Should().ContainSingle(s => s.Id == userStory.Id);
+            result?.Should().ContainSingle(s => s.Id == userStory.Id);
             
             context.Dispose();
         }
@@ -472,8 +469,24 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             return TestDbContextFactory.CreateContext();
         }
 
-        private IStoryGenerationRepository CreateRepository(AppDbContext context, Mock<ILogger<StoryGenerationRepository>> loggerMock)
+        public AppDbContext Context { get; private set; } = null!;
+        
+        public async Task InitializeAsync()
         {
+            Context = TestDbContextFactory.CreateContext();
+            await Task.CompletedTask;
+        }
+
+        public async Task DisposeAsync()
+        {
+            Context?.Dispose();
+            await Task.CompletedTask;
+        }
+        
+        private IStoryGenerationRepository CreateRepository(AppDbContext? context = null, Mock<ILogger<StoryGenerationRepository>>? loggerMock = null)
+        {
+            context ??= Context;
+            loggerMock ??= CreateLoggerMock();
             return new StoryGenerationRepository(context, loggerMock.Object);
         }
     }

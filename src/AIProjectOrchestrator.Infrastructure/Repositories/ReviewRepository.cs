@@ -99,28 +99,35 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
             return uniqueReviewsToDelete.Count;
         }
 
+        /// <summary>
+        /// Gets pending reviews with their associated project data
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Collection of pending reviews with project data</returns>
         public async Task<IEnumerable<Review>> GetPendingReviewsWithProjectAsync(CancellationToken cancellationToken = default)
         {
             return await _context.Reviews
                 .Where(r => r.Status == ReviewStatus.Pending)
-                .Include(r => r.RequirementsAnalysis).ThenInclude(ra => ra.Project)
-                .Include(r => r.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis!).ThenInclude(ra => ra.Project!)
-#pragma warning disable CS8602
-                .Include(r => r.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
-                .Include(r => r.PromptGeneration).ThenInclude(pg => pg.UserStory).ThenInclude(us => us.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
-#pragma warning restore CS8602
+                .Include(r => r.RequirementsAnalysis!).ThenInclude(ra => ra.Project!)
+                .Include(r => r.ProjectPlanning!).ThenInclude(pp => pp.RequirementsAnalysis!).ThenInclude(ra => ra.Project!)
+                .Include(r => r.StoryGeneration!).ThenInclude(sg => sg.ProjectPlanning!).ThenInclude(pp => pp.RequirementsAnalysis!).ThenInclude(ra => ra.Project!)
+                .Include(r => r.PromptGeneration!).ThenInclude(pg => pg.UserStory!).ThenInclude(us => us.StoryGeneration!).ThenInclude(sg => sg.ProjectPlanning!).ThenInclude(pp => pp.RequirementsAnalysis!).ThenInclude(ra => ra.Project!)
                 .ToListAsync(cancellationToken);
         }
 
+        /// <summary>
+        /// Gets a review with its associated workflow data
+        /// </summary>
+        /// <param name="reviewId">The ID of the review</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>The review with workflow data or null if not found</returns>
         public async Task<Review?> GetReviewWithWorkflowAsync(Guid reviewId, CancellationToken cancellationToken = default)
         {
             return await _context.Reviews
-                .Include(r => r.RequirementsAnalysis).ThenInclude(ra => ra.Project)
-                .Include(r => r.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis!).ThenInclude(ra => ra.Project!)
-#pragma warning disable CS8602
-                .Include(r => r.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
-                .Include(r => r.PromptGeneration).ThenInclude(pg => pg.UserStory).ThenInclude(us => us.StoryGeneration).ThenInclude(sg => sg.ProjectPlanning).ThenInclude(pp => pp.RequirementsAnalysis).ThenInclude(ra => ra.Project)
-#pragma warning restore CS8602
+                .Include(r => r.RequirementsAnalysis!).ThenInclude(ra => ra.Project!)
+                .Include(r => r.ProjectPlanning!).ThenInclude(pp => pp.RequirementsAnalysis!).ThenInclude(ra => ra.Project!)
+                .Include(r => r.StoryGeneration!).ThenInclude(sg => sg.ProjectPlanning!).ThenInclude(pp => pp.RequirementsAnalysis!).ThenInclude(ra => ra.Project!)
+                .Include(r => r.PromptGeneration!).ThenInclude(pg => pg.UserStory!).ThenInclude(us => us.StoryGeneration!).ThenInclude(sg => sg.ProjectPlanning!).ThenInclude(pp => pp.RequirementsAnalysis!).ThenInclude(ra => ra.Project!)
                 .FirstOrDefaultAsync(r => r.ReviewId == reviewId, cancellationToken);
         }
 

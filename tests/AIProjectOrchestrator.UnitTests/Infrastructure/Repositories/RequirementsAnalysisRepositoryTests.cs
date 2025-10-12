@@ -9,7 +9,7 @@ using Xunit;
 
 namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 {
-    public class RequirementsAnalysisRepositoryTests : IDisposable
+    public class RequirementsAnalysisRepositoryTests : IAsyncLifetime
     {
         private readonly IRequirementsAnalysisRepository _repository;
         private readonly AppDbContext _context;
@@ -40,7 +40,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             
             var savedEntity = await _context.RequirementsAnalyses.FindAsync(result.Id);
             savedEntity.Should().NotBeNull();
-            savedEntity.AnalysisId.Should().Be(requirementsAnalysis.AnalysisId);
+            savedEntity?.AnalysisId.Should().Be(requirementsAnalysis.AnalysisId);
         }
 
         [Fact]
@@ -59,8 +59,8 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.Id.Should().Be(addedEntity.Id);
-            result.AnalysisId.Should().Be(requirementsAnalysis.AnalysisId);
+            result?.Id.Should().Be(addedEntity.Id);
+            result?.AnalysisId.Should().Be(requirementsAnalysis.AnalysisId);
         }
 
         [Fact]
@@ -89,7 +89,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.AnalysisId.Should().Be("test-analysis-123");
+            result?.AnalysisId.Should().Be("test-analysis-123");
         }
 
         [Fact]
@@ -118,7 +118,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.ProjectId.Should().Be(project.Id);
+            result?.ProjectId.Should().Be(project.Id);
         }
 
         [Fact]
@@ -146,7 +146,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             var result = await _repository.GetEntityIdByAnalysisIdAsync("test-analysis-456", CancellationToken.None);
 
             // Assert
-            result.Should().Be(addedEntity.Id);
+            result.Should().Be(addedEntity?.Id);
         }
 
         [Fact]
@@ -200,7 +200,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             // Assert
             var updatedEntity = await _context.RequirementsAnalyses.FindAsync(addedEntity.Id);
             updatedEntity.Should().NotBeNull();
-            updatedEntity.Content.Should().Be("Updated Content");
+            updatedEntity?.Content.Should().Be("Updated Content");
         }
 
         [Fact]
@@ -222,9 +222,16 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             deletedEntity.Should().BeNull();
         }
 
-        public void Dispose()
+        public async Task InitializeAsync()
+        {
+            // Initialization logic if needed
+            await Task.CompletedTask;
+        }
+
+        public async Task DisposeAsync()
         {
             _context?.Dispose();
+            await Task.CompletedTask;
         }
     }
 }

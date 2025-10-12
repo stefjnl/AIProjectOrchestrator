@@ -10,13 +10,25 @@ using Xunit;
 
 namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 {
-    public class PromptGenerationRepositoryTests : IDisposable
+    public class PromptGenerationRepositoryTests : IAsyncLifetime
     {
         private readonly AppDbContext _sharedContext;
 
         public PromptGenerationRepositoryTests()
         {
             _sharedContext = TestDbContextFactory.CreateContext();
+        }
+
+        public async Task InitializeAsync()
+        {
+            // Initialize resources if needed
+            await Task.CompletedTask;
+        }
+
+        public async Task DisposeAsync()
+        {
+            _sharedContext?.Dispose();
+            await Task.CompletedTask;
         }
 
         [Fact]
@@ -58,7 +70,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             
             var savedEntity = await context.PromptGenerations.FindAsync(result.Id);
             savedEntity.Should().NotBeNull();
-            savedEntity.PromptId.Should().Be(promptGeneration.PromptId);
+            savedEntity?.PromptId.Should().Be(promptGeneration.PromptId);
             
             context.Dispose();
         }
@@ -98,8 +110,8 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.Id.Should().Be(addedEntity.Id);
-            result.PromptId.Should().Be(promptGeneration.PromptId);
+            result?.Id.Should().Be(addedEntity.Id);
+            result?.PromptId.Should().Be(promptGeneration.PromptId);
             
             context.Dispose();
         }
@@ -155,7 +167,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.PromptId.Should().Be("test-prompt-123");
+            result?.PromptId.Should().Be("test-prompt-123");
             
             context.Dispose();
         }
@@ -211,8 +223,8 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.UserStoryId.Should().Be(userStory.Id);
-            result.StoryIndex.Should().Be(1);
+            result?.UserStoryId.Should().Be(userStory.Id);
+            result?.StoryIndex.Should().Be(1);
             
             context.Dispose();
         }
@@ -270,7 +282,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             result.Should().NotBeNull();
             var promptGenerations = result.ToList();
             promptGenerations.Should().HaveCount(1);
-            promptGenerations.First().UserStoryId.Should().Be(userStory.Id);
+            promptGenerations.First()?.UserStoryId.Should().Be(userStory.Id);
             
             context.Dispose();
         }
@@ -329,7 +341,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             result.Should().NotBeNull();
             var promptGenerations = result.ToList();
             promptGenerations.Should().HaveCount(1);
-            promptGenerations.First().UserStoryId.Should().Be(userStory.Id);
+            promptGenerations.First()?.UserStoryId.Should().Be(userStory.Id);
             
             context.Dispose();
         }
@@ -432,7 +444,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             // Assert
             var updatedEntity = await context.PromptGenerations.FindAsync(addedEntity.Id);
             updatedEntity.Should().NotBeNull();
-            updatedEntity.Content.Should().Be("Updated Content");
+            updatedEntity?.Content.Should().Be("Updated Content");
             
             context.Dispose();
         }
@@ -477,9 +489,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             context.Dispose();
         }
 
-        public void Dispose()
-        {
-            _sharedContext?.Dispose();
-        }
+        // The Dispose method is not needed when implementing IAsyncLifetime
+        // Use DisposeAsync instead which is already implemented above
     }
 }

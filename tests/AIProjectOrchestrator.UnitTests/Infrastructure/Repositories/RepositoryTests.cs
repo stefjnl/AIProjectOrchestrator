@@ -9,7 +9,7 @@ using Xunit;
 
 namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 {
-    public class RepositoryTests
+    public class RepositoryTests : IAsyncLifetime
     {
         private readonly IRepository<Project> _repository;
         private readonly AppDbContext _context;
@@ -34,7 +34,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             result.Id.Should().BeGreaterThan(0);
             var savedEntity = await _context.Projects.FindAsync(result.Id);
             savedEntity.Should().NotBeNull();
-            savedEntity.Name.Should().Be(project.Name);
+            savedEntity?.Name.Should().Be(project.Name);
         }
 
         [Fact]
@@ -49,8 +49,8 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.Id.Should().Be(addedEntity.Id);
-            result.Name.Should().Be(project.Name);
+            result?.Id.Should().Be(addedEntity.Id);
+            result?.Name.Should().Be(project.Name);
         }
 
         [Fact]
@@ -75,7 +75,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 
             // Assert
             result.Should().NotBeNull();
-            result.Id.Should().Be(addedEntity.Id);
+            result?.Id.Should().Be(addedEntity.Id);
         }
 
         [Fact(Skip = "GetByStringIdAsync has implementation issues with expression translation")]
@@ -121,7 +121,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             // Assert
             var updatedEntity = await _context.Projects.FindAsync(addedEntity.Id);
             updatedEntity.Should().NotBeNull();
-            updatedEntity.Name.Should().Be("Updated Name");
+            updatedEntity?.Name.Should().Be("Updated Name");
         }
 
         [Fact]
@@ -147,9 +147,16 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             await action.Should().NotThrowAsync();
         }
 
-        public void Dispose()
+        public async Task InitializeAsync()
+        {
+            // Initialization logic if needed
+            await Task.CompletedTask;
+        }
+
+        public async Task DisposeAsync()
         {
             _context?.Dispose();
+            await Task.CompletedTask;
         }
     }
 }

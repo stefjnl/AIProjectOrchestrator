@@ -73,7 +73,7 @@ namespace AIProjectOrchestrator.UnitTests.API.Controllers
             // Arrange
             var analysisId = Guid.NewGuid();
             _mockService.Setup(s => s.GetAnalysisResultsAsync(analysisId, It.IsAny<CancellationToken>()))
-                .ReturnsAsync((RequirementsAnalysisResponse)null);
+                .ReturnsAsync((RequirementsAnalysisResponse)null!);
 
             // Act
             var result = await _controller.GetAnalysis(analysisId, CancellationToken.None);
