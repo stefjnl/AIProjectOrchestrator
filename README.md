@@ -25,9 +25,6 @@ AI Project Orchestrator automates the software development process by breaking i
 The application follows Clean Architecture principles with a Domain-Driven Design approach, ensuring separation of concerns and maintainability. It uses .NET Aspire for containerized orchestration and supports multiple AI providers through a unified interface.
 ![AIProjectOrchestrator](https://github.com/user-attachments/assets/41bce4af-42b4-4dee-be18-5112f002ed4a)
 
-<img width="2042" height="1001" alt="image" src="https://github.com/user-attachments/assets/9b127981-5b1d-4434-b19f-ab6e14f04702" />
-
-
 ## Architecture
 
 The application follows a Clean Architecture pattern with the following layers:
@@ -70,6 +67,8 @@ The application follows a Clean Architecture pattern with the following layers:
 - **Docker Orchestration**: Containerized deployment with .NET Aspire
 - **Modular Frontend**: JavaScript-based UI with service bundle architecture
 - **Health Checks**: Comprehensive monitoring and health verification
+
+<img width="2042" height="1001" alt="image" src="https://github.com/user-attachments/assets/9b127981-5b1d-4434-b19f-ab6e14f04702" />
 
 ## Workflow Pipeline
 
