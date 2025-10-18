@@ -1,5 +1,6 @@
 using AIProjectOrchestrator.Domain.Common;
 using AIProjectOrchestrator.Domain.Interfaces;
+using AIProjectOrchestrator.Domain.Models;
 using AIProjectOrchestrator.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -34,13 +35,59 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         }
 
         /// <summary>
-        /// Gets all entities in the repository
+        /// Gets all entities in the repository.
+        /// WARNING: This method loads the entire table into memory. For large datasets, 
+        /// use GetQueryable() or GetPagedAsync() instead for better performance.
         /// </summary>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Collection of all entities</returns>
         public virtual async Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default)
         {
             return await _dbSet.ToListAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Gets a queryable for efficient filtering and pagination.
+        /// Use this for complex queries or when dealing with large datasets.
+        /// The query is not executed until enumerated or a ToListAsync/FirstOrDefaultAsync call is made.
+        /// </summary>
+        /// <returns>IQueryable for deferred execution</returns>
+        public virtual IQueryable<T> GetQueryable()
+        {
+            return _dbSet.AsQueryable();
+        }
+
+        /// <summary>
+        /// Gets a paged result set with metadata for pagination.
+        /// </summary>
+        /// <param name="pageNumber">The page number (1-based)</param>
+        /// <param name="pageSize">The number of items per page</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Paged result with items and pagination metadata</returns>
+        public virtual async Task<PagedResult<T>> GetPagedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+        {
+            // Validate parameters
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 100) pageSize = 100; // Limit max page size
+
+            // Get total count (single query)
+            var totalCount = await _dbSet.CountAsync(cancellationToken).ConfigureAwait(false);
+
+            // Get paged items (single query with SKIP/TAKE)
+            var items = await _dbSet
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            return new PagedResult<T>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
         }
 
         /// <summary>

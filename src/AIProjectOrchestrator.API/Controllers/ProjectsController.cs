@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using AIProjectOrchestrator.Application.Interfaces;
-using AIProjectOrchestrator.Domain.Entities;
+using AIProjectOrchestrator.Application.DTOs;
 
 namespace AIProjectOrchestrator.API.Controllers
 {
@@ -16,30 +16,31 @@ namespace AIProjectOrchestrator.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Project>>> GetProjects()
+        public async Task<ActionResult<IEnumerable<ProjectDto>>> GetProjects()
         {
             var projects = await _projectService.GetAllProjectsAsync().ConfigureAwait(false);
-            // Ensure we're returning an array, not an object
-            var projectList = projects.ToList();
-            return Ok(projectList);
+            var dtos = projects.Select(ProjectDto.FromEntity);
+            return Ok(dtos);
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<Project>> GetProject(int id)
+        public async Task<ActionResult<ProjectDto>> GetProject(int id)
         {
             var project = await _projectService.GetProjectByIdAsync(id).ConfigureAwait(false);
             if (project == null)
             {
                 return NotFound();
             }
-            return Ok(project);
+            return Ok(ProjectDto.FromEntity(project));
         }
 
         [HttpPost]
-        public async Task<ActionResult<Project>> CreateProject(Project project)
+        public async Task<ActionResult<ProjectDto>> CreateProject(ProjectDto projectDto)
         {
+            var project = projectDto.ToEntity();
             var createdProject = await _projectService.CreateProjectAsync(project).ConfigureAwait(false);
-            return CreatedAtAction(nameof(GetProject), new { id = createdProject.Id }, createdProject);
+            var dto = ProjectDto.FromEntity(createdProject);
+            return CreatedAtAction(nameof(GetProject), new { id = dto.Id }, dto);
         }
 
         [HttpDelete("{id}")]

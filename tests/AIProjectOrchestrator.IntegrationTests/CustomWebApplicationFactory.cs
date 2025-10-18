@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -26,6 +27,10 @@ namespace AIProjectOrchestrator.IntegrationTests
                 {
                     config.AddJsonFile(appSettingsPath);
                 }
+
+                // Load user secrets from the API project (which has the UserSecretsId)
+                // The API project's csproj has UserSecretsId defined
+                config.AddUserSecrets<Program>(optional: true, reloadOnChange: true);
 
                 // Override connection string for Docker testing
                 config.AddInMemoryCollection(new Dictionary<string, string?>

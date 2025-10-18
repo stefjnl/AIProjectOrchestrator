@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using AIProjectOrchestrator.Domain.Models;
 
 namespace AIProjectOrchestrator.Domain.Interfaces
 {
@@ -21,11 +23,29 @@ namespace AIProjectOrchestrator.Domain.Interfaces
         Task<T?> GetByIdAsync(TId id, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Gets all entities in the repository
+        /// Gets all entities in the repository.
+        /// WARNING: This method loads the entire table into memory. For large datasets, 
+        /// use GetQueryable() or GetPagedAsync() instead for better performance.
         /// </summary>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Collection of all entities</returns>
         Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Gets a queryable for efficient filtering and pagination.
+        /// Use this for complex queries or when dealing with large datasets.
+        /// </summary>
+        /// <returns>IQueryable for deferred execution</returns>
+        IQueryable<T> GetQueryable();
+
+        /// <summary>
+        /// Gets a paged result set with metadata for pagination.
+        /// </summary>
+        /// <param name="pageNumber">The page number (1-based)</param>
+        /// <param name="pageSize">The number of items per page</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns>Paged result with items and pagination metadata</returns>
+        Task<PagedResult<T>> GetPagedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default);
     }
 
     /// <summary>

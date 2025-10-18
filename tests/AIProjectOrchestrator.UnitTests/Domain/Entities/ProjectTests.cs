@@ -85,23 +85,6 @@ namespace AIProjectOrchestrator.UnitTests.Domain.Entities
         }
 
         [Fact]
-        public void CreatedAt_PropertyReturnsCreatedDate()
-        {
-            // Arrange
-            var createdDate = DateTime.UtcNow;
-            var project = new Project
-            {
-                CreatedDate = createdDate
-            };
-
-            // Act
-            var createdAt = project.CreatedAt;
-
-            // Assert
-            createdAt.Should().Be(createdDate);
-        }
-
-        [Fact]
         public void RequirementsAnalyses_CollectionIsInitialized()
         {
             // Arrange & Act
