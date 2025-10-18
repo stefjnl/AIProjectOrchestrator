@@ -17,15 +17,15 @@ namespace AIProjectOrchestrator.Infrastructure.AI.Providers
         /// <param name="httpClientFactory">Factory for creating HTTP clients with Docker SSL support</param>
         /// <param name="settings">Operation-specific configuration</param>
         /// <param name="logger">Logger for diagnostics</param>
-        /// <param name="providerConfigService">Service for runtime provider configuration</param>
+        /// <param name="loggerFactory">Logger factory for creating operation-specific loggers</param>
+        /// <param name="serviceProvider">Service provider for dependency resolution</param>
         public PlanningAIProvider(
             IHttpClientFactory httpClientFactory,
             IOptions<AIOperationSettings> settings,
             ILogger<PlanningAIProvider> logger,
             ILoggerFactory loggerFactory,
-            IProviderConfigurationService? providerConfigService = null,
             IServiceProvider? serviceProvider = null)
-            : base("ProjectPlanning", httpClientFactory, settings, logger, loggerFactory, providerConfigService, serviceProvider)
+            : base("ProjectPlanning", httpClientFactory, settings, logger, loggerFactory, serviceProvider)
         {
             // This provider is specifically configured for Project Planning operations
             // The operation type "ProjectPlanning" is used to look up configuration

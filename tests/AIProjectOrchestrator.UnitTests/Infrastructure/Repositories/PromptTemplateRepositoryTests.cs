@@ -105,31 +105,8 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             result.Should().BeNull();
         }
 
-        [Fact(Skip = "GetByStringIdAsync not applicable for PromptTemplate with Guid Id")]
-        public async Task GetByStringIdAsync_WithValidId_ReturnsEntity()
-        {
-            // Arrange
-            var promptTemplate = EntityBuilders.BuildPromptTemplate(title: "Test Template");
-            var addedEntity = await _repository.AddAsync(promptTemplate);
-
-            // Act
-            var result = await ((IRepository<PromptTemplate>)_repository).GetByStringIdAsync(addedEntity.Id.ToString(), CancellationToken.None);
-
-            // Assert
-            result.Should().NotBeNull();
-            result?.Id.Should().Be(addedEntity.Id);
-            result?.Id.Should().Be(addedEntity.Id);
-        }
-
-        [Fact(Skip = "GetByStringIdAsync not applicable for PromptTemplate with Guid Id")]
-        public async Task GetByStringIdAsync_WithInvalidId_ReturnsNull()
-        {
-            // Act
-            var result = await ((IRepository<PromptTemplate>)_repository).GetByStringIdAsync("invalid-id", CancellationToken.None);
-
-            // Assert
-            result.Should().BeNull();
-        }
+        // GetByStringIdAsync method removed - not applicable for Guid IDs and had performance issues.
+        // Use GetByIdAsync(Guid) instead.
 
         [Fact]
         public async Task GetAllAsync_ReturnsAllEntities()
@@ -141,7 +118,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             await _repository.AddAsync(template2);
 
             // Act
-            var result = await ((IRepository<PromptTemplate>)_repository).GetAllAsync(CancellationToken.None);
+            var result = await _repository.GetAllAsync(CancellationToken.None);
 
             // Assert
             result.Should().HaveCount(2);
@@ -159,12 +136,12 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             addedEntity.Title = "Updated Title";
 
             // Act
-            var result = await ((IPromptTemplateRepository)_repository).UpdateAsync(addedEntity);
+            await _repository.UpdateAsync(addedEntity);
 
             // Assert
-            result.Should().NotBeNull();
-            result?.Title.Should().Be("Updated Title");
-            result?.UpdatedAt.Should().BeAfter(result?.CreatedAt ?? DateTime.MinValue);
+            addedEntity.Should().NotBeNull();
+            addedEntity.Title.Should().Be("Updated Title");
+            addedEntity.UpdatedAt.Should().BeAfter(addedEntity.CreatedAt);
             
             var updatedEntity = await _context.PromptTemplates.FindAsync(new object[] { addedEntity.Id });
             updatedEntity.Should().NotBeNull();

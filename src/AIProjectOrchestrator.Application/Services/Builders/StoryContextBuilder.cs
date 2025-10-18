@@ -7,6 +7,7 @@ using AIProjectOrchestrator.Domain.Models;
 using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Domain.Models.Stories;
 using AIProjectOrchestrator.Domain.Services;
+using AIProjectOrchestrator.Domain.Common;
 using Microsoft.Extensions.Logging;
 
 namespace AIProjectOrchestrator.Application.Services.Builders
@@ -83,7 +84,7 @@ namespace AIProjectOrchestrator.Application.Services.Builders
             _logger.LogInformation("Story generation {GenerationId} context size: {ContextSize} bytes", generationId, contextSize);
 
             // Warn if context size is approaching limits
-            if (contextSize > 100000) // Roughly 25K tokens
+            if (contextSize > AIConstants.MaxContextSizeBytes) // Roughly 25K tokens
             {
                 _logger.LogWarning("Story generation {GenerationId} context size is large: {ContextSize} bytes", generationId, contextSize);
             }

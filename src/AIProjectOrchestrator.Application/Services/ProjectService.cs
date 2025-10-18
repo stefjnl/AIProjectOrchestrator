@@ -43,7 +43,8 @@ public class ProjectService : IProjectService
 
     public async Task<Project> UpdateProjectAsync(Project project)
     {
-        return await _projectRepository.UpdateAsync(project);
+        await _projectRepository.UpdateAsync(project);
+        return project;
     }
 
     public async Task DeleteProjectAsync(int id)

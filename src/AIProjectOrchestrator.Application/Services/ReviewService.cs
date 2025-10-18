@@ -126,7 +126,7 @@ namespace AIProjectOrchestrator.Application.Services
         {
             _logger.LogDebug("Retrieving review {ReviewId}", reviewId);
 
-            var reviewEntity = await _reviewRepository.GetReviewWithWorkflowAsync(reviewId, cancellationToken);
+            var reviewEntity = await _reviewRepository.GetByReviewIdAsync(reviewId, cancellationToken);
             if (reviewEntity != null)
             {
                 // Check if review has expired
@@ -139,10 +139,6 @@ namespace AIProjectOrchestrator.Application.Services
                     _logger.LogInformation("Review {ReviewId} has expired", reviewId);
                 }
 
-                // Get project ID from the review's workflow entities
-                var project = GetProjectFromReview(reviewEntity);
-                int? projectId = project?.Id;
-
                 return new ReviewSubmission
                 {
                     Id = reviewEntity.ReviewId,
@@ -154,8 +150,7 @@ namespace AIProjectOrchestrator.Application.Services
                     SubmittedAt = reviewEntity.CreatedDate,
                     ReviewedAt = reviewEntity.UpdatedDate,
                     Decision = null, // This would need to be reconstructed from database fields
-                    Metadata = new Dictionary<string, object>(), // This would need to be stored in the database
-                    ProjectId = projectId
+                    Metadata = new Dictionary<string, object>() // This would need to be stored in the database
                 };
             }
 
@@ -395,7 +390,7 @@ namespace AIProjectOrchestrator.Application.Services
             // Track complete workflow status across all services
             // Requirements status, Planning status, Stories status
             // Return current stage and next required action
-            
+
             // This is a placeholder implementation
             // In a real implementation, we would query the actual workflow status
             return Task.FromResult<WorkflowStatusItem?>(null);
@@ -507,7 +502,6 @@ namespace AIProjectOrchestrator.Application.Services
                             Status = reviewEntity.Status,
                             SubmittedAt = reviewEntity.CreatedDate,
                             ReviewedAt = reviewEntity.UpdatedDate,
-                            ProjectId = project.Id,
                             ProjectName = project.Name,
                             ProjectDescription = project.Description,
                             ProjectStage = reviewEntity.PipelineStage,

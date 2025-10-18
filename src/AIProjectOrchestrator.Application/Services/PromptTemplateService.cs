@@ -30,7 +30,8 @@ namespace AIProjectOrchestrator.Application.Services
 
         public async Task<PromptTemplate> UpdateTemplateAsync(PromptTemplate promptTemplate)
         {
-            return await _repository.UpdateAsync(promptTemplate);
+            await _repository.UpdateAsync(promptTemplate);
+            return promptTemplate;
         }
 
         public async Task DeleteTemplateAsync(Guid id)

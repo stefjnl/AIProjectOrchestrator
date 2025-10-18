@@ -23,6 +23,23 @@ namespace AIProjectOrchestrator.Domain.Common
     }
     
     /// <summary>
+    /// Contains AI-related constants used throughout the application.
+    /// </summary>
+    public static class AIConstants
+    {
+        /// <summary>
+        /// Maximum context size in bytes before warning (~25K tokens).
+        /// Prevents exceeding model token limits and excessive costs.
+        /// </summary>
+        public const int MaxContextSizeBytes = 100000;
+        
+        /// <summary>
+        /// Minimum timeout for AI HTTP clients in seconds.
+        /// </summary>
+        public const int MinimumTimeoutSeconds = 120;
+    }
+    
+    /// <summary>
     /// Contains entity type identifiers used for review entities.
     /// </summary>
     public static class EntityTypeConstants

@@ -2,8 +2,16 @@ using AIProjectOrchestrator.Domain.Entities;
 
 namespace AIProjectOrchestrator.Domain.Interfaces
 {
-    public interface IReviewRepository : IRepository<Review>
+    /// <summary>
+    /// Repository for Review entities (int ID).
+    /// Follows Interface Segregation Principle by using IFullRepository.
+    /// Includes domain-specific query methods for workflow operations.
+    /// </summary>
+    public interface IReviewRepository : IFullRepository<Review, int>
     {
+        // IFullRepository provides: GetByIdAsync(int), GetAllAsync, AddAsync, UpdateAsync, DeleteAsync(int)
+        
+        // Domain-specific query methods
         Task<Review?> GetByReviewIdAsync(Guid reviewId, CancellationToken cancellationToken = default);
         Task<Review?> GetByWorkflowEntityIdAsync(int entityId, string entityType, CancellationToken cancellationToken = default);
         Task<IEnumerable<Review>> GetPendingReviewsAsync(CancellationToken cancellationToken = default);
