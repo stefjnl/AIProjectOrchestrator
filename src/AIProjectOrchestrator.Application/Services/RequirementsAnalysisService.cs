@@ -263,8 +263,8 @@ namespace AIProjectOrchestrator.Application.Services
                 // Convert Guid to int for repository query
                 if (!int.TryParse(projectId.ToString(), out var projectIdInt))
                 {
-                    // If projectId is not a valid int, try parsing as actual project ID
-                    return true; // Allow analysis if we can't validate
+                    _logger.LogError("Invalid projectId: {ProjectId}. Could not parse as int in CanAnalyzeRequirementsAsync.", projectId);
+                    throw new InvalidOperationException($"Invalid projectId: {projectId}. Could not parse as int in CanAnalyzeRequirementsAsync.");
                 }
                 var existingAnalysis = await _requirementsAnalysisRepository.GetByProjectIdAsync(projectIdInt, cancellationToken);
                 return existingAnalysis == null;
