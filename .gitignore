@@ -64,5 +64,22 @@ Thumbs.db
 *.suo
 *.userprefs
 
+# Local configuration files with sensitive data
+appsettings.*.Local.json
+appsettings.Development.Local.json
+appsettings.Production.Local.json
+*.local.json
+
+# User secrets
+secrets.json
+
+# Sensitive keys and credentials
+*.pfx
+*.key
+*.pem
+apikeys.txt
+credentials.txt
+secrets.txt
+
 # Test results
 TestResults/
