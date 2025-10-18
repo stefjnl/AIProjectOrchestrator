@@ -29,7 +29,7 @@ namespace AIProjectOrchestrator.API.Controllers
                 return BadRequest("AI client not available");
             }
 
-            var response = await client.CallAsync(request);
+            var response = await client.CallAsync(request).ConfigureAwait(false);
             return Ok(response);
         }
     }

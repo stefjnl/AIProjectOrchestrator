@@ -77,7 +77,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                     _settings.MaxRetries,
                     cancellationToken);
 
-                var responseContent = await response.Content.ReadAsStringAsync();
+                var responseContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -135,7 +135,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             try
             {
                 // Simple health check - try to connect to the base URL
-                var response = await _httpClient.GetAsync("", cancellationToken);
+                var response = await _httpClient.GetAsync("", cancellationToken).ConfigureAwait(false);
                 if (response.IsSuccessStatusCode)
                 {
                     _logger.LogInformation("{ProviderName} health check passed", ProviderName);
@@ -158,11 +158,11 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             try
             {
                 // Call the models endpoint for LM Studio (OpenAI-compatible)
-                var response = await _httpClient.GetAsync("models", CancellationToken.None);
+                var response = await _httpClient.GetAsync("models", CancellationToken.None).ConfigureAwait(false);
                 
                 if (response.IsSuccessStatusCode)
                 {
-                    var responseContent = await response.Content.ReadAsStringAsync();
+                    var responseContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                     using var doc = JsonDocument.Parse(responseContent);
                     var data = doc.RootElement.GetProperty("data");
                     

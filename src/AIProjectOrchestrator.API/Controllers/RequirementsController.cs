@@ -24,7 +24,7 @@ namespace AIProjectOrchestrator.API.Controllers
             CancellationToken cancellationToken)
         {
             // No try-catch needed - middleware handles exceptions
-            return await _requirementsAnalysisService.AnalyzeRequirementsAsync(request, cancellationToken);
+            return await _requirementsAnalysisService.AnalyzeRequirementsAsync(request, cancellationToken).ConfigureAwait(false);
         }
 
         [HttpGet("{analysisId:guid}/status")]
@@ -32,7 +32,7 @@ namespace AIProjectOrchestrator.API.Controllers
             Guid analysisId,
             CancellationToken cancellationToken)
         {
-            return await _requirementsAnalysisService.GetAnalysisStatusAsync(analysisId, cancellationToken);
+            return await _requirementsAnalysisService.GetAnalysisStatusAsync(analysisId, cancellationToken).ConfigureAwait(false);
         }
 
         [HttpGet("{analysisId:guid}")]
@@ -40,7 +40,7 @@ namespace AIProjectOrchestrator.API.Controllers
             Guid analysisId,
             CancellationToken cancellationToken)
         {
-            var result = await _requirementsAnalysisService.GetAnalysisResultsAsync(analysisId, cancellationToken);
+            var result = await _requirementsAnalysisService.GetAnalysisResultsAsync(analysisId, cancellationToken).ConfigureAwait(false);
             if (result == null)
             {
                 return NotFound();
@@ -51,7 +51,7 @@ namespace AIProjectOrchestrator.API.Controllers
         [HttpPost("{analysisId:guid}/approve")]
         public async Task<IActionResult> ApproveAnalysis(Guid analysisId, CancellationToken cancellationToken)
         {
-            await _requirementsAnalysisService.UpdateAnalysisStatusAsync(analysisId, RequirementsAnalysisStatus.Approved, cancellationToken);
+            await _requirementsAnalysisService.UpdateAnalysisStatusAsync(analysisId, RequirementsAnalysisStatus.Approved, cancellationToken).ConfigureAwait(false);
             return Ok();
         }
     }

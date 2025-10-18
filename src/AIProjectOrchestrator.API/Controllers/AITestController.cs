@@ -27,7 +27,7 @@ namespace AIProjectOrchestrator.API.Controllers
                 return BadRequest("Claude client not available");
             }
 
-            var response = await client.CallAsync(request);
+            var response = await client.CallAsync(request).ConfigureAwait(false);
             return Ok(response);
         }
         
@@ -40,7 +40,7 @@ namespace AIProjectOrchestrator.API.Controllers
                 return BadRequest("LMStudio client not available");
             }
 
-            var response = await client.CallAsync(request);
+            var response = await client.CallAsync(request).ConfigureAwait(false);
             return Ok(response);
         }
         
@@ -53,7 +53,7 @@ namespace AIProjectOrchestrator.API.Controllers
                 return BadRequest("OpenRouter client not available");
             }
 
-            var response = await client.CallAsync(request);
+            var response = await client.CallAsync(request).ConfigureAwait(false);
             return Ok(response);
         }
     }

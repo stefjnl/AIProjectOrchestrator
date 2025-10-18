@@ -83,9 +83,9 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                         return requestMessage;
                     },
                     _settings.MaxRetries,
-                    cancellationToken);
+                    cancellationToken).ConfigureAwait(false);
 
-                var responseContent = await response.Content.ReadAsStringAsync();
+                var responseContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -142,7 +142,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             try
             {
                 // Simple health check - try to connect to the base URL
-                var response = await _httpClient.GetAsync("", cancellationToken);
+                var response = await _httpClient.GetAsync("", cancellationToken).ConfigureAwait(false);
                 if (response.IsSuccessStatusCode)
                 {
                     _logger.LogInformation("{ProviderName} health check passed", ProviderName);

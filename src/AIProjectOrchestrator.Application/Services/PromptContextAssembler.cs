@@ -38,7 +38,7 @@ public class PromptContextAssembler
         _logger.LogInformation("Assembling context for story {StoryIndex} in generation {StoryGenerationId}", storyIndex, storyGenerationId);
 
         // Retrieve individual story
-        var stories = await _storyGenerationService.GetGenerationResultsAsync(storyGenerationId, cancellationToken);
+        var stories = await _storyGenerationService.GetGenerationResultsAsync(storyGenerationId, cancellationToken).ConfigureAwait(false);
         if (stories == null)
         {
             _logger.LogError("No stories returned for generation {StoryGenerationId}", storyGenerationId);
@@ -52,13 +52,13 @@ public class PromptContextAssembler
 
         var targetStory = stories[storyIndex];
 
-        var planningId = await _storyGenerationService.GetPlanningIdAsync(storyGenerationId, cancellationToken) ?? Guid.Empty;
+        var planningId = await _storyGenerationService.GetPlanningIdAsync(storyGenerationId, cancellationToken).ConfigureAwait(false) ?? Guid.Empty;
 
         // Get approved project planning context
-        var projectArchitecture = await GetProjectArchitectureAsync(planningId, cancellationToken);
+        var projectArchitecture = await GetProjectArchitectureAsync(planningId, cancellationToken).ConfigureAwait(false);
 
         // Get related stories for integration context
-        var relatedStories = await GetRelatedStoriesAsync(storyGenerationId, storyIndex, cancellationToken);
+        var relatedStories = await GetRelatedStoriesAsync(storyGenerationId, storyIndex, cancellationToken).ConfigureAwait(false);
 
         // Derive technical preferences and integration guidance (simplified; in real, from planning)
         var technicalPreferences = new Dictionary<string, string>
@@ -78,7 +78,7 @@ public class PromptContextAssembler
         _logger.LogInformation("Getting project architecture for planning {PlanningId}", planningId);
 
         // Extract architecture decisions from project planning
-        var technicalContext = await _projectPlanningService.GetTechnicalContextAsync(planningId, cancellationToken);
+        var technicalContext = await _projectPlanningService.GetTechnicalContextAsync(planningId, cancellationToken).ConfigureAwait(false);
         var architecture = technicalContext ?? "Standard Clean Architecture: Domain, Application, Infrastructure, API layers with .NET 9 Web API and PostgreSQL.";
         
         // Format for prompt consumption
@@ -89,7 +89,7 @@ public class PromptContextAssembler
     {
         _logger.LogInformation("Getting related stories for index {CurrentIndex} in {StoryGenerationId}", currentIndex, storyGenerationId);
 
-        var allStories = await _storyGenerationService.GetGenerationResultsAsync(storyGenerationId, cancellationToken);
+        var allStories = await _storyGenerationService.GetGenerationResultsAsync(storyGenerationId, cancellationToken).ConfigureAwait(false);
 
         if (allStories == null || allStories.Count == 0)
         {

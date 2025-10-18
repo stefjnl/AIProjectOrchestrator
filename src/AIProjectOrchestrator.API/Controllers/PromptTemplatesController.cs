@@ -21,7 +21,7 @@ namespace AIProjectOrchestrator.API.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<PromptTemplate>>> GetAll()
         {
-            var templates = await _service.GetAllTemplatesAsync();
+            var templates = await _service.GetAllTemplatesAsync().ConfigureAwait(false);
             // Ensure we're returning an array, not an object
             var templateList = templates.ToList();
             return Ok(templateList);
@@ -30,7 +30,7 @@ namespace AIProjectOrchestrator.API.Controllers
         [HttpGet("{id:guid}")]
         public async Task<ActionResult<PromptTemplate>> GetById(Guid id)
         {
-            var template = await _service.GetTemplateByIdAsync(id);
+            var template = await _service.GetTemplateByIdAsync(id).ConfigureAwait(false);
             if (template == null)
             {
                 return NotFound();
@@ -54,13 +54,13 @@ namespace AIProjectOrchestrator.API.Controllers
 
             if (promptTemplate.Id == Guid.Empty)
             {
-                var created = await _service.CreateTemplateAsync(promptTemplate);
+                var created = await _service.CreateTemplateAsync(promptTemplate).ConfigureAwait(false);
                 _logger.LogInformation("Created template with ID: {Id}", created.Id);
                 return CreatedAtAction(nameof(GetAll), new { id = created.Id }, created);
             }
             else
             {
-                var updated = await _service.UpdateTemplateAsync(promptTemplate);
+                var updated = await _service.UpdateTemplateAsync(promptTemplate).ConfigureAwait(false);
                 _logger.LogInformation("Updated template with ID: {Id}", updated.Id);
                 return Ok(updated);
             }
@@ -69,7 +69,7 @@ namespace AIProjectOrchestrator.API.Controllers
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete(Guid id)
         {
-            await _service.DeleteTemplateAsync(id);
+            await _service.DeleteTemplateAsync(id).ConfigureAwait(false);
             return NoContent();
         }
     }

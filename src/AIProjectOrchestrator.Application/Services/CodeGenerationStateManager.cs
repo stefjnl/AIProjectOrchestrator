@@ -50,17 +50,17 @@ namespace AIProjectOrchestrator.Application.Services
 
         public async Task<CodeGenerationStatus> GetStatusAsync(Guid generationId)
         {
-            var state = await GetStateAsync(generationId);
+            var state = await GetStateAsync(generationId).ConfigureAwait(false);
             return state?.Status ?? CodeGenerationStatus.Failed;
         }
 
         public async Task UpdateStatusAsync(Guid generationId, CodeGenerationStatus status)
         {
-            var state = await GetStateAsync(generationId);
+            var state = await GetStateAsync(generationId).ConfigureAwait(false);
             if (state != null)
             {
                 state.Status = status;
-                await SaveStateAsync(generationId, state);
+                await SaveStateAsync(generationId, state).ConfigureAwait(false);
                 _logger.LogInformation("Updated status for generation {GenerationId} to {Status}",
                     generationId, status);
             }

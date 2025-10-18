@@ -168,7 +168,7 @@ public class FileOrganizer : IFileOrganizer
             {
                 GeneratedFiles = generatedFiles ?? new List<CodeArtifact>(),
                 TestFiles = testFiles ?? new List<CodeArtifact>()
-            }));
+            })).ConfigureAwait(false);
         }
 
         return memoryStream.ToArray();

@@ -57,7 +57,7 @@ namespace AIProjectOrchestrator.API.Controllers
                     return BadRequest(ModelState);
                 }
 
-                var response = await _reviewService.SubmitForReviewAsync(request, cancellationToken);
+                var response = await _reviewService.SubmitForReviewAsync(request, cancellationToken).ConfigureAwait(false);
                 return CreatedAtAction(nameof(GetReview), new { id = response.ReviewId }, response);
             }
             catch (ArgumentException ex)
@@ -85,7 +85,7 @@ namespace AIProjectOrchestrator.API.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         public async Task<ActionResult<ReviewSubmission>> GetReview(Guid id, CancellationToken cancellationToken)
         {
-            var review = await _reviewService.GetReviewAsync(id, cancellationToken);
+            var review = await _reviewService.GetReviewAsync(id, cancellationToken).ConfigureAwait(false);
             if (review == null)
             {
                 return NotFound(new ProblemDetails
@@ -107,7 +107,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var review = await _reviewService.GetReviewAsync(id, cancellationToken);
+                var review = await _reviewService.GetReviewAsync(id, cancellationToken).ConfigureAwait(false);
                 if (review == null)
                 {
                     return NotFound(new ProblemDetails
@@ -128,7 +128,7 @@ namespace AIProjectOrchestrator.API.Controllers
                     };
                 }
 
-                var response = await _reviewService.ApproveReviewAsync(id, decision, cancellationToken);
+                var response = await _reviewService.ApproveReviewAsync(id, decision, cancellationToken).ConfigureAwait(false);
 
                 // After approval, update the status of the corresponding service
                 // Use the correct IDs from metadata instead of the CorrelationId
@@ -138,7 +138,7 @@ namespace AIProjectOrchestrator.API.Controllers
                         if (review.Metadata.TryGetValue("AnalysisId", out var analysisIdObj) &&
                             Guid.TryParse(analysisIdObj.ToString(), out var analysisId))
                         {
-                            await _requirementsAnalysisService.UpdateAnalysisStatusAsync(analysisId, Domain.Models.RequirementsAnalysisStatus.Approved, cancellationToken);
+                            await _requirementsAnalysisService.UpdateAnalysisStatusAsync(analysisId, Domain.Models.RequirementsAnalysisStatus.Approved, cancellationToken).ConfigureAwait(false);
                         }
                         else
                         {
@@ -149,7 +149,7 @@ namespace AIProjectOrchestrator.API.Controllers
                         if (review.Metadata.TryGetValue("PlanningId", out var planningIdObj) &&
                             Guid.TryParse(planningIdObj.ToString(), out var planningId))
                         {
-                            await _projectPlanningService.UpdatePlanningStatusAsync(planningId, Domain.Models.ProjectPlanningStatus.Approved, cancellationToken);
+                            await _projectPlanningService.UpdatePlanningStatusAsync(planningId, Domain.Models.ProjectPlanningStatus.Approved, cancellationToken).ConfigureAwait(false);
                         }
                         else
                         {
@@ -160,7 +160,7 @@ namespace AIProjectOrchestrator.API.Controllers
                         if (review.Metadata.TryGetValue("GenerationId", out var generationIdObj) &&
                             Guid.TryParse(generationIdObj.ToString(), out var generationId))
                         {
-                            await _storyGenerationService.UpdateGenerationStatusAsync(generationId, Domain.Models.Stories.StoryGenerationStatus.Approved, cancellationToken);
+                            await _storyGenerationService.UpdateGenerationStatusAsync(generationId, Domain.Models.Stories.StoryGenerationStatus.Approved, cancellationToken).ConfigureAwait(false);
                         }
                         else
                         {
@@ -220,7 +220,7 @@ namespace AIProjectOrchestrator.API.Controllers
 
             try
             {
-                var response = await _reviewService.RejectReviewAsync(id, decision, cancellationToken);
+                var response = await _reviewService.RejectReviewAsync(id, decision, cancellationToken).ConfigureAwait(false);
                 return Ok(response);
             }
             catch (ArgumentException ex)
@@ -259,7 +259,7 @@ namespace AIProjectOrchestrator.API.Controllers
         [ProducesResponseType(typeof(IEnumerable<PendingReviewWithProject>), StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<PendingReviewWithProject>>> GetPendingReviews(CancellationToken cancellationToken)
         {
-            var reviews = await _reviewService.GetPendingReviewsWithProjectAsync(cancellationToken);
+            var reviews = await _reviewService.GetPendingReviewsWithProjectAsync(cancellationToken).ConfigureAwait(false);
             // Ensure we're returning an array, not an object
             var reviewList = reviews.ToList();
             return Ok(reviewList);
@@ -272,7 +272,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var pendingReviews = await _reviewService.GetPendingReviewsAsync(cancellationToken);
+                var pendingReviews = await _reviewService.GetPendingReviewsAsync(cancellationToken).ConfigureAwait(false);
 
                 // For now, return empty workflow statuses since we don't have project tracking yet
                 var dashboardData = new ReviewDashboardData
@@ -311,7 +311,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var project = await _projectService.GetProjectAsync(projectId, cancellationToken);
+                var project = await _projectService.GetProjectAsync(projectId, cancellationToken).ConfigureAwait(false);
                 if (project == null)
                     return NotFound(new ProblemDetails
                     {
@@ -324,10 +324,10 @@ namespace AIProjectOrchestrator.API.Controllers
                 {
                     ProjectId = projectId,
                     ProjectName = project.Name,
-                    RequirementsAnalysis = await GetRequirementsAnalysisStateAsync(projectId, cancellationToken) ?? new RequirementsAnalysisState { Status = RequirementsAnalysisStatus.NotStarted },
-                    ProjectPlanning = await GetProjectPlanningStateAsync(projectId, cancellationToken) ?? new ProjectPlanningState { Status = ProjectPlanningStatus.NotStarted },
-                    StoryGeneration = await GetStoryGenerationStateAsync(projectId, cancellationToken) ?? new StoryGenerationState { Status = StoryGenerationStatus.NotStarted },
-                    PromptGeneration = await GetPromptGenerationStateAsync(projectId, cancellationToken) ?? new PromptGenerationState()
+                    RequirementsAnalysis = await GetRequirementsAnalysisStateAsync(projectId, cancellationToken).ConfigureAwait(false) ?? new RequirementsAnalysisState { Status = RequirementsAnalysisStatus.NotStarted },
+                    ProjectPlanning = await GetProjectPlanningStateAsync(projectId, cancellationToken).ConfigureAwait(false) ?? new ProjectPlanningState { Status = ProjectPlanningStatus.NotStarted },
+                    StoryGeneration = await GetStoryGenerationStateAsync(projectId, cancellationToken).ConfigureAwait(false) ?? new StoryGenerationState { Status = StoryGenerationStatus.NotStarted },
+                    PromptGeneration = await GetPromptGenerationStateAsync(projectId, cancellationToken).ConfigureAwait(false) ?? new PromptGenerationState()
                 };
 
                 return Ok(workflowState);
@@ -348,7 +348,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var analysis = await _requirementsAnalysisService.GetAnalysisByProjectAsync(projectId, cancellationToken);
+                var analysis = await _requirementsAnalysisService.GetAnalysisByProjectAsync(projectId, cancellationToken).ConfigureAwait(false);
                 if (analysis == null)
                     return null;
 
@@ -369,7 +369,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var planning = await _projectPlanningService.GetPlanningByProjectAsync(projectId, cancellationToken);
+                var planning = await _projectPlanningService.GetPlanningByProjectAsync(projectId, cancellationToken).ConfigureAwait(false);
                 if (planning == null)
                     return null;
 
@@ -390,11 +390,11 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var generation = await _storyGenerationService.GetGenerationByProjectAsync(projectId, cancellationToken);
+                var generation = await _storyGenerationService.GetGenerationByProjectAsync(projectId, cancellationToken).ConfigureAwait(false);
                 if (generation == null)
                     return null;
 
-                var storyCount = await _storyGenerationService.GetStoryCountAsync(Guid.Parse(generation.GenerationId), cancellationToken);
+                var storyCount = await _storyGenerationService.GetStoryCountAsync(Guid.Parse(generation.GenerationId), cancellationToken).ConfigureAwait(false);
 
                 return new StoryGenerationState
                 {
@@ -414,7 +414,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var prompts = await _promptGenerationService.GetPromptsByProjectAsync(projectId, cancellationToken);
+                var prompts = await _promptGenerationService.GetPromptsByProjectAsync(projectId, cancellationToken).ConfigureAwait(false);
                 if (!prompts.Any())
                     return null;
 
@@ -468,4 +468,4 @@ namespace AIProjectOrchestrator.API.Controllers
             }
         }
     }
-}
+}

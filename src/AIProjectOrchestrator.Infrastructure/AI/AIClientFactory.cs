@@ -60,7 +60,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                 return new List<string>();
             }
 
-            return await client.GetModelsAsync();
+            return await client.GetModelsAsync().ConfigureAwait(false);
         }
     }
 }

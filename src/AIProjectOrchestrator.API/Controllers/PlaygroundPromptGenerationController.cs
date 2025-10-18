@@ -28,7 +28,7 @@ namespace AIProjectOrchestrator.API.Controllers
 
             try
             {
-                var response = await _promptGenerationService.GeneratePromptFromPlaygroundAsync(request.PromptContent);
+                var response = await _promptGenerationService.GeneratePromptFromPlaygroundAsync(request.PromptContent).ConfigureAwait(false);
                 return Ok(response);
             }
             catch (System.Exception ex)

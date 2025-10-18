@@ -16,7 +16,7 @@ namespace AIProjectOrchestrator.API.HealthChecks
 
         public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
         {
-            var isHealthy = await _client.IsHealthyAsync(cancellationToken);
+            var isHealthy = await _client.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
             
             if (isHealthy)
             {

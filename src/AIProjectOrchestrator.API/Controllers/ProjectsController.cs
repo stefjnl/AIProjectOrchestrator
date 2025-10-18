@@ -18,7 +18,7 @@ namespace AIProjectOrchestrator.API.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Project>>> GetProjects()
         {
-            var projects = await _projectService.GetAllProjectsAsync();
+            var projects = await _projectService.GetAllProjectsAsync().ConfigureAwait(false);
             // Ensure we're returning an array, not an object
             var projectList = projects.ToList();
             return Ok(projectList);
@@ -27,7 +27,7 @@ namespace AIProjectOrchestrator.API.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Project>> GetProject(int id)
         {
-            var project = await _projectService.GetProjectByIdAsync(id);
+            var project = await _projectService.GetProjectByIdAsync(id).ConfigureAwait(false);
             if (project == null)
             {
                 return NotFound();
@@ -38,7 +38,7 @@ namespace AIProjectOrchestrator.API.Controllers
         [HttpPost]
         public async Task<ActionResult<Project>> CreateProject(Project project)
         {
-            var createdProject = await _projectService.CreateProjectAsync(project);
+            var createdProject = await _projectService.CreateProjectAsync(project).ConfigureAwait(false);
             return CreatedAtAction(nameof(GetProject), new { id = createdProject.Id }, createdProject);
         }
 
@@ -47,7 +47,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                await _projectService.DeleteProjectAsync(id);
+                await _projectService.DeleteProjectAsync(id).ConfigureAwait(false);
                 return NoContent();
             }
             catch (Exception ex)

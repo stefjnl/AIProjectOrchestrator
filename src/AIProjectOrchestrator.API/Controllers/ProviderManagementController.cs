@@ -19,21 +19,21 @@ namespace AIProjectOrchestrator.API.Controllers
         [HttpGet("providers")]
         public async Task<ActionResult<IEnumerable<string>>> GetAvailableProviders()
         {
-            var providers = await _service.GetAvailableProvidersAsync();
+            var providers = await _service.GetAvailableProvidersAsync().ConfigureAwait(false);
             return Ok(providers);
         }
 
         [HttpGet("health/{name}")]
         public async Task<ActionResult<object>> GetProviderHealth(string name)
         {
-            var health = await _service.GetProviderHealthAsync(name);
+            var health = await _service.GetProviderHealthAsync(name).ConfigureAwait(false);
             return Ok(health);
         }
 
         [HttpGet("current")]
         public async Task<ActionResult<string>> GetCurrentProvider()
         {
-            var current = await _defaultService.GetDefaultProviderAsync() ?? "NanoGpt";
+            var current = await _defaultService.GetDefaultProviderAsync().ConfigureAwait(false) ?? "NanoGpt";
             return Ok(current);
         }
 
@@ -45,12 +45,12 @@ namespace AIProjectOrchestrator.API.Controllers
                 return BadRequest("Provider is required");
             }
 
-            if (!await _service.IsValidProviderAsync(request.Provider))
+            if (!await _service.IsValidProviderAsync(request.Provider).ConfigureAwait(false))
             {
                 return BadRequest("Invalid provider");
             }
 
-            await _defaultService.SetDefaultProviderAsync(request.Provider);
+            await _defaultService.SetDefaultProviderAsync(request.Provider).ConfigureAwait(false);
             return Ok(new { Message = $"Switched to {request.Provider}" });
         }
 

@@ -17,7 +17,7 @@ namespace AIProjectOrchestrator.Application.Services
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 
-                var status = await storyGenerationService.GetGenerationStatusAsync(storyGenerationId, cancellationToken);
+                var status = await storyGenerationService.GetGenerationStatusAsync(storyGenerationId, cancellationToken).ConfigureAwait(false);
                 return status == StoryGenerationStatus.Approved;
             }
             catch
@@ -36,7 +36,7 @@ namespace AIProjectOrchestrator.Application.Services
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 
-                var storyCount = await storyGenerationService.GetStoryCountAsync(storyGenerationId, cancellationToken);
+                var storyCount = await storyGenerationService.GetStoryCountAsync(storyGenerationId, cancellationToken).ConfigureAwait(false);
                 return storyIndex >= 0 && storyIndex < storyCount;
             }
             catch

@@ -35,7 +35,7 @@ namespace AIProjectOrchestrator.API.Controllers
 
             try
             {
-                var response = await _promptGenerationService.GeneratePromptAsync(request, cancellationToken);
+                var response = await _promptGenerationService.GeneratePromptAsync(request, cancellationToken).ConfigureAwait(false);
                 return Ok(response);
             }
             catch (ArgumentException ex)
@@ -72,7 +72,7 @@ namespace AIProjectOrchestrator.API.Controllers
                     return BadRequest(new { error = "Invalid prompt ID", message = "Prompt ID must be a valid GUID" });
                 }
 
-                var status = await _promptGenerationService.GetPromptStatusAsync(guid, cancellationToken);
+                var status = await _promptGenerationService.GetPromptStatusAsync(guid, cancellationToken).ConfigureAwait(false);
                 return Ok(status);
             }
             catch (InvalidOperationException ex) when (ex.Message.Contains("not found"))
@@ -100,7 +100,7 @@ namespace AIProjectOrchestrator.API.Controllers
                     return BadRequest(new { error = "Invalid story generation ID", message = "Story generation ID must be a valid GUID" });
                 }
 
-                var canGenerate = await _promptGenerationService.CanGeneratePromptAsync(guid, storyIndex, cancellationToken);
+                var canGenerate = await _promptGenerationService.CanGeneratePromptAsync(guid, storyIndex, cancellationToken).ConfigureAwait(false);
                 return Ok(canGenerate);
             }
             catch (Exception ex)
@@ -122,7 +122,7 @@ namespace AIProjectOrchestrator.API.Controllers
                     return BadRequest(new { error = "Invalid prompt ID", message = "Prompt ID must be a valid GUID" });
                 }
 
-                var response = await _promptGenerationService.GetPromptAsync(guid, cancellationToken);
+                var response = await _promptGenerationService.GetPromptAsync(guid, cancellationToken).ConfigureAwait(false);
                 if (response == null)
                 {
                     return NotFound(new { error = "Not found", message = "Prompt not found" });

@@ -42,7 +42,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
 
             try
             {
-                var models = await client.GetModelsAsync();
+                var models = await client.GetModelsAsync().ConfigureAwait(false);
                 _logger.LogDebug("Retrieved {Count} models for provider '{Provider}' in operation '{Operation}'",
                     models?.Count() ?? 0, options.ProviderName, _operationType);
                 return models ?? new List<string>();
@@ -170,7 +170,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
 
             try
             {
-                var response = await client.CallAsync(aiRequest);
+                var response = await client.CallAsync(aiRequest).ConfigureAwait(false);
 
                 if (!response.IsSuccess)
                 {
@@ -228,7 +228,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                     return false;
                 }
 
-                var isHealthy = await client.IsHealthyAsync();
+                var isHealthy = await client.IsHealthyAsync().ConfigureAwait(false);
                 _logger.LogDebug("AI provider '{Provider}' availability for operation '{Operation}': {IsAvailable}",
                     options.ProviderName, _operationType, isHealthy);
                 return isHealthy;

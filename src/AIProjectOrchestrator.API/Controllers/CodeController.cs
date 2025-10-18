@@ -25,7 +25,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var response = await _codeGenerationService.GenerateCodeAsync(request, cancellationToken);
+                var response = await _codeGenerationService.GenerateCodeAsync(request, cancellationToken).ConfigureAwait(false);
                 return Ok(response);
             }
             catch (ArgumentException ex)
@@ -49,7 +49,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var status = await _codeGenerationService.GetStatusAsync(generationId, cancellationToken);
+                var status = await _codeGenerationService.GetStatusAsync(generationId, cancellationToken).ConfigureAwait(false);
                 return Ok(status);
             }
             catch (Exception ex)
@@ -65,7 +65,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var results = await _codeGenerationService.GetGeneratedCodeAsync(generationId, cancellationToken);
+                var results = await _codeGenerationService.GetGeneratedCodeAsync(generationId, cancellationToken).ConfigureAwait(false);
                 if (results.Artifacts == null || results.Artifacts.Count == 0)
                 {
                     return NotFound(new { error = "Not found", message = "Code generation results not found" });
@@ -86,7 +86,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var canGenerate = await _codeGenerationService.CanGenerateCodeAsync(storyGenerationId, cancellationToken);
+                var canGenerate = await _codeGenerationService.CanGenerateCodeAsync(storyGenerationId, cancellationToken).ConfigureAwait(false);
                 return Ok(canGenerate);
             }
             catch (Exception ex)
@@ -102,7 +102,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var zipFile = await _codeGenerationService.GetGeneratedFilesZipAsync(generationId, cancellationToken);
+                var zipFile = await _codeGenerationService.GetGeneratedFilesZipAsync(generationId, cancellationToken).ConfigureAwait(false);
                 if (zipFile == null)
                     return NotFound(new { error = "Not found", message = "Generated files not found or not approved" });
 

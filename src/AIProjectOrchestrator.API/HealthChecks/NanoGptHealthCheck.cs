@@ -25,7 +25,7 @@ namespace AIProjectOrchestrator.API.HealthChecks
                     return HealthCheckResult.Unhealthy("NanoGpt client not available");
                 }
 
-                var isHealthy = await client.IsHealthyAsync(cancellationToken);
+                var isHealthy = await client.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
                 return isHealthy 
                     ? HealthCheckResult.Healthy("NanoGpt is healthy") 
                     : HealthCheckResult.Unhealthy("NanoGpt is unhealthy");

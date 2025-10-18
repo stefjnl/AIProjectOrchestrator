@@ -61,7 +61,7 @@ public class ImplementationGenerator : IImplementationGenerator
         _logger.LogDebug("Calling AI provider for implementation generation");
 
         // Call AI using the provider
-        var aiResponse = await _aiProvider.GenerateContentAsync(aiRequest.Prompt, aiRequest.SystemMessage);
+        var aiResponse = await _aiProvider.GenerateContentAsync(aiRequest.Prompt, aiRequest.SystemMessage).ConfigureAwait(false);
 
         // Parse AI response to code artifacts
         return _codeArtifactParser.ParseToCodeArtifacts(aiResponse, "Implementation", "GeneratedImplementation.cs");

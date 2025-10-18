@@ -45,7 +45,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                     // Create a new request message for each attempt
                     var requestMessage = requestMessageFactory();
                     _logger.LogInformation("Provider {ProviderName}: Sending request for attempt {Attempt}...", ProviderName, attempt + 1);
-                    response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+                    response = await _httpClient.SendAsync(requestMessage, cancellationToken).ConfigureAwait(false);
                     _logger.LogInformation("Provider {ProviderName}: Received response for attempt {Attempt} with status {StatusCode}.", ProviderName, attempt + 1, response.StatusCode);
 
                     // If successful or not a retryable status code, return the response
@@ -101,7 +101,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                     if (attempt == maxRetries) break;
 
                     // Wait before retrying with exponential backoff
-                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)), cancellationToken);
+                    await Task.Delay(TimeSpan.FromSeconds(Math.Pow(2, attempt)), cancellationToken).ConfigureAwait(false);
                 }
             }
 

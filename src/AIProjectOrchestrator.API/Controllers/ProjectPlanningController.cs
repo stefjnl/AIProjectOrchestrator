@@ -25,7 +25,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var response = await _projectPlanningService.CreateProjectPlanAsync(request, cancellationToken);
+                var response = await _projectPlanningService.CreateProjectPlanAsync(request, cancellationToken).ConfigureAwait(false);
                 return Ok(response);
             }
             catch (ArgumentException ex)
@@ -49,7 +49,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var status = await _projectPlanningService.GetPlanningStatusAsync(planningId, cancellationToken);
+                var status = await _projectPlanningService.GetPlanningStatusAsync(planningId, cancellationToken).ConfigureAwait(false);
                 return Ok(status);
             }
             catch (Exception ex)
@@ -65,7 +65,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var result = await _projectPlanningService.GetPlanningResultsAsync(planningId, cancellationToken);
+                var result = await _projectPlanningService.GetPlanningResultsAsync(planningId, cancellationToken).ConfigureAwait(false);
                 if (result == null)
                 {
                     return NotFound(new { error = "Not found", message = "Project planning not found" });
@@ -85,7 +85,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var canCreate = await _projectPlanningService.CanCreatePlanAsync(requirementsAnalysisId, cancellationToken);
+                var canCreate = await _projectPlanningService.CanCreatePlanAsync(requirementsAnalysisId, cancellationToken).ConfigureAwait(false);
                 return Ok(canCreate);
             }
             catch (Exception ex)
@@ -99,7 +99,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                await _projectPlanningService.UpdatePlanningStatusAsync(planningId, ProjectPlanningStatus.Approved, cancellationToken);
+                await _projectPlanningService.UpdatePlanningStatusAsync(planningId, ProjectPlanningStatus.Approved, cancellationToken).ConfigureAwait(false);
                 return Ok();
             }
             catch (Exception ex)

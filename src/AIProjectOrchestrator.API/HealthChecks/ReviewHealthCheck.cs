@@ -18,7 +18,7 @@ namespace AIProjectOrchestrator.API.HealthChecks
         {
             try
             {
-                var isHealthy = await _reviewService.IsHealthyAsync(cancellationToken);
+                var isHealthy = await _reviewService.IsHealthyAsync(cancellationToken).ConfigureAwait(false);
                 
                 if (isHealthy)
                 {

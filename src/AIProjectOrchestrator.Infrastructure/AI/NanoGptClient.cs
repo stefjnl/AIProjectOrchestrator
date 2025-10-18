@@ -134,7 +134,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
                     throw new InvalidOperationException("No response received from NanoGpt API");
                 }
 
-                var responseContent = await response.Content.ReadAsStringAsync();
+                var responseContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
                 // Log complete response details for debugging
                 _logger.LogInformation("=== NANO_GPT RESPONSE DEBUG ===");
@@ -246,7 +246,7 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             try
             {
                 // Simple health check - try to connect to the base URL
-                var response = await _httpClient.GetAsync("", cancellationToken);
+                var response = await _httpClient.GetAsync("", cancellationToken).ConfigureAwait(false);
                 if (response.IsSuccessStatusCode)
                 {
                     _logger.LogInformation("{ProviderName} health check passed", ProviderName);
@@ -269,11 +269,11 @@ namespace AIProjectOrchestrator.Infrastructure.AI
             try
             {
                 // Call the models endpoint for NanoGpt (OpenAI-compatible)
-                var response = await _httpClient.GetAsync("v1/models", CancellationToken.None);
+                var response = await _httpClient.GetAsync("v1/models", CancellationToken.None).ConfigureAwait(false);
                 
                 if (response.IsSuccessStatusCode)
                 {
-                    var responseContent = await response.Content.ReadAsStringAsync();
+                    var responseContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                     using var doc = JsonDocument.Parse(responseContent);
                     var data = doc.RootElement.GetProperty("data");
                     

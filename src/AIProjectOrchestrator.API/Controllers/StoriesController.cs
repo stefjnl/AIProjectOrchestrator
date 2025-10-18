@@ -38,7 +38,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var response = await _storyGenerationService.GenerateStoriesAsync(request, cancellationToken);
+                var response = await _storyGenerationService.GenerateStoriesAsync(request, cancellationToken).ConfigureAwait(false);
                 return Ok(response);
             }
             catch (ArgumentException ex)
@@ -62,7 +62,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var status = await _storyGenerationService.GetGenerationStatusAsync(generationId, cancellationToken);
+                var status = await _storyGenerationService.GetGenerationStatusAsync(generationId, cancellationToken).ConfigureAwait(false);
                 return Ok(status);
             }
             catch (Exception ex)
@@ -78,7 +78,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var results = await _storyGenerationService.GetGenerationResultsAsync(generationId, cancellationToken);
+                var results = await _storyGenerationService.GetGenerationResultsAsync(generationId, cancellationToken).ConfigureAwait(false);
                 if (results == null)
                 {
                     return NotFound(new { error = "Not found", message = "Story generation results not found" });
@@ -116,7 +116,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var canGenerate = await _storyGenerationService.CanGenerateStoriesAsync(planningId, cancellationToken);
+                var canGenerate = await _storyGenerationService.CanGenerateStoriesAsync(planningId, cancellationToken).ConfigureAwait(false);
                 return Ok(canGenerate);
             }
             catch (Exception ex)
@@ -130,7 +130,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                await _storyGenerationService.UpdateGenerationStatusAsync(generationId, StoryGenerationStatus.Approved, cancellationToken);
+                await _storyGenerationService.UpdateGenerationStatusAsync(generationId, StoryGenerationStatus.Approved, cancellationToken).ConfigureAwait(false);
                 return Ok();
             }
             catch (Exception ex)
@@ -144,7 +144,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var stories = await _storyGenerationService.GetApprovedStoriesAsync(storyGenerationId, cancellationToken);
+                var stories = await _storyGenerationService.GetApprovedStoriesAsync(storyGenerationId, cancellationToken).ConfigureAwait(false);
                 if (stories == null || !stories.Any())
                 {
                     return NotFound(new { error = "Not found", message = "No approved stories found for this generation" });
@@ -179,7 +179,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                var status = await _storyGenerationService.GetStoryStatusAsync(storyId, cancellationToken);
+                var status = await _storyGenerationService.GetStoryStatusAsync(storyId, cancellationToken).ConfigureAwait(false);
                 return Ok(status);
             }
             catch (Exception ex)
@@ -193,7 +193,7 @@ namespace AIProjectOrchestrator.API.Controllers
         {
             try
             {
-                await _storyGenerationService.UpdateStoryStatusAsync(storyId, StoryStatus.Approved, cancellationToken);
+                await _storyGenerationService.UpdateStoryStatusAsync(storyId, StoryStatus.Approved, cancellationToken).ConfigureAwait(false);
                 return Ok();
             }
             catch (KeyNotFoundException ex)
@@ -214,7 +214,7 @@ namespace AIProjectOrchestrator.API.Controllers
             {
                 // Note: The service layer needs to be updated to handle the feedback.
                 // For now, we just change the status.
-                await _storyGenerationService.UpdateStoryStatusAsync(storyId, StoryStatus.Rejected, cancellationToken);
+                await _storyGenerationService.UpdateStoryStatusAsync(storyId, StoryStatus.Rejected, cancellationToken).ConfigureAwait(false);
                 _logger.LogInformation("Story {StoryId} rejected with feedback: {Feedback}", storyId, feedback.Feedback);
                 return Ok();
             }
@@ -276,7 +276,7 @@ namespace AIProjectOrchestrator.API.Controllers
                 _logger.LogInformation("Calling UpdateStoryAsync with UserStory: Id={Id}, Title='{Title}', Description='{Description}'",
                     userStory.Id, userStory.Title, userStory.Description);
 
-                await _storyGenerationService.UpdateStoryAsync(storyId, userStory, cancellationToken);
+                await _storyGenerationService.UpdateStoryAsync(storyId, userStory, cancellationToken).ConfigureAwait(false);
 
                 _logger.LogInformation("Successfully updated story {StoryId}", storyId);
                 return Ok();
