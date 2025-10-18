@@ -15,28 +15,28 @@ namespace AIProjectOrchestrator.Application.Services
 
         public async Task<IEnumerable<PromptTemplate>> GetAllTemplatesAsync()
         {
-            return await _repository.GetAllAsync();
+            return await _repository.GetAllAsync().ConfigureAwait(false);
         }
 
         public async Task<PromptTemplate?> GetTemplateByIdAsync(Guid id)
         {
-            return await ((IPromptTemplateRepository)_repository).GetByIdAsync(id);
+            return await ((IPromptTemplateRepository)_repository).GetByIdAsync(id).ConfigureAwait(false);
         }
 
         public async Task<PromptTemplate> CreateTemplateAsync(PromptTemplate promptTemplate)
         {
-            return await _repository.AddAsync(promptTemplate);
+            return await _repository.AddAsync(promptTemplate).ConfigureAwait(false);
         }
 
         public async Task<PromptTemplate> UpdateTemplateAsync(PromptTemplate promptTemplate)
         {
-            await _repository.UpdateAsync(promptTemplate);
+            await _repository.UpdateAsync(promptTemplate).ConfigureAwait(false);
             return promptTemplate;
         }
 
         public async Task DeleteTemplateAsync(Guid id)
         {
-            await ((IPromptTemplateRepository)_repository).DeleteAsync(id);
+            await ((IPromptTemplateRepository)_repository).DeleteAsync(id).ConfigureAwait(false);
         }
     }
 }

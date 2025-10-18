@@ -71,31 +71,31 @@ namespace AIProjectOrchestrator.Application.Services
                     Status = CodeGenerationStatus.Processing,
                     CreatedAt = DateTime.UtcNow
                 };
-                await _stateManager.SaveStateAsync(generationId, response);
+                await _stateManager.SaveStateAsync(generationId, response).ConfigureAwait(false);
 
                 // Step 1: Validate dependencies using extracted service
                 _logger.LogDebug("Validating workflow dependencies for generation {GenerationId}", generationId);
                 var validation = await _dependencyValidator.ValidateDependenciesAsync(
                     request.StoryGenerationId,
                     WorkflowStage.CodeGeneration,
-                    cancellationToken);
+                    cancellationToken).ConfigureAwait(false);
 
                 if (!validation.IsValid)
                 {
                     _logger.LogWarning("Code generation {GenerationId} failed dependency validation: {ErrorMessage}",
                         generationId, validation.ErrorMessage);
                     response.Status = CodeGenerationStatus.Failed;
-                    await _stateManager.SaveStateAsync(generationId, response);
+                    await _stateManager.SaveStateAsync(generationId, response).ConfigureAwait(false);
                     throw new InvalidOperationException(validation.ErrorMessage);
                 }
 
                 // Step 2: Retrieve comprehensive context from all upstream services
                 _logger.LogDebug("Retrieving comprehensive context for generation {GenerationId}", generationId);
                 var comprehensiveContext = await _contextRetriever.RetrieveComprehensiveContextAsync(
-                    request.StoryGenerationId, cancellationToken);
+                    request.StoryGenerationId, cancellationToken).ConfigureAwait(false);
 
                 // Step 3: Select AI model and load instructions
-                await _stateManager.UpdateStatusAsync(generationId, CodeGenerationStatus.SelectingModel);
+                await _stateManager.UpdateStatusAsync(generationId, CodeGenerationStatus.SelectingModel).ConfigureAwait(false);
                 var selectedModel = "qwen3-coder"; // Simplified model selection
                 _logger.LogInformation("Code generation {GenerationId}: Selected model: {SelectedModel}",
                     generationId, selectedModel);
@@ -107,18 +107,18 @@ namespace AIProjectOrchestrator.Application.Services
                     _ => $"CodeGenerator_{selectedModel}"
                 };
 
-                var instructionContent = await _instructionService.GetInstructionAsync(instructionFileName, cancellationToken);
+                var instructionContent = await _instructionService.GetInstructionAsync(instructionFileName, cancellationToken).ConfigureAwait(false);
                 if (!instructionContent.IsValid)
                 {
                     _logger.LogError("Code generation {GenerationId} failed: Invalid instruction content - {ValidationMessage}",
                         generationId, instructionContent.ValidationMessage);
                     response.Status = CodeGenerationStatus.Failed;
-                    await _stateManager.SaveStateAsync(generationId, response);
+                    await _stateManager.SaveStateAsync(generationId, response).ConfigureAwait(false);
                     throw new InvalidOperationException($"Failed to load valid instructions: {instructionContent.ValidationMessage}");
                 }
 
                 // Step 4: Orchestrate code generation using extracted orchestrator
-                await _stateManager.UpdateStatusAsync(generationId, CodeGenerationStatus.GeneratingTests);
+                await _stateManager.UpdateStatusAsync(generationId, CodeGenerationStatus.GeneratingTests).ConfigureAwait(false);
                 
                 var generationContext = new CodeGenerationContext
                 {
@@ -132,10 +132,10 @@ namespace AIProjectOrchestrator.Application.Services
                 };
 
                 _logger.LogDebug("Orchestrating code generation for {GenerationId}", generationId);
-                var result = await _orchestrator.OrchestrateGenerationAsync(generationContext, cancellationToken);
+                var result = await _orchestrator.OrchestrateGenerationAsync(generationContext, cancellationToken).ConfigureAwait(false);
 
                 // Step 5: Submit for review
-                await _stateManager.UpdateStatusAsync(generationId, CodeGenerationStatus.PendingReview);
+                await _stateManager.UpdateStatusAsync(generationId, CodeGenerationStatus.PendingReview).ConfigureAwait(false);
                 _logger.LogDebug("Submitting AI response for review in code generation {GenerationId}", generationId);
                 
                 var reviewRequest = new SubmitReviewRequest
@@ -153,14 +153,14 @@ namespace AIProjectOrchestrator.Application.Services
                     }
                 };
 
-                var reviewResponse = await _reviewService.SubmitForReviewAsync(reviewRequest, cancellationToken);
+                var reviewResponse = await _reviewService.SubmitForReviewAsync(reviewRequest, cancellationToken).ConfigureAwait(false);
 
                 // Step 6: Update final response
                 response.GeneratedFiles = result.GeneratedFiles;
                 response.TestFiles = result.TestFiles;
                 response.ReviewId = reviewResponse.ReviewId;
                 response.Status = CodeGenerationStatus.PendingReview;
-                await _stateManager.SaveStateAsync(generationId, response);
+                await _stateManager.SaveStateAsync(generationId, response).ConfigureAwait(false);
 
                 _logger.LogInformation("Code generation {GenerationId} completed successfully. Review ID: {ReviewId}",
                     generationId, reviewResponse.ReviewId);
@@ -170,19 +170,19 @@ namespace AIProjectOrchestrator.Application.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Code generation {GenerationId} failed with exception", generationId);
-                await _stateManager.UpdateStatusAsync(generationId, CodeGenerationStatus.Failed);
+                await _stateManager.UpdateStatusAsync(generationId, CodeGenerationStatus.Failed).ConfigureAwait(false);
                 throw;
             }
         }
 
         public async Task<CodeGenerationStatus> GetStatusAsync(Guid codeGenerationId, CancellationToken cancellationToken = default)
         {
-            return await _stateManager.GetStatusAsync(codeGenerationId);
+            return await _stateManager.GetStatusAsync(codeGenerationId).ConfigureAwait(false);
         }
 
         public async Task<CodeArtifactsResult> GetGeneratedCodeAsync(Guid codeGenerationId, CancellationToken cancellationToken = default)
         {
-            var state = await _stateManager.GetStateAsync(codeGenerationId);
+            var state = await _stateManager.GetStateAsync(codeGenerationId).ConfigureAwait(false);
             if (state == null)
             {
                 _logger.LogWarning("Code generation state not found for {CodeGenerationId}", codeGenerationId);
@@ -238,7 +238,7 @@ namespace AIProjectOrchestrator.Application.Services
                 var validation = await _dependencyValidator.ValidateDependenciesAsync(
                     storyGenerationId,
                     WorkflowStage.CodeGeneration,
-                    cancellationToken);
+                    cancellationToken).ConfigureAwait(false);
                 
                 return validation.IsValid;
             }
@@ -254,7 +254,7 @@ namespace AIProjectOrchestrator.Application.Services
             Guid generationId,
             CancellationToken cancellationToken = default)
         {
-            var state = await _stateManager.GetStateAsync(generationId);
+            var state = await _stateManager.GetStateAsync(generationId).ConfigureAwait(false);
             if (state == null || state.Status != CodeGenerationStatus.Approved)
             {
                 _logger.LogWarning("Cannot get ZIP for generation {GenerationId} - state not found or not approved",
@@ -266,7 +266,7 @@ namespace AIProjectOrchestrator.Application.Services
                 generationId,
                 state.GeneratedFiles ?? new List<CodeArtifact>(),
                 state.TestFiles ?? new List<CodeArtifact>(),
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
         }
     }
 }

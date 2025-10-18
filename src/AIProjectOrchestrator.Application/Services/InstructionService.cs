@@ -100,7 +100,7 @@ namespace AIProjectOrchestrator.Application.Services
                 }
 
                 // Load file content
-                var content = await File.ReadAllTextAsync(filePath, Encoding.UTF8, cancellationToken);
+                var content = await File.ReadAllTextAsync(filePath, Encoding.UTF8, cancellationToken).ConfigureAwait(false);
                 var lastModified = File.GetLastWriteTimeUtc(filePath);
 
                 // Validate content
@@ -141,7 +141,7 @@ namespace AIProjectOrchestrator.Application.Services
 
         public async Task<bool> IsValidInstructionAsync(string serviceName, CancellationToken cancellationToken = default)
         {
-            var instruction = await GetInstructionAsync(serviceName, cancellationToken);
+            var instruction = await GetInstructionAsync(serviceName, cancellationToken).ConfigureAwait(false);
             return instruction.IsValid;
         }
 

@@ -70,7 +70,7 @@ namespace AIProjectOrchestrator.Application.Services
                 }
 
                 // Validate that requirements analysis exists and is approved
-                var canCreatePlan = await CanCreatePlanAsync(request.RequirementsAnalysisId, cancellationToken);
+                var canCreatePlan = await CanCreatePlanAsync(request.RequirementsAnalysisId, cancellationToken).ConfigureAwait(false);
                 if (!canCreatePlan)
                 {
                     _logger.LogWarning("Project planning {PlanningId} failed: Requirements analysis is not approved or does not exist", planningId);
@@ -80,7 +80,7 @@ namespace AIProjectOrchestrator.Application.Services
                 // Retrieve the approved requirements analysis results
                 _logger.LogDebug("Retrieving requirements analysis results for planning {PlanningId}", planningId);
                 var requirementsAnalysis = await _requirementsAnalysisService.GetAnalysisResultsAsync(
-                    request.RequirementsAnalysisId, cancellationToken);
+                    request.RequirementsAnalysisId, cancellationToken).ConfigureAwait(false);
 
                 if (requirementsAnalysis == null)
                 {
@@ -90,7 +90,7 @@ namespace AIProjectOrchestrator.Application.Services
 
                 // Load planning instructions
                 _logger.LogDebug("Loading instructions for project planning {PlanningId}", planningId);
-                var instructionContent = await _instructionService.GetInstructionAsync("ProjectPlanner", cancellationToken);
+                var instructionContent = await _instructionService.GetInstructionAsync("ProjectPlanner", cancellationToken).ConfigureAwait(false);
 
                 if (!instructionContent.IsValid)
                 {
@@ -125,7 +125,7 @@ namespace AIProjectOrchestrator.Application.Services
                 var metadataTask = SaveMetadataAsync(request, planningId, cancellationToken);
 
                 // Call AI using the planning-specific provider
-                var generatedContent = await _planningAIProvider.GenerateContentAsync(aiRequest.Prompt, aiRequest.SystemMessage);
+                var generatedContent = await _planningAIProvider.GenerateContentAsync(aiRequest.Prompt, aiRequest.SystemMessage).ConfigureAwait(false);
                 
                 // GenerateContentAsync returns the content directly, so we need to create an AIResponse
                 var aiResponse = new AIResponse
@@ -177,10 +177,10 @@ namespace AIProjectOrchestrator.Application.Services
                 };
 
                 // Persist and review within a transaction for consistency
-                using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+                using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
-                    await _projectPlanningRepository.AddAsync(projectPlanningEntity, cancellationToken);
+                    await _projectPlanningRepository.AddAsync(projectPlanningEntity, cancellationToken).ConfigureAwait(false);
                     var savedPlanningId = projectPlanningEntity.Id; // Get the database-generated int ID
 
                     // Submit for review
@@ -210,22 +210,22 @@ namespace AIProjectOrchestrator.Application.Services
                         }
                     };
 
-                    var reviewResponse = await _reviewService.Value.SubmitForReviewAsync(reviewRequest, cancellationToken);
+                    var reviewResponse = await _reviewService.Value.SubmitForReviewAsync(reviewRequest, cancellationToken).ConfigureAwait(false);
 
                     // Update the project planning entity with the review ID
                     projectPlanningEntity.ReviewId = reviewResponse.ReviewId.ToString();
-                    await _projectPlanningRepository.UpdateAsync(projectPlanningEntity, cancellationToken);
+                    await _projectPlanningRepository.UpdateAsync(projectPlanningEntity, cancellationToken).ConfigureAwait(false);
 
                     // Ensure changes are flushed before commit
-                    await _dbContext.SaveChangesAsync(cancellationToken);
-                    await transaction.CommitAsync(cancellationToken);
+                    await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                    await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
 
                     _logger.LogInformation("Project planning {PlanningId} persisted and review linked within transaction. Review ID: {ReviewId}",
                         planningId, reviewResponse.ReviewId);
                 }
                 catch
                 {
-                    await transaction.RollbackAsync(cancellationToken);
+                    await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
                     throw;
                 }
 
@@ -254,7 +254,7 @@ namespace AIProjectOrchestrator.Application.Services
             Guid planningId,
             CancellationToken cancellationToken = default)
         {
-            var projectPlanning = await _projectPlanningRepository.GetByPlanningIdAsync(planningId.ToString(), cancellationToken);
+            var projectPlanning = await _projectPlanningRepository.GetByPlanningIdAsync(planningId.ToString(), cancellationToken).ConfigureAwait(false);
             if (projectPlanning != null)
             {
                 return projectPlanning.Status;
@@ -272,7 +272,7 @@ namespace AIProjectOrchestrator.Application.Services
             {
                 // Check that requirements analysis exists
                 var analysisResult = await _requirementsAnalysisService.GetAnalysisResultsAsync(
-                    requirementsAnalysisId, cancellationToken);
+                    requirementsAnalysisId, cancellationToken).ConfigureAwait(false);
 
                 if (analysisResult == null)
                 {
@@ -301,7 +301,7 @@ namespace AIProjectOrchestrator.Application.Services
             Guid planningId,
             CancellationToken cancellationToken = default)
         {
-            var projectPlanning = await _projectPlanningRepository.GetByPlanningIdAsync(planningId.ToString(), cancellationToken);
+            var projectPlanning = await _projectPlanningRepository.GetByPlanningIdAsync(planningId.ToString(), cancellationToken).ConfigureAwait(false);
             if (projectPlanning != null)
             {
                 return projectPlanning.Content;
@@ -314,7 +314,7 @@ namespace AIProjectOrchestrator.Application.Services
             Guid planningId,
             CancellationToken cancellationToken = default)
         {
-            var projectPlanning = await _projectPlanningRepository.GetByPlanningIdAsync(planningId.ToString(), cancellationToken);
+            var projectPlanning = await _projectPlanningRepository.GetByPlanningIdAsync(planningId.ToString(), cancellationToken).ConfigureAwait(false);
             if (projectPlanning != null)
             {
                 return new ProjectPlanningResponse
@@ -337,11 +337,11 @@ namespace AIProjectOrchestrator.Application.Services
             Guid planningId,
             CancellationToken cancellationToken = default)
         {
-            var projectPlanning = await _projectPlanningRepository.GetByPlanningIdAsync(planningId.ToString(), cancellationToken);
+            var projectPlanning = await _projectPlanningRepository.GetByPlanningIdAsync(planningId.ToString(), cancellationToken).ConfigureAwait(false);
             if (projectPlanning != null)
             {
                 // Get the requirements analysis entity to retrieve the AnalysisId (GUID)
-                var requirementsAnalysisEntity = await _requirementsAnalysisRepository.GetByIdAsync(projectPlanning.RequirementsAnalysisId, cancellationToken);
+                var requirementsAnalysisEntity = await _requirementsAnalysisRepository.GetByIdAsync(projectPlanning.RequirementsAnalysisId, cancellationToken).ConfigureAwait(false);
                 if (requirementsAnalysisEntity != null)
                 {
                     // Parse the AnalysisId string to GUID and return it
@@ -357,7 +357,7 @@ namespace AIProjectOrchestrator.Application.Services
 
         public async Task<string?> GetTechnicalContextAsync(Guid planningId, CancellationToken cancellationToken = default)
         {
-            var projectPlanning = await _projectPlanningRepository.GetByPlanningIdAsync(planningId.ToString(), cancellationToken);
+            var projectPlanning = await _projectPlanningRepository.GetByPlanningIdAsync(planningId.ToString(), cancellationToken).ConfigureAwait(false);
             if (projectPlanning != null)
             {
                 return projectPlanning.Content;
@@ -371,11 +371,11 @@ namespace AIProjectOrchestrator.Application.Services
             ProjectPlanningStatus status,
             CancellationToken cancellationToken = default)
         {
-            var projectPlanning = await _projectPlanningRepository.GetByPlanningIdAsync(planningId.ToString(), cancellationToken);
+            var projectPlanning = await _projectPlanningRepository.GetByPlanningIdAsync(planningId.ToString(), cancellationToken).ConfigureAwait(false);
             if (projectPlanning != null)
             {
                 projectPlanning.Status = status;
-                await _projectPlanningRepository.UpdateAsync(projectPlanning, cancellationToken);
+                await _projectPlanningRepository.UpdateAsync(projectPlanning, cancellationToken).ConfigureAwait(false);
                 _logger.LogInformation("Updated project planning {PlanningId} status to {Status}", planningId, status);
             }
             else
@@ -391,7 +391,7 @@ namespace AIProjectOrchestrator.Application.Services
             try
             {
                 // Query the repository for planning by project ID
-                var planningEntity = await _projectPlanningRepository.GetByProjectIdAsync(projectId, cancellationToken);
+                var planningEntity = await _projectPlanningRepository.GetByProjectIdAsync(projectId, cancellationToken).ConfigureAwait(false);
 
                 _logger.LogDebug("ProjectPlanningService: Found planning for project {ProjectId}: {Found}",
                     projectId, planningEntity != null ? "Yes" : "No");
@@ -463,7 +463,7 @@ namespace AIProjectOrchestrator.Application.Services
         private async Task<int?> GetRequirementsAnalysisEntityId(Guid requirementsAnalysisId, CancellationToken cancellationToken)
         {
             var analysisIdStr = requirementsAnalysisId.ToString();
-            var entityId = await _requirementsAnalysisRepository.GetEntityIdByAnalysisIdAsync(analysisIdStr, cancellationToken);
+            var entityId = await _requirementsAnalysisRepository.GetEntityIdByAnalysisIdAsync(analysisIdStr, cancellationToken).ConfigureAwait(false);
 
             if (!entityId.HasValue)
             {
@@ -489,7 +489,7 @@ namespace AIProjectOrchestrator.Application.Services
 
             // Placeholder for actual metadata persistence - could save to DB or cache
             // For example: await _metadataRepository.SaveAsync(new PlanningMetadata { PlanningId = planningId, Request = request, CreatedAt = DateTime.UtcNow });
-            await Task.Delay(100, cancellationToken); // Simulate async I/O (replace with real save)
+            await Task.Delay(100, cancellationToken).ConfigureAwait(false); // Simulate async I/O (replace with real save)
         }
     }
 }

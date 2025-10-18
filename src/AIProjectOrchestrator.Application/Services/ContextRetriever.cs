@@ -34,10 +34,10 @@ public class ContextRetriever : IContextRetriever
     public async Task<ComprehensiveContext> RetrieveComprehensiveContextAsync(Guid storyGenerationId, CancellationToken cancellationToken = default)
     {
         // Get user stories
-        var stories = await _storyGenerationService.GetApprovedStoriesAsync(storyGenerationId, cancellationToken) ?? new List<UserStory>();
+        var stories = await _storyGenerationService.GetApprovedStoriesAsync(storyGenerationId, cancellationToken).ConfigureAwait(false) ?? new List<UserStory>();
 
         // Get the planning ID from the story generation
-        var planningId = await _storyGenerationService.GetPlanningIdAsync(storyGenerationId, cancellationToken);
+        var planningId = await _storyGenerationService.GetPlanningIdAsync(storyGenerationId, cancellationToken).ConfigureAwait(false);
 
         string technicalContext = string.Empty;
         string businessContext = string.Empty;
@@ -45,17 +45,17 @@ public class ContextRetriever : IContextRetriever
         if (planningId.HasValue)
         {
             // Get planning context (architectural decisions, technical constraints)
-            technicalContext = await _projectPlanningService.GetTechnicalContextAsync(planningId.Value, cancellationToken) ?? string.Empty;
+            technicalContext = await _projectPlanningService.GetTechnicalContextAsync(planningId.Value, cancellationToken).ConfigureAwait(false) ?? string.Empty;
 
             // Get the requirements analysis ID from the planning
             var requirementsAnalysisId = await _projectPlanningService.GetRequirementsAnalysisIdAsync(
-                planningId.Value, cancellationToken);
+                planningId.Value, cancellationToken).ConfigureAwait(false);
 
             if (requirementsAnalysisId.HasValue)
             {
                 // Get requirements context (business rules)
                 businessContext = await _requirementsAnalysisService.GetBusinessContextAsync(
-                    requirementsAnalysisId.Value, cancellationToken) ?? string.Empty;
+                    requirementsAnalysisId.Value, cancellationToken).ConfigureAwait(false) ?? string.Empty;
             }
         }
 

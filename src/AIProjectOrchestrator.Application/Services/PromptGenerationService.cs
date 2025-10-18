@@ -64,7 +64,7 @@ namespace AIProjectOrchestrator.Application.Services
                 _logger.LogInformation("Retrieving individual UserStory with ID: {StoryId} for can-generate check", storyId);
 
                 // Get the individual story directly from the repository
-                var story = await _storyGenerationRepository.GetStoryByIdAsync(storyId, cancellationToken);
+                var story = await _storyGenerationRepository.GetStoryByIdAsync(storyId, cancellationToken).ConfigureAwait(false);
 
                 if (story == null)
                 {
@@ -106,7 +106,7 @@ namespace AIProjectOrchestrator.Application.Services
                 _logger.LogInformation("Retrieving individual UserStory with ID: {StoryId}", storyId);
 
                 // Get the individual story directly from the repository
-                var story = await _storyGenerationRepository.GetStoryByIdAsync(storyId, cancellationToken);
+                var story = await _storyGenerationRepository.GetStoryByIdAsync(storyId, cancellationToken).ConfigureAwait(false);
 
                 if (story == null)
                 {
@@ -137,7 +137,7 @@ namespace AIProjectOrchestrator.Application.Services
                 {
                     _logger.LogInformation("Calling AI provider for prompt generation with prompt length: {Length} characters", promptContent.Length);
                     
-                    generatedContent = await _promptGenerationAIProvider.GenerateContentAsync(promptContent, null);
+                    generatedContent = await _promptGenerationAIProvider.GenerateContentAsync(promptContent, null).ConfigureAwait(false);
 
                     _logger.LogInformation("AI prompt generation successful with provider: {ProviderName}", _promptGenerationAIProvider.ProviderName);
                 }
@@ -164,7 +164,7 @@ namespace AIProjectOrchestrator.Application.Services
                 try
                 {
                     _logger.LogInformation("Saving prompt generation to database for story {StoryId}", story.Id);
-                    await _promptGenerationRepository.AddAsync(promptGeneration, cancellationToken);
+                    await _promptGenerationRepository.AddAsync(promptGeneration, cancellationToken).ConfigureAwait(false);
                     _logger.LogInformation("Successfully saved prompt generation with ID: {PromptId}", promptGeneration.PromptId);
                 }
                 catch (Exception saveEx)
@@ -193,7 +193,7 @@ namespace AIProjectOrchestrator.Application.Services
                     story.PromptId = promptGeneration.PromptId;
 
                     // Update the story in the repository
-                    await _storyGenerationRepository.UpdateStoryAsync(story, cancellationToken);
+                    await _storyGenerationRepository.UpdateStoryAsync(story, cancellationToken).ConfigureAwait(false);
                     _logger.LogInformation("Successfully updated UserStory {StoryId} with prompt ID: {PromptId}", story.Id, promptGeneration.PromptId);
                 }
                 catch (Exception updateEx)
@@ -324,7 +324,7 @@ namespace AIProjectOrchestrator.Application.Services
                     MaxTokens = 1000  // Default value, will be overridden by provider
                 };
 
-                var generatedContent = await _promptGenerationAIProvider.GenerateContentAsync(aiRequest.Prompt, aiRequest.SystemMessage);
+                var generatedContent = await _promptGenerationAIProvider.GenerateContentAsync(aiRequest.Prompt, aiRequest.SystemMessage).ConfigureAwait(false);
                 
                 // GenerateContentAsync returns the content directly, so we need to create an AIResponse
                 var aiResponse = new AIResponse
@@ -359,7 +359,7 @@ namespace AIProjectOrchestrator.Application.Services
                 _logger.LogInformation("Getting prompt for ID: {PromptId}", promptId);
 
                 // Query the database for the prompt generation with UserStory information
-                var promptGeneration = await _promptGenerationRepository.GetByPromptIdAsync(promptId.ToString(), cancellationToken);
+                var promptGeneration = await _promptGenerationRepository.GetByPromptIdAsync(promptId.ToString(), cancellationToken).ConfigureAwait(false);
 
                 if (promptGeneration == null)
                 {

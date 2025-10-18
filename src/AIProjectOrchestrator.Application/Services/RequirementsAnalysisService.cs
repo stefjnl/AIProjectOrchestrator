@@ -77,7 +77,7 @@ namespace AIProjectOrchestrator.Application.Services
 
                 // Load instructions
                 _logger.LogDebug("Loading instructions from RequirementsAnalyst");
-                var instructionContent = await _instructionService.GetInstructionAsync("RequirementsAnalyst", cancellationToken);
+                var instructionContent = await _instructionService.GetInstructionAsync("RequirementsAnalyst", cancellationToken).ConfigureAwait(false);
                 
                 if (!instructionContent.IsValid)
                 {
@@ -99,7 +99,7 @@ namespace AIProjectOrchestrator.Application.Services
                 _logger.LogDebug("Calling AI provider: {ProviderName}", _requirementsAIProvider.ProviderName);
                 
                 // Call AI using the requirements-specific provider
-                var generatedContent = await _requirementsAIProvider.GenerateContentAsync(aiRequest.Prompt, aiRequest.SystemMessage);
+                var generatedContent = await _requirementsAIProvider.GenerateContentAsync(aiRequest.Prompt, aiRequest.SystemMessage).ConfigureAwait(false);
                 
                 // GenerateContentAsync returns the content directly, so we need to create an AIResponse
                 var aiResponse = new AIResponse
@@ -137,10 +137,10 @@ namespace AIProjectOrchestrator.Application.Services
                 };
 
                 // Persist and review within a transaction for consistency
-                using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
+                using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
-                    await _requirementsAnalysisRepository.AddAsync(analysisEntity, cancellationToken);
+                    await _requirementsAnalysisRepository.AddAsync(analysisEntity, cancellationToken).ConfigureAwait(false);
                     var savedAnalysisId = analysisEntity.Id; // Get the database-generated int ID
 
                     // Submit for review
@@ -163,22 +163,22 @@ namespace AIProjectOrchestrator.Application.Services
                         }
                     };
 
-                    var reviewResponse = await _reviewService.Value.SubmitForReviewAsync(reviewRequest, cancellationToken);
+                    var reviewResponse = await _reviewService.Value.SubmitForReviewAsync(reviewRequest, cancellationToken).ConfigureAwait(false);
 
                     // Update the analysis entity with the review ID
                     analysisEntity.ReviewId = reviewResponse.ReviewId.ToString();
-                    await _requirementsAnalysisRepository.UpdateAsync(analysisEntity, cancellationToken);
+                    await _requirementsAnalysisRepository.UpdateAsync(analysisEntity, cancellationToken).ConfigureAwait(false);
 
                     // Ensure changes are flushed before commit
-                    await _dbContext.SaveChangesAsync(cancellationToken);
-                    await transaction.CommitAsync(cancellationToken);
+                    await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                    await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
 
                     _logger.LogInformation("Requirements analysis persisted and review linked within transaction. Review ID: {ReviewId}",
                         reviewResponse.ReviewId);
                 }
                 catch
                 {
-                    await transaction.RollbackAsync(cancellationToken);
+                    await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
                     throw;
                 }
 
@@ -206,7 +206,7 @@ namespace AIProjectOrchestrator.Application.Services
             Guid analysisId,
             CancellationToken cancellationToken = default)
         {
-            var analysisEntity = await _requirementsAnalysisRepository.GetByAnalysisIdAsync(analysisId.ToString(), cancellationToken);
+            var analysisEntity = await _requirementsAnalysisRepository.GetByAnalysisIdAsync(analysisId.ToString(), cancellationToken).ConfigureAwait(false);
             if (analysisEntity != null)
             {
                 return analysisEntity.Status;
@@ -220,7 +220,7 @@ namespace AIProjectOrchestrator.Application.Services
             CancellationToken cancellationToken = default)
         {
             _logger.LogInformation("RequirementsAnalysisService: Getting analysis results for {AnalysisId}", analysisId);
-            var analysisEntity = await _requirementsAnalysisRepository.GetByAnalysisIdAsync(analysisId.ToString(), cancellationToken);
+            var analysisEntity = await _requirementsAnalysisRepository.GetByAnalysisIdAsync(analysisId.ToString(), cancellationToken).ConfigureAwait(false);
             if (analysisEntity != null)
             {
                 _logger.LogInformation("RequirementsAnalysisService: Found analysis {AnalysisId} with status {Status}", analysisId, analysisEntity.Status);
@@ -244,7 +244,7 @@ namespace AIProjectOrchestrator.Application.Services
             Guid analysisId,
             CancellationToken cancellationToken = default)
         {
-            var analysisEntity = await _requirementsAnalysisRepository.GetByAnalysisIdAsync(analysisId.ToString(), cancellationToken);
+            var analysisEntity = await _requirementsAnalysisRepository.GetByAnalysisIdAsync(analysisId.ToString(), cancellationToken).ConfigureAwait(false);
             if (analysisEntity != null)
             {
                 return analysisEntity.Content;
@@ -266,7 +266,7 @@ namespace AIProjectOrchestrator.Application.Services
                     _logger.LogError("Invalid projectId: {ProjectId}. Could not parse as int in CanAnalyzeRequirementsAsync.", projectId);
                     throw new InvalidOperationException($"Invalid projectId: {projectId}. Could not parse as int in CanAnalyzeRequirementsAsync.");
                 }
-                var existingAnalysis = await _requirementsAnalysisRepository.GetByProjectIdAsync(projectIdInt, cancellationToken);
+                var existingAnalysis = await _requirementsAnalysisRepository.GetByProjectIdAsync(projectIdInt, cancellationToken).ConfigureAwait(false);
                 return existingAnalysis == null;
             }
             catch (Exception ex)
@@ -278,7 +278,7 @@ namespace AIProjectOrchestrator.Application.Services
 
         public async Task<string?> GetBusinessContextAsync(Guid analysisId, CancellationToken cancellationToken = default)
         {
-            var analysisEntity = await _requirementsAnalysisRepository.GetByAnalysisIdAsync(analysisId.ToString(), cancellationToken);
+            var analysisEntity = await _requirementsAnalysisRepository.GetByAnalysisIdAsync(analysisId.ToString(), cancellationToken).ConfigureAwait(false);
             if (analysisEntity != null)
             {
                 return analysisEntity.Content;
@@ -294,11 +294,11 @@ namespace AIProjectOrchestrator.Application.Services
         {
             _logger.LogInformation("RequirementsAnalysisService: Updating analysis {AnalysisId} to status {Status}", analysisId, status);
 
-            var analysisEntity = await _requirementsAnalysisRepository.GetByAnalysisIdAsync(analysisId.ToString(), cancellationToken);
+            var analysisEntity = await _requirementsAnalysisRepository.GetByAnalysisIdAsync(analysisId.ToString(), cancellationToken).ConfigureAwait(false);
             if (analysisEntity != null)
             {
                 analysisEntity.Status = status;
-                await _requirementsAnalysisRepository.UpdateAsync(analysisEntity, cancellationToken);
+                await _requirementsAnalysisRepository.UpdateAsync(analysisEntity, cancellationToken).ConfigureAwait(false);
                 _logger.LogInformation("RequirementsAnalysisService: Confirmed analysis {AnalysisId} status updated to {Status}", analysisId, status);
             }
             else
@@ -314,7 +314,7 @@ namespace AIProjectOrchestrator.Application.Services
             try
             {
                 // Query the repository for analysis by project ID
-                var analysisEntity = await _requirementsAnalysisRepository.GetByProjectIdAsync(projectId, cancellationToken);
+                var analysisEntity = await _requirementsAnalysisRepository.GetByProjectIdAsync(projectId, cancellationToken).ConfigureAwait(false);
                 
                 _logger.LogDebug("RequirementsAnalysisService: Found analysis for project {ProjectId}: {Found}", 
                     projectId, analysisEntity != null ? "Yes" : "No");

@@ -53,17 +53,17 @@ namespace AIProjectOrchestrator.Application.Services
 
             try
             {
-                await _dependencyValidator.ValidateAsync(request.PlanningId, cancellationToken);
+                await _dependencyValidator.ValidateAsync(request.PlanningId, cancellationToken).ConfigureAwait(false);
 
-                var aiRequest = await _contextBuilder.BuildAsync(request.PlanningId, request, generationId, cancellationToken);
+                var aiRequest = await _contextBuilder.BuildAsync(request.PlanningId, request, generationId, cancellationToken).ConfigureAwait(false);
 
-                var aiResponse = await _aiOrchestrator.GenerateAsync(aiRequest, generationId, cancellationToken);
+                var aiResponse = await _aiOrchestrator.GenerateAsync(aiRequest, generationId, cancellationToken).ConfigureAwait(false);
 
-                var stories = await _storyParser.ParseAsync(aiResponse.Content, cancellationToken);
+                var stories = await _storyParser.ParseAsync(aiResponse.Content, cancellationToken).ConfigureAwait(false);
 
                 string projectId = "unknown";
 
-                return await _storyPersistence.SaveAsync(stories, aiResponse, request.PlanningId, generationId, projectId, cancellationToken);
+                return await _storyPersistence.SaveAsync(stories, aiResponse, request.PlanningId, generationId, projectId, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -76,7 +76,7 @@ namespace AIProjectOrchestrator.Application.Services
             Guid generationId,
             CancellationToken cancellationToken = default)
         {
-            var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(generationId.ToString(), cancellationToken);
+            var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(generationId.ToString(), cancellationToken).ConfigureAwait(false);
             if (storyGeneration != null)
             {
                 return storyGeneration.Status;
@@ -93,7 +93,7 @@ namespace AIProjectOrchestrator.Application.Services
             {
                 _logger.LogDebug("Service: Getting generation results for {GenerationId}", generationId);
 
-                var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(generationId.ToString(), cancellationToken);
+                var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(generationId.ToString(), cancellationToken).ConfigureAwait(false);
                 if (storyGeneration == null)
                 {
                     _logger.LogWarning("Service: No StoryGeneration entity found for {GenerationId}", generationId);
@@ -103,7 +103,7 @@ namespace AIProjectOrchestrator.Application.Services
                 _logger.LogDebug("Service: Found StoryGeneration with DB ID {StoryGenDbId} for {GenerationId}",
                     storyGeneration.Id, generationId);
 
-                var stories = await _storyGenerationRepository.GetStoriesByGenerationIdAsync(generationId, cancellationToken);
+                var stories = await _storyGenerationRepository.GetStoriesByGenerationIdAsync(generationId, cancellationToken).ConfigureAwait(false);
 
                 if (stories == null)
                 {
@@ -131,7 +131,7 @@ namespace AIProjectOrchestrator.Application.Services
             try
             {
                 // Check that project planning exists and is approved
-                var planningStatus = await _projectPlanningService.GetPlanningStatusAsync(planningId, cancellationToken);
+                var planningStatus = await _projectPlanningService.GetPlanningStatusAsync(planningId, cancellationToken).ConfigureAwait(false);
                 return planningStatus == ProjectPlanningStatus.Approved;
             }
             catch (Exception ex)
@@ -144,22 +144,22 @@ namespace AIProjectOrchestrator.Application.Services
         public async Task<List<UserStory>?> GetApprovedStoriesAsync(Guid storyGenerationId, CancellationToken cancellationToken = default)
         {
             // Check if the story generation is approved
-            var status = await GetGenerationStatusAsync(storyGenerationId, cancellationToken);
+            var status = await GetGenerationStatusAsync(storyGenerationId, cancellationToken).ConfigureAwait(false);
             if (status != StoryGenerationStatus.Approved)
             {
                 return null;
             }
 
             // Return the stories if they are approved
-            return await GetGenerationResultsAsync(storyGenerationId, cancellationToken);
+            return await GetGenerationResultsAsync(storyGenerationId, cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<Guid?> GetPlanningIdAsync(Guid storyGenerationId, CancellationToken cancellationToken = default)
         {
-            var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(storyGenerationId.ToString(), cancellationToken);
+            var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(storyGenerationId.ToString(), cancellationToken).ConfigureAwait(false);
             if (storyGeneration != null)
             {
-                var projectPlanning = await _projectPlanningRepository.GetByIdAsync(storyGeneration.ProjectPlanningId, cancellationToken);
+                var projectPlanning = await _projectPlanningRepository.GetByIdAsync(storyGeneration.ProjectPlanningId, cancellationToken).ConfigureAwait(false);
                 if (projectPlanning != null)
                 {
                     return Guid.Parse(projectPlanning.PlanningId);
@@ -176,11 +176,11 @@ namespace AIProjectOrchestrator.Application.Services
             StoryGenerationStatus status,
             CancellationToken cancellationToken = default)
         {
-            var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(generationId.ToString(), cancellationToken);
+            var storyGeneration = await _storyGenerationRepository.GetByGenerationIdAsync(generationId.ToString(), cancellationToken).ConfigureAwait(false);
             if (storyGeneration != null)
             {
                 storyGeneration.Status = status;
-                await _storyGenerationRepository.UpdateAsync(storyGeneration, cancellationToken);
+                await _storyGenerationRepository.UpdateAsync(storyGeneration, cancellationToken).ConfigureAwait(false);
 
                 _logger.LogInformation("Updated story generation {GenerationId} status to {Status}", generationId, status);
             }
@@ -193,7 +193,7 @@ namespace AIProjectOrchestrator.Application.Services
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var stories = await GetAllStoriesAsync(storyGenerationId, cancellationToken);
+            var stories = await GetAllStoriesAsync(storyGenerationId, cancellationToken).ConfigureAwait(false);
 
             if (storyIndex >= 0 && storyIndex < stories.Count)
             {
@@ -207,7 +207,7 @@ namespace AIProjectOrchestrator.Application.Services
 
         public async Task<StoryGeneration?> GetGenerationByProjectAsync(int projectId, CancellationToken cancellationToken = default)
         {
-            var generations = await _storyGenerationRepository.GetByProjectIdAsync(projectId, cancellationToken);
+            var generations = await _storyGenerationRepository.GetByProjectIdAsync(projectId, cancellationToken).ConfigureAwait(false);
             // Return the latest/most recent generation (assuming one active per project for workflow state)
             return generations.OrderByDescending(g => g.CreatedDate).FirstOrDefault();
         }
@@ -219,14 +219,14 @@ namespace AIProjectOrchestrator.Application.Services
             cancellationToken.ThrowIfCancellationRequested();
 
             // Always retrieve stories from the database to ensure we have the latest data
-            return await _storyGenerationRepository.GetStoriesByGenerationIdAsync(storyGenerationId, cancellationToken);
+            return await _storyGenerationRepository.GetStoriesByGenerationIdAsync(storyGenerationId, cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<int> GetStoryCountAsync(
             Guid storyGenerationId,
             CancellationToken cancellationToken = default)
         {
-            var stories = await GetAllStoriesAsync(storyGenerationId, cancellationToken);
+            var stories = await GetAllStoriesAsync(storyGenerationId, cancellationToken).ConfigureAwait(false);
             return stories.Count;
         }
 
@@ -234,7 +234,7 @@ namespace AIProjectOrchestrator.Application.Services
             Guid storyId,
             CancellationToken cancellationToken = default)
         {
-            var story = await _storyGenerationRepository.GetStoryByIdAsync(storyId, cancellationToken);
+            var story = await _storyGenerationRepository.GetStoryByIdAsync(storyId, cancellationToken).ConfigureAwait(false);
             if (story == null)
             {
                 _logger.LogWarning("Story with ID {StoryId} not found", storyId);
@@ -250,7 +250,7 @@ namespace AIProjectOrchestrator.Application.Services
         {
             try
             {
-                var story = await _storyGenerationRepository.GetStoryByIdAsync(storyId, cancellationToken);
+                var story = await _storyGenerationRepository.GetStoryByIdAsync(storyId, cancellationToken).ConfigureAwait(false);
                 if (story == null)
                 {
                     _logger.LogWarning("Story with ID {StoryId} not found for status update", storyId);
@@ -258,7 +258,7 @@ namespace AIProjectOrchestrator.Application.Services
                 }
 
                 story.Status = status;
-                await _storyGenerationRepository.UpdateStoryAsync(story, cancellationToken);
+                await _storyGenerationRepository.UpdateStoryAsync(story, cancellationToken).ConfigureAwait(false);
 
                 _logger.LogInformation("Updated story {StoryId} status to {Status}", storyId, status);
             }
@@ -287,7 +287,7 @@ namespace AIProjectOrchestrator.Application.Services
                 _logger.LogInformation("UpdatedStory data: Title='{Title}', Description='{Description}', Status={Status}",
                     updatedStory.Title, updatedStory.Description, updatedStory.Status);
 
-                var existingStory = await _storyGenerationRepository.GetStoryByIdAsync(storyId, cancellationToken);
+                var existingStory = await _storyGenerationRepository.GetStoryByIdAsync(storyId, cancellationToken).ConfigureAwait(false);
                 if (existingStory == null)
                 {
                     _logger.LogWarning("Story with ID {StoryId} not found for update", storyId);
@@ -307,7 +307,7 @@ namespace AIProjectOrchestrator.Application.Services
                 existingStory.Status = updatedStory.Status;
 
                 _logger.LogInformation("About to call repository UpdateStoryAsync for story {StoryId}", storyId);
-                await _storyGenerationRepository.UpdateStoryAsync(existingStory, cancellationToken);
+                await _storyGenerationRepository.UpdateStoryAsync(existingStory, cancellationToken).ConfigureAwait(false);
                 _logger.LogInformation("Repository UpdateStoryAsync completed successfully for story {StoryId}", storyId);
 
                 _logger.LogInformation("Updated story {StoryId}", storyId);
@@ -323,7 +323,7 @@ namespace AIProjectOrchestrator.Application.Services
             Guid storyGenerationId,
             CancellationToken cancellationToken = default)
         {
-            var stories = await GetAllStoriesAsync(storyGenerationId, cancellationToken);
+            var stories = await GetAllStoriesAsync(storyGenerationId, cancellationToken).ConfigureAwait(false);
             return stories.Count(s => s.Status == StoryStatus.Approved);
         }
 
