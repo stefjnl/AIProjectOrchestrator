@@ -367,9 +367,6 @@ builder.Services.AddSingleton<IAIClientFactory, AIClientFactory>();
 // Register default provider service
 builder.Services.AddSingleton<IDefaultProviderService, AIProjectOrchestrator.Application.Services.DefaultProviderService>();
 
-// Register provider configuration service for Infrastructure layer
-builder.Services.AddSingleton<IProviderConfigurationService, ProviderConfigurationService>();
-
 // Register provider management service
 builder.Services.AddScoped<IProviderManagementService, ProviderManagementService>();
 

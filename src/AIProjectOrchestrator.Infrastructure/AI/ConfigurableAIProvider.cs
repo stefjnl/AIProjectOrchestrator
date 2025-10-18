@@ -13,19 +13,6 @@ using System.Net;
 namespace AIProjectOrchestrator.Infrastructure.AI
 {
     /// <summary>
-    /// Interface for accessing runtime provider configuration from Infrastructure layer.
-    /// This is separate from the Application layer interface to maintain Clean Architecture.
-    /// </summary>
-    public interface IProviderConfigurationService
-    {
-        /// <summary>
-        /// Gets the current default provider name, or null if not set.
-        /// </summary>
-        /// <returns>The current default provider name</returns>
-        Task<string?> GetDefaultProviderAsync();
-    }
-
-    /// <summary>
     /// Base implementation of IAIProvider with operation-specific configuration.
     /// Each derived class represents a specific business operation with its own AI configuration.
     /// </summary>
@@ -73,7 +60,6 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         private readonly IOptions<AIProjectOrchestrator.Infrastructure.Configuration.AIOperationSettings> _settings;
         private readonly ILogger<ConfigurableAIProvider> _logger;
         private readonly ILoggerFactory _loggerFactory;
-        private readonly IProviderConfigurationService? _providerConfigService;
         private readonly IServiceProvider? _serviceProvider;
 
         /// <summary>
@@ -83,17 +69,17 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         /// <param name="httpClientFactory">Factory for creating HTTP clients with Docker SSL support</param>
         /// <param name="settings">Operation-specific configuration</param>
         /// <param name="logger">Logger for diagnostics</param>
-        /// <param name="providerConfigService">Service for runtime provider configuration</param>
+        /// <param name="loggerFactory">Logger factory for creating operation-specific loggers</param>
+        /// <param name="serviceProvider">Service provider for dependency resolution</param>
         protected ConfigurableAIProvider(string operationType, IHttpClientFactory httpClientFactory,
             IOptions<AIProjectOrchestrator.Infrastructure.Configuration.AIOperationSettings> settings, ILogger<ConfigurableAIProvider> logger,
-            ILoggerFactory loggerFactory, IProviderConfigurationService? providerConfigService = null, IServiceProvider? serviceProvider = null)
+            ILoggerFactory loggerFactory, IServiceProvider? serviceProvider = null)
         {
             _operationType = operationType ?? throw new ArgumentNullException(nameof(operationType));
             _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
             _settings = settings ?? throw new ArgumentNullException(nameof(settings));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
-            _providerConfigService = providerConfigService!;
             _serviceProvider = serviceProvider!;
 
             // Add detailed logging to diagnose configuration issues
@@ -128,35 +114,18 @@ namespace AIProjectOrchestrator.Infrastructure.AI
         {
             get
             {
-                _logger.LogInformation("=== ProviderName Debug Info ===");
+                // Return the configuration-based provider name directly
+                // This avoids blocking async calls which can cause deadlocks
+                // If runtime provider override is needed in the future, consider:
+                // 1. Making ProviderName async in the interface (breaking change)
+                // 2. Caching the provider name during construction
+                // 3. Using a separate method GetProviderNameAsync()
                 var configProvider = GetAIOperationConfig().ProviderName;
                 
-                // Use a synchronous approach to access the provider config service
-                // This avoids blocking async calls in a property getter
-                string? overrideProvider = null;
-                if (_providerConfigService != null)
-                {
-                    // Use a sync-over-async approach as a temporary fix
-                    // In production, consider refactoring the interface to support async
-                    try
-                    {
-                        var task = _providerConfigService.GetDefaultProviderAsync();
-                        overrideProvider = task.IsCompleted ? task.Result : task.GetAwaiter().GetResult();
-                    }
-                    catch
-                    {
-                        // If async call fails, continue with config provider only
-                        _logger.LogWarning("Failed to retrieve runtime provider override, using config provider");
-                    }
-                }
+                _logger.LogDebug("Provider for operation '{Operation}': {Provider}",
+                    _operationType, configProvider);
                 
-                var finalProvider = overrideProvider ?? configProvider;
-                
-                _logger.LogInformation("Provider selection for operation '{Operation}': Config={Config}, Override={Override}, Final={Final}",
-                    _operationType, configProvider, overrideProvider ?? "none", finalProvider);
-                _logger.LogInformation("=== End ProviderName Debug Info ===");
-                
-                return finalProvider;
+                return configProvider;
             }
         }
 
