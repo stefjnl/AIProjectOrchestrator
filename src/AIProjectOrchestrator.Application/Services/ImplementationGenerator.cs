@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -19,11 +18,16 @@ namespace AIProjectOrchestrator.Application.Services;
 public class ImplementationGenerator : IImplementationGenerator
 {
     private readonly IImplementationGenerationAIProvider _aiProvider;
+    private readonly ICodeArtifactParser _codeArtifactParser;
     private readonly ILogger<ImplementationGenerator> _logger;
 
-    public ImplementationGenerator(IImplementationGenerationAIProvider aiProvider, ILogger<ImplementationGenerator> logger)
+    public ImplementationGenerator(
+        IImplementationGenerationAIProvider aiProvider,
+        ICodeArtifactParser codeArtifactParser,
+        ILogger<ImplementationGenerator> logger)
     {
         _aiProvider = aiProvider;
+        _codeArtifactParser = codeArtifactParser;
         _logger = logger;
     }
 
@@ -60,7 +64,7 @@ public class ImplementationGenerator : IImplementationGenerator
         var aiResponse = await _aiProvider.GenerateContentAsync(aiRequest.Prompt, aiRequest.SystemMessage);
 
         // Parse AI response to code artifacts
-        return ParseAIResponseToCodeArtifacts(aiResponse, "Implementation");
+        return _codeArtifactParser.ParseToCodeArtifacts(aiResponse, "Implementation", "GeneratedImplementation.cs");
     }
 
     private string CreateImplementationPromptFromContext(ComprehensiveContext context, List<CodeArtifact> testFiles)
@@ -118,46 +122,4 @@ public class ImplementationGenerator : IImplementationGenerator
 
         return prompt.ToString();
     }
-
-    private List<CodeArtifact> ParseAIResponseToCodeArtifacts(string aiResponse, string fileType)
-    {
-        var artifacts = new List<CodeArtifact>();
-
-        // Simple parsing - in a production system, this would be more sophisticated
-        // Looking for code blocks with file names
-        var codeBlockPattern = @"```csharp:(.*?)\r?\n(.*?)```";
-        var matches = Regex.Matches(aiResponse, codeBlockPattern, RegexOptions.Singleline);
-
-        foreach (Match match in matches)
-        {
-            var fileName = match.Groups[1].Value.Trim();
-            var content = match.Groups[2].Value.Trim();
-
-            if (string.IsNullOrEmpty(fileName))
-            {
-                fileName = $"Generated{artifacts.Count + 1}.cs";
-            }
-
-            artifacts.Add(new CodeArtifact
-            {
-                FileName = fileName,
-                Content = content,
-                FileType = fileType
-            });
-        }
-
-        // If no code blocks were found, treat the entire response as a single file
-        if (artifacts.Count == 0)
-        {
-            artifacts.Add(new CodeArtifact
-            {
-                FileName = "GeneratedImplementation.cs",
-                Content = aiResponse,
-                FileType = fileType
-            });
-        }
-
-        return artifacts;
-    }
-
 }

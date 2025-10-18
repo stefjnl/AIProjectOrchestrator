@@ -136,6 +136,7 @@ builder.Services.AddScoped<IImplementationGenerator, ImplementationGenerator>();
 builder.Services.AddScoped<ICodeValidator, CodeValidator>();
 builder.Services.AddScoped<IContextRetriever, ContextRetriever>();
 builder.Services.AddScoped<IFileOrganizer, FileOrganizer>();
+builder.Services.AddScoped<ICodeArtifactParser, CodeArtifactParser>();
 
 // Add refactored code generation services (Issue #5 - SRP compliance)
 builder.Services.AddScoped<IWorkflowDependencyValidator, WorkflowDependencyValidator>();
