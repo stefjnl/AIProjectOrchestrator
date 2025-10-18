@@ -194,13 +194,24 @@ builder.Services.AddHttpClient<ClaudeClient>()
         client.BaseAddress = new Uri(settings.BaseUrl);
         client.Timeout = TimeSpan.FromSeconds(settings.TimeoutSeconds);
     })
-    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    .ConfigurePrimaryHttpMessageHandler(() => 
     {
-        ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true,
-        SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13,
-        UseCookies = false,
-        UseProxy = false,
-        CheckCertificateRevocationList = false
+        var handler = new HttpClientHandler
+        {
+            SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13,
+            UseCookies = false,
+            UseProxy = false
+        };
+
+        // Only bypass SSL validation in Development for testing
+        if (builder.Environment.IsDevelopment())
+        {
+            handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+            Log.Warning("Claude: SSL certificate validation disabled - DEVELOPMENT ONLY");
+        }
+        // In production, use proper SSL validation (default behavior)
+
+        return handler;
     });
 
 builder.Services.AddHttpClient<LMStudioClient>()
@@ -211,13 +222,23 @@ builder.Services.AddHttpClient<LMStudioClient>()
         // Set a longer base timeout to handle large prompts - we'll manage individual request timeouts in the client
         client.Timeout = TimeSpan.FromSeconds(Math.Max(settings.TimeoutSeconds, 120)); // Minimum 2 minutes, max from config
     })
-    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    .ConfigurePrimaryHttpMessageHandler(() => 
     {
-        ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true,
-        SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13,
-        UseCookies = false,
-        UseProxy = false,
-        CheckCertificateRevocationList = false
+        var handler = new HttpClientHandler
+        {
+            SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13,
+            UseCookies = false,
+            UseProxy = false
+        };
+
+        // LMStudio is typically a local service, allow bypass in Development
+        if (builder.Environment.IsDevelopment())
+        {
+            handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+            Log.Warning("LMStudio: SSL certificate validation disabled - DEVELOPMENT ONLY (local service)");
+        }
+
+        return handler;
     });
 
 builder.Services.AddHttpClient<OpenRouterClient>()
@@ -230,13 +251,24 @@ builder.Services.AddHttpClient<OpenRouterClient>()
         // Set a longer base timeout to handle large prompts - we'll manage individual request timeouts in the client
         client.Timeout = TimeSpan.FromSeconds(Math.Max(settings.TimeoutSeconds, 120)); // Minimum 2 minutes, max from config
     })
-    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    .ConfigurePrimaryHttpMessageHandler(() => 
     {
-        ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true,
-        SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13,
-        UseCookies = false,
-        UseProxy = false,
-        CheckCertificateRevocationList = false
+        var handler = new HttpClientHandler
+        {
+            SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13,
+            UseCookies = false,
+            UseProxy = false
+        };
+
+        // OpenRouter is a public HTTPS service - should NEVER bypass SSL in production
+        if (builder.Environment.IsDevelopment())
+        {
+            handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+            Log.Warning("OpenRouter: SSL certificate validation disabled - DEVELOPMENT ONLY");
+        }
+        // In production, proper SSL validation is enforced (default behavior)
+
+        return handler;
     });
 
 builder.Services.AddHttpClient<NanoGptClient>()
@@ -247,44 +279,62 @@ builder.Services.AddHttpClient<NanoGptClient>()
         // Set a longer base timeout to handle large prompts - we'll manage individual request timeouts in the client
         client.Timeout = TimeSpan.FromSeconds(Math.Max(settings.TimeoutSeconds, 120)); // Minimum 2 minutes, max from config
     })
-    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    .ConfigurePrimaryHttpMessageHandler(() => 
     {
-        ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true,
-        SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13,
-        UseCookies = false,
-        UseProxy = false,
-        CheckCertificateRevocationList = false
+        var handler = new HttpClientHandler
+        {
+            SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13,
+            UseCookies = false,
+            UseProxy = false
+        };
+
+        // NanoGpt proxy is typically a local service, allow bypass in Development
+        if (builder.Environment.IsDevelopment())
+        {
+            handler.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+            Log.Warning("NanoGpt: SSL certificate validation disabled - DEVELOPMENT ONLY (local proxy)");
+        }
+
+        return handler;
     });
 
-// Register Docker-specific HttpClient for new AI providers with aggressive SSL bypass for container environments
+// Register Docker-specific HttpClient for new AI providers
 builder.Services.AddHttpClient("DockerAIClient")
-    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+    .ConfigurePrimaryHttpMessageHandler(() => 
     {
-        ServerCertificateCustomValidationCallback = (message, cert, chain, errors) =>
+        var handler = new HttpClientHandler
         {
-            // Log SSL validation issues for debugging - aggressive bypass for container environments
-            if (errors != SslPolicyErrors.None)
+            SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13,
+            UseCookies = false,
+            UseProxy = false,
+            AutomaticDecompression = System.Net.DecompressionMethods.All
+        };
+
+        // Only bypass SSL in Development for Docker/container local services
+        if (builder.Environment.IsDevelopment())
+        {
+            handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) =>
             {
-                Console.WriteLine($"Docker SSL Validation Bypass: {errors}");
-                if (cert != null)
+                if (errors != SslPolicyErrors.None)
                 {
-                    Console.WriteLine($"Certificate: {cert.Subject} issued by {cert.Issuer}");
+                    Log.Warning("DockerAIClient: SSL validation bypass in Development - Errors: {Errors}", errors);
+                    if (cert != null)
+                    {
+                        Log.Debug("Certificate: {Subject} issued by {Issuer}", cert.Subject, cert.Issuer);
+                    }
                 }
-            }
-            return true; // Complete SSL bypass for Docker/container environments
-        },
-        SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13,
-        UseCookies = false,
-        UseProxy = false, // Bypass any proxy issues in container environments
-        CheckCertificateRevocationList = false, // Skip CRL checks that might fail in containers
-        AutomaticDecompression = System.Net.DecompressionMethods.All // Handle compression automatically
+                return true; // Allow bypass in Development only
+            };
+        }
+        // In production, proper SSL validation is enforced
+
+        return handler;
     })
     .ConfigureHttpClient((serviceProvider, client) =>
     {
-        client.Timeout = TimeSpan.FromMinutes(5); // Longer timeout for Docker networking
+        client.Timeout = TimeSpan.FromMinutes(5);
         client.DefaultRequestHeaders.Add("User-Agent", "AIProjectOrchestrator-Docker/1.0");
-        // Add additional headers to help with container networking
-        client.DefaultRequestHeaders.ConnectionClose = false; // Keep connections alive
+        client.DefaultRequestHeaders.ConnectionClose = false;
     });
 
 // Register AI clients as singletons
