@@ -6,8 +6,25 @@
 <div class="main-container">
     <!-- Welcome Section -->
     <div class="welcome-section">
-        <h1>Welcome to AI Project Orchestrator</h1>
-        <p class="subtitle">Transform your ideas into reality with AI-powered project development</p>
+        <h1>
+            <svg style="display: inline-block; vertical-align: middle; margin-right: 0.5rem;" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M2 17l10 5 10-5M2 12l10 5 10-5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            AI Project Orchestrator
+        </h1>
+        <p class="subtitle">Automated software development lifecycle with AI-powered workflow</p>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="card" style="margin-bottom: 2rem; padding: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+            <span style="font-weight: 600; color: var(--color-slate-700);">Overall Progress</span>
+            <span id="overall-progress-text" style="color: var(--color-slate-600);">0%</span>
+        </div>
+        <div class="progress-bar-container">
+            <div id="overall-progress-bar" class="progress-bar" style="width: 0%;"></div>
+        </div>
     </div>
 
     <!-- Stats Grid -->
@@ -80,6 +97,14 @@
             }, 30000);
         });
 
+        // Helper function to update overall progress bar
+        function updateOverallProgress(percentage) {
+            const bar = document.getElementById('overall-progress-bar');
+            const text = document.getElementById('overall-progress-text');
+            if (bar) bar.style.width = percentage + '%';
+            if (text) text.textContent = Math.round(percentage) + '%';
+        }
+
         async function loadDashboardData() {
             try {
                 console.log('Loading dashboard data...');
@@ -105,12 +130,17 @@
                 document.getElementById('pending-reviews').textContent = reviews.length;
 
                 // Calculate completed stories (mock data for now)
-                document.getElementById('completed-stories').textContent =
-                    Math.floor(Math.random() * 50) + 10;
+                const completedStories = Math.floor(Math.random() * 50) + 10;
+                document.getElementById('completed-stories').textContent = completedStories;
 
                 // Calculate AI tasks (mock data for now)
                 document.getElementById('ai-tasks').textContent =
                     Math.floor(Math.random() * 20) + 5;
+
+                // Update overall progress (example: based on projects and reviews)
+                const totalTasks = projects.length + completedStories;
+                const progress = totalTasks > 0 ? (completedStories / totalTasks) * 100 : 0;
+                updateOverallProgress(progress);
 
                 // Load recent projects
                 loadRecentProjects(projects.slice(0, 4));
