@@ -3,66 +3,88 @@
     ViewData["Title"] = "Dashboard";
 }
 
-<div class="main-container">
-    <!-- Welcome Section -->
-    <div class="welcome-section">
-        <h1>Welcome to AI Project Orchestrator</h1>
-        <p class="subtitle">Transform your ideas into reality with AI-powered project development</p>
-    </div>
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Welcome Section -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-slate-900 mb-3 bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">
+                Welcome to AI Project Orchestrator
+            </h1>
+            <p class="text-lg text-slate-600 max-w-2xl mx-auto">
+                Transform your ideas into reality with AI-powered project development
+            </p>
+        </div>
 
-    <!-- Stats Grid -->
-    <div class="stats-grid">
-        <div class="stat-card">
-            <div class="stat-icon">🚀</div>
-            <div class="stat-value" id="active-projects">0</div>
-            <div class="stat-label">Active Projects</div>
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white/90 backdrop-blur rounded-xl shadow-md border border-indigo-200 p-6 hover:shadow-lg transition-all">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-slate-600 mb-1">Active Projects</p>
+                        <p class="text-3xl font-bold text-slate-900" id="active-projects">0</p>
+                    </div>
+                    <div class="text-4xl">🚀</div>
+                </div>
+            </div>
+            <div class="bg-white/90 backdrop-blur rounded-xl shadow-md border border-blue-200 p-6 hover:shadow-lg transition-all">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-slate-600 mb-1">Pending Reviews</p>
+                        <p class="text-3xl font-bold text-slate-900" id="pending-reviews">0</p>
+                    </div>
+                    <div class="text-4xl">📋</div>
+                </div>
+            </div>
+            <div class="bg-white/90 backdrop-blur rounded-xl shadow-md border border-green-200 p-6 hover:shadow-lg transition-all">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-slate-600 mb-1">Stories Completed</p>
+                        <p class="text-3xl font-bold text-slate-900" id="completed-stories">0</p>
+                    </div>
+                    <div class="text-4xl">✅</div>
+                </div>
+            </div>
+            <div class="bg-white/90 backdrop-blur rounded-xl shadow-md border border-orange-200 p-6 hover:shadow-lg transition-all">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-slate-600 mb-1">AI Tasks Today</p>
+                        <p class="text-3xl font-bold text-slate-900" id="ai-tasks">0</p>
+                    </div>
+                    <div class="text-4xl">⚡</div>
+                </div>
+            </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-icon">📋</div>
-            <div class="stat-value" id="pending-reviews">0</div>
-            <div class="stat-label">Pending Reviews</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">✅</div>
-            <div class="stat-value" id="completed-stories">0</div>
-            <div class="stat-label">Stories Completed</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-icon">⚡</div>
-            <div class="stat-value" id="ai-tasks">0</div>
-            <div class="stat-label">AI Tasks Today</div>
-        </div>
-    </div>
 
-    <!-- Quick Actions -->
-    <div class="quick-actions">
-        <h2>Quick Actions</h2>
-        <div class="action-buttons">
-            <a href="/Projects/Create" class="btn btn-primary">
-                <span>➕</span> Create New Project
-            </a>
-            <a href="/Projects" class="btn btn-secondary">
-                <span>📁</span> View All Projects
-            </a>
-            <a href="/Reviews/Queue" class="btn btn-secondary">
-                <span>👀</span> Review Queue
-            </a>
+        <!-- Quick Actions -->
+        <div class="bg-white/90 backdrop-blur rounded-xl shadow-md border border-indigo-200 p-6 mb-8">
+            <h2 class="text-xl font-semibold text-slate-900 mb-4">Quick Actions</h2>
+            <div class="flex flex-wrap gap-3">
+                <a href="/Projects/Create" class="inline-flex items-center px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg shadow-md transition-all">
+                    <span class="text-xl mr-2">➕</span> Create New Project
+                </a>
+                <a href="/Projects" class="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-md transition-all">
+                    <span class="text-xl mr-2">📁</span> View All Projects
+                </a>
+                <a href="/Reviews/Queue" class="inline-flex items-center px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-lg shadow-md transition-all">
+                    <span class="text-xl mr-2">👀</span> Review Queue
+                </a>
+            </div>
         </div>
-    </div>
 
-    <!-- Recent Projects -->
-    <div class="recent-projects">
-        <h2>Recent Projects</h2>
-        <div class="projects-grid" id="recent-projects">
-            <!-- Projects will be loaded here -->
+        <!-- Recent Projects -->
+        <div class="bg-white/90 backdrop-blur rounded-xl shadow-md border border-indigo-200 p-6 mb-8">
+            <h2 class="text-xl font-semibold text-slate-900 mb-4">Recent Projects</h2>
+            <div id="recent-projects" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Projects will be loaded here -->
+            </div>
         </div>
-    </div>
 
-    <!-- System Status -->
-    <div class="system-status">
-        <h2>System Status</h2>
-        <div class="status-grid" id="system-status">
-            <!-- System status will be loaded here -->
+        <!-- System Status -->
+        <div class="bg-white/90 backdrop-blur rounded-xl shadow-md border border-indigo-200 p-6">
+            <h2 class="text-xl font-semibold text-slate-900 mb-4">System Status</h2>
+            <div id="system-status" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <!-- System status will be loaded here -->
+            </div>
         </div>
     </div>
 </div>
@@ -124,27 +146,39 @@
             const container = document.getElementById('recent-projects');
 
             if (projects.length === 0) {
-                container.innerHTML = '<p class="text-center">No projects yet. Create your first project!</p>';
+                container.innerHTML = '<p class="text-center text-slate-600">No projects yet. Create your first project!</p>';
                 return;
             }
 
-            container.innerHTML = projects.map(project => `
-                                        <div class="project-card">
-                                            <div class="project-header">
-                                                <h3>${project.name}</h3>
-                                                <span class="project-status ${project.status}">${project.status}</span>
-                                            </div>
-                                            <p class="project-description">${project.description || 'No description'}</p>
-                                            <div class="project-meta">
-                                                <span class="project-date">Created: ${new Date(project.createdAt).toLocaleDateString()}</span>
-                                            </div>
-                                            <div class="project-actions">
-                                                <a href="/Projects/Workflow?projectId=${project.id}" class="btn btn-primary">
-                                                    View Workflow
-                                                </a>
-                                            </div>
-                                        </div>
-                                    `).join('');
+            container.innerHTML = projects.map(project => {
+                const statusColors = {
+                    'planning': 'bg-orange-100 text-orange-700 border-orange-300',
+                    'active': 'bg-green-100 text-green-700 border-green-300',
+                    'completed': 'bg-blue-100 text-blue-700 border-blue-300'
+                };
+                const statusClass = statusColors[project.status?.toLowerCase()] || 'bg-gray-100 text-gray-700 border-gray-300';
+                
+                return `
+                    <div class="bg-white rounded-lg border border-indigo-200 p-5 hover:shadow-md transition-all">
+                        <div class="flex items-start justify-between mb-3">
+                            <h3 class="text-lg font-semibold text-slate-900">${project.name}</h3>
+                            <span class="px-3 py-1 text-xs font-medium rounded-full border ${statusClass}">
+                                ${project.status || 'Unknown'}
+                            </span>
+                        </div>
+                        <p class="text-sm text-slate-600 mb-3">${project.description || 'No description'}</p>
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs text-slate-500">
+                                Created: ${new Date(project.createdAt).toLocaleDateString()}
+                            </span>
+                            <a href="/Projects/Workflow?projectId=${project.id}" 
+                               class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-all">
+                                View Workflow →
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         async function loadSystemStatus() {
@@ -168,13 +202,13 @@
                 }
 
                 container.innerHTML = Object.entries(health).map(([service, status]) => `
-                                            <div class="status-item">
-                                                <span class="service-name">${service}</span>
-                                                <span class="status-indicator ${status ? 'healthy' : 'unhealthy'}">
-                                                    ${status ? '✅' : '❌'}
-                                                </span>
-                                            </div>
-                                        `).join('');
+                    <div class="flex items-center justify-between bg-slate-50 rounded-lg p-3 border border-slate-200">
+                        <span class="font-medium text-slate-700">${service}</span>
+                        <span class="text-2xl">
+                            ${status ? '✅' : '❌'}
+                        </span>
+                    </div>
+                `).join('');
                 console.log('System status loaded successfully');
             } catch (error) {
                 console.error('Failed to load system status:', error);
@@ -192,230 +226,21 @@
 
                 // Show a graceful fallback with basic system info
                 container.innerHTML = `
-                                    <div class="status-item">
-                                        <span class="service-name">Core System</span>
-                                        <span class="status-indicator healthy">
-                                            ✅
-                                        </span>
-                                    </div>
-                                    <div class="status-item">
-                                        <span class="service-name">AI Providers</span>
-                                        <span class="status-indicator unhealthy">
-                                            ❌
-                                        </span>
-                                    </div>
-                                    <div class="status-error-message">
-                                        <small>${errorMessage}</small>
-                                    </div>
-                                `;
+                    <div class="flex items-center justify-between bg-green-50 rounded-lg p-3 border border-green-200">
+                        <span class="font-medium text-slate-700">Core System</span>
+                        <span class="text-2xl">✅</span>
+                    </div>
+                    <div class="flex items-center justify-between bg-red-50 rounded-lg p-3 border border-red-200">
+                        <span class="font-medium text-slate-700">AI Providers</span>
+                        <span class="text-2xl">❌</span>
+                    </div>
+                    <div class="col-span-full bg-orange-50 rounded-lg p-3 border border-orange-200">
+                        <p class="text-sm text-orange-700 text-center">${errorMessage}</p>
+                    </div>
+                `;
             }
         }
 
-        // Add CSS for dashboard-specific styles
-        const style = document.createElement('style');
-        style.textContent = `
-                                    .welcome-section {
-                                        text-align: center;
-                                        margin-bottom: 3rem;
-                                        padding: 2rem 0;
-                                    }
-            
-                                    .welcome-section h1 {
-                                        font-size: 2.5rem;
-                                        margin-bottom: 1rem;
-                                        background: var(--gradient-primary);
-                                        background-clip: text;
-                                        -webkit-background-clip: text;
-                                        color: transparent;
-                                    }
-            
-                                    .subtitle {
-                                        font-size: 1.125rem;
-                                        color: var(--color-gray-600);
-                                        max-width: 600px;
-                                        margin: 0 auto;
-                                    }
-            
-                                    .quick-actions {
-                                        margin-bottom: 3rem;
-                                    }
-            
-                                    .quick-actions h2 {
-                                        margin-bottom: 1.5rem;
-                                        text-align: center;
-                                    }
-            
-                                    .action-buttons {
-                                        display: flex;
-                                        gap: 1rem;
-                                        justify-content: center;
-                                        flex-wrap: wrap;
-                                    }
-            
-                                    .recent-projects {
-                                        margin-bottom: 3rem;
-                                    }
-            
-                                    .recent-projects h2 {
-                                        margin-bottom: 1.5rem;
-                                    }
-            
-                                    .projects-grid {
-                                        display: grid;
-                                        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-                                        gap: 1.5rem;
-                                    }
-            
-                                    .project-card {
-                                        background: white;
-                                        border-radius: 12px;
-                                        padding: 1.5rem;
-                                        box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
-                                        border: 1px solid var(--color-gray-200);
-                                        transition: all 0.3s ease;
-                                    }
-            
-                                    .project-card:hover {
-                                        transform: translateY(-2px);
-                                        box-shadow: 0 10px 25px -5px rgb(0 0 0 / 0.1);
-                                    }
-            
-                                    .project-header {
-                                        display: flex;
-                                        justify-content: space-between;
-                                        align-items: flex-start;
-                                        margin-bottom: 1rem;
-                                    }
-            
-                                    .project-header h3 {
-                                        margin: 0;
-                                        font-size: 1.25rem;
-                                        color: var(--color-gray-900);
-                                    }
-            
-                                    .project-status {
-                                        padding: 0.25rem 0.75rem;
-                                        border-radius: 20px;
-                                        font-size: 0.75rem;
-                                        font-weight: 500;
-                                        text-transform: uppercase;
-                                    }
-            
-                                    .project-status.planning {
-                                        background: var(--color-warning-100);
-                                        color: var(--color-warning-700);
-                                    }
-            
-                                    .project-status.active {
-                                        background: var(--color-success-100);
-                                        color: var(--color-success-700);
-                                    }
-            
-                                    .project-status.completed {
-                                        background: var(--color-gray-100);
-                                        color: var(--color-gray-600);
-                                    }
-            
-                                    .project-description {
-                                        color: var(--color-gray-600);
-                                        margin-bottom: 1rem;
-                                        line-height: 1.5;
-                                    }
-            
-                                    .project-meta {
-                                        display: flex;
-                                        gap: 1rem;
-                                        margin-bottom: 1.5rem;
-                                        font-size: 0.875rem;
-                                        color: var(--color-gray-500);
-                                    }
-            
-                                    .project-actions {
-                                        display: flex;
-                                        gap: 0.5rem;
-                                    }
-            
-                                    .project-actions .btn {
-                                        flex: 1;
-                                        justify-content: center;
-                                    }
-            
-                                    .system-status h2 {
-                                        margin-bottom: 1.5rem;
-                                    }
-            
-                                    .status-grid {
-                                        display: grid;
-                                        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-                                        gap: 1rem;
-                                    }
-            
-                                    .status-item {
-                                        background: white;
-                                        padding: 1rem;
-                                        border-radius: 8px;
-                                        box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
-                                        border: 1px solid var(--color-gray-200);
-                                        display: flex;
-                                        justify-content: space-between;
-                                        align-items: center;
-                                    }
-            
-                                    .service-name {
-                                        font-weight: 500;
-                                        color: var(--color-gray-700);
-                                    }
-            
-                                    .status-indicator {
-                                        font-size: 1.25rem;
-                                    }
-            
-                                    .status-indicator.healthy {
-                                        color: var(--color-success-500);
-                                    }
-            
-                                    .status-indicator.unhealthy {
-                                        color: var(--color-danger-500);
-                                    }
-    
-                                    .status-item.error {
-                                        border-color: var(--color-danger-200);
-                                        background-color: var(--color-danger-50);
-                                    }
-    
-                                    .status-error-message {
-                                        grid-column: 1 / -1;
-                                        margin-top: 0.5rem;
-                                        text-align: center;
-                                    }
-    
-                                    .status-error-message small {
-                                        color: var(--color-danger-600);
-                                        font-size: 0.75rem;
-                                    }
-            
-                                    @@media (max-width: 768px) {
-                                        .welcome-section h1 {
-                                            font-size: 2rem;
-                                        }
-                
-                                        .action-buttons {
-                                            flex-direction: column;
-                                        }
-                
-                                        .action-buttons .btn {
-                                            width: 100%;
-                                        }
-                
-                                        .projects-grid {
-                                            grid-template-columns: 1fr;
-                                        }
-                
-                                        .status-grid {
-                                            grid-template-columns: 1fr;
-                                        }
-                                    }
-                                `;
-        document.head.appendChild(style);
+        // Dashboard-specific styles are now handled by Tailwind CSS inline classes
     </script>
 }
