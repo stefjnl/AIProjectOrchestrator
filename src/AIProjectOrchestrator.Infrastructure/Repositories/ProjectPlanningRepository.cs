@@ -14,25 +14,29 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         public async Task<ProjectPlanning?> GetByPlanningIdAsync(string planningId, CancellationToken cancellationToken = default)
         {
             return await _context.ProjectPlannings
-                .FirstOrDefaultAsync(pp => pp.PlanningId == planningId, cancellationToken);
+                .FirstOrDefaultAsync(pp => pp.PlanningId == planningId, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         public async Task<ProjectPlanning?> GetByRequirementsAnalysisIdAsync(int requirementsAnalysisId, CancellationToken cancellationToken = default)
         {
             return await _context.ProjectPlannings
-                .FirstOrDefaultAsync(pp => pp.RequirementsAnalysisId == requirementsAnalysisId, cancellationToken);
+                .FirstOrDefaultAsync(pp => pp.RequirementsAnalysisId == requirementsAnalysisId, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         public new async Task<ProjectPlanning?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
             return await _context.ProjectPlannings
-                .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken);
+                .FirstOrDefaultAsync(pp => pp.Id == id, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         public async Task<ProjectPlanning?> GetByProjectIdAsync(int projectId, CancellationToken cancellationToken = default)
         {
             return await _context.ProjectPlannings
-                .FirstOrDefaultAsync(pp => pp.RequirementsAnalysis.ProjectId == projectId, cancellationToken);
+                .FirstOrDefaultAsync(pp => pp.RequirementsAnalysis.ProjectId == projectId, cancellationToken)
+                .ConfigureAwait(false);
         }
     }
 }

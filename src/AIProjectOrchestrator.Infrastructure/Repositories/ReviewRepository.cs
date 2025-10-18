@@ -16,7 +16,8 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         public async Task<Review?> GetByReviewIdAsync(Guid reviewId, CancellationToken cancellationToken = default)
         {
             return await _context.Reviews
-                .FirstOrDefaultAsync(r => r.ReviewId == reviewId, cancellationToken);
+                .FirstOrDefaultAsync(r => r.ReviewId == reviewId, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         public async Task<Review?> GetByWorkflowEntityIdAsync(int entityId, string entityType, CancellationToken cancellationToken = default)
@@ -24,13 +25,17 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
             return entityType.ToLower() switch
             {
                 EntityTypeConstants.RequirementsAnalysis => await _context.Reviews
-                    .FirstOrDefaultAsync(r => r.RequirementsAnalysis != null && r.RequirementsAnalysis.Id == entityId, cancellationToken),
+                    .FirstOrDefaultAsync(r => r.RequirementsAnalysis != null && r.RequirementsAnalysis.Id == entityId, cancellationToken)
+                    .ConfigureAwait(false),
                 EntityTypeConstants.ProjectPlanning => await _context.Reviews
-                    .FirstOrDefaultAsync(r => r.ProjectPlanning != null && r.ProjectPlanning.Id == entityId, cancellationToken),
+                    .FirstOrDefaultAsync(r => r.ProjectPlanning != null && r.ProjectPlanning.Id == entityId, cancellationToken)
+                    .ConfigureAwait(false),
                 EntityTypeConstants.StoryGeneration => await _context.Reviews
-                    .FirstOrDefaultAsync(r => r.StoryGeneration != null && r.StoryGeneration.Id == entityId, cancellationToken),
+                    .FirstOrDefaultAsync(r => r.StoryGeneration != null && r.StoryGeneration.Id == entityId, cancellationToken)
+                    .ConfigureAwait(false),
                 EntityTypeConstants.PromptGeneration => await _context.Reviews
-                    .FirstOrDefaultAsync(r => r.PromptGeneration != null && r.PromptGeneration.Id == entityId, cancellationToken),
+                    .FirstOrDefaultAsync(r => r.PromptGeneration != null && r.PromptGeneration.Id == entityId, cancellationToken)
+                    .ConfigureAwait(false),
                 _ => null
             };
         }
@@ -39,21 +44,24 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         {
             return await _context.Reviews
                 .Where(r => r.Status == ReviewStatus.Pending)
-                .ToListAsync(cancellationToken);
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
         }
 
         public async Task<IEnumerable<Review>> GetReviewsByServiceAsync(string serviceName, CancellationToken cancellationToken = default)
         {
             return await _context.Reviews
                 .Where(r => r.ServiceName == serviceName)
-                .ToListAsync(cancellationToken);
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
         }
 
         public async Task<IEnumerable<Review>> GetReviewsByPipelineStageAsync(string pipelineStage, CancellationToken cancellationToken = default)
         {
             return await _context.Reviews
                 .Where(r => r.PipelineStage == pipelineStage)
-                .ToListAsync(cancellationToken);
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
         }
 
         public async Task<int> DeleteReviewsByProjectIdAsync(int projectId, CancellationToken cancellationToken = default)
@@ -61,25 +69,29 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
             // Delete reviews associated with RequirementsAnalysis entities for the project
             var requirementsAnalysisReviews = await _context.Reviews
                 .Where(r => r.RequirementsAnalysis != null && r.RequirementsAnalysis.ProjectId == projectId)
-                .ToListAsync(cancellationToken);
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
 
             // Delete reviews associated with ProjectPlanning entities for the project
             // We need to join through RequirementsAnalysis to get to ProjectPlanning
             var projectPlanningReviews = await _context.Reviews
                 .Where(r => r.ProjectPlanning != null && r.ProjectPlanning.RequirementsAnalysis != null && r.ProjectPlanning.RequirementsAnalysis.ProjectId == projectId)
-                .ToListAsync(cancellationToken);
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
 
             // Delete reviews associated with StoryGeneration entities for the project
             // We need to join through RequirementsAnalysis -> ProjectPlanning to get to StoryGeneration
             var storyGenerationReviews = await _context.Reviews
                 .Where(r => r.StoryGeneration != null && r.StoryGeneration.ProjectPlanning != null && r.StoryGeneration.ProjectPlanning.RequirementsAnalysis != null && r.StoryGeneration.ProjectPlanning.RequirementsAnalysis.ProjectId == projectId)
-                .ToListAsync(cancellationToken);
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
 
             // Delete reviews associated with PromptGeneration entities for the project
             // We need to join through RequirementsAnalysis -> ProjectPlanning -> StoryGeneration to get to PromptGeneration
             var promptGenerationReviews = await _context.Reviews
                 .Where(r => r.PromptGeneration != null && r.PromptGeneration.UserStory != null && r.PromptGeneration.UserStory.StoryGeneration != null && r.PromptGeneration.UserStory.StoryGeneration.ProjectPlanning != null && r.PromptGeneration.UserStory.StoryGeneration.ProjectPlanning.RequirementsAnalysis != null && r.PromptGeneration.UserStory.StoryGeneration.ProjectPlanning.RequirementsAnalysis.ProjectId == projectId)
-                .ToListAsync(cancellationToken);
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
 
             // Combine all reviews to delete
             var allReviewsToDelete = new List<Review>();
@@ -94,7 +106,7 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
             _context.Reviews.RemoveRange(uniqueReviewsToDelete);
 
             // Save changes to ensure the reviews are deleted
-            await _context.SaveChangesAsync(cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
             return uniqueReviewsToDelete.Count;
         }
@@ -112,7 +124,8 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
                 .Include(r => r.ProjectPlanning!).ThenInclude(pp => pp.RequirementsAnalysis!).ThenInclude(ra => ra.Project!)
                 .Include(r => r.StoryGeneration!).ThenInclude(sg => sg.ProjectPlanning!).ThenInclude(pp => pp.RequirementsAnalysis!).ThenInclude(ra => ra.Project!)
                 .Include(r => r.PromptGeneration!).ThenInclude(pg => pg.UserStory!).ThenInclude(us => us.StoryGeneration!).ThenInclude(sg => sg.ProjectPlanning!).ThenInclude(pp => pp.RequirementsAnalysis!).ThenInclude(ra => ra.Project!)
-                .ToListAsync(cancellationToken);
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -128,7 +141,8 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
                 .Include(r => r.ProjectPlanning!).ThenInclude(pp => pp.RequirementsAnalysis!).ThenInclude(ra => ra.Project!)
                 .Include(r => r.StoryGeneration!).ThenInclude(sg => sg.ProjectPlanning!).ThenInclude(pp => pp.RequirementsAnalysis!).ThenInclude(ra => ra.Project!)
                 .Include(r => r.PromptGeneration!).ThenInclude(pg => pg.UserStory!).ThenInclude(us => us.StoryGeneration!).ThenInclude(sg => sg.ProjectPlanning!).ThenInclude(pp => pp.RequirementsAnalysis!).ThenInclude(ra => ra.Project!)
-                .FirstOrDefaultAsync(r => r.ReviewId == reviewId, cancellationToken);
+                .FirstOrDefaultAsync(r => r.ReviewId == reviewId, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         public async Task<int> DeleteReviewWithCascadesAsync(Review review, CancellationToken cancellationToken = default)
@@ -179,7 +193,7 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
             }
 
             _context.Reviews.Remove(review);
-            return await _context.SaveChangesAsync(cancellationToken);
+            return await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 }

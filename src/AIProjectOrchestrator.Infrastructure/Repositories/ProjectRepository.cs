@@ -27,15 +27,15 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
                 project.Type = ProjectConstants.WebType;
             }
             
-            return await base.AddAsync(project);
+            return await base.AddAsync(project).ConfigureAwait(false);
         }
 
         public async Task<Project> UpdateAsync(Project project)
         {
             project.UpdatedDate = DateTime.UtcNow;
             
-            await base.UpdateAsync(project);
+            await base.UpdateAsync(project).ConfigureAwait(false);
             return project;
         }
     }
-}
+}

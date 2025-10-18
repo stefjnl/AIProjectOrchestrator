@@ -28,7 +28,7 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         /// <returns>The prompt template or null if not found</returns>
         public async Task<PromptTemplate?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
-            return await _dbSet.FindAsync(new object[] { id }, cancellationToken);
+            return await _dbSet.FindAsync(new object[] { id }, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -38,7 +38,7 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         /// <returns>Collection of all prompt templates</returns>
         public async Task<IEnumerable<PromptTemplate>> GetAllAsync(CancellationToken cancellationToken = default)
         {
-            return await _dbSet.ToListAsync(cancellationToken);
+            return await _dbSet.ToListAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -52,8 +52,8 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
             promptTemplate.CreatedAt = DateTime.UtcNow;
             promptTemplate.UpdatedAt = DateTime.UtcNow;
             
-            await _dbSet.AddAsync(promptTemplate, cancellationToken);
-            await _context.SaveChangesAsync(cancellationToken);
+            await _dbSet.AddAsync(promptTemplate, cancellationToken).ConfigureAwait(false);
+            await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             return promptTemplate;
         }
 
@@ -68,7 +68,7 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
             promptTemplate.UpdatedAt = DateTime.UtcNow;
             
             _dbSet.Update(promptTemplate);
-            await _context.SaveChangesAsync(cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -79,11 +79,11 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         /// <returns>Task representing the delete operation</returns>
         public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
         {
-            var entity = await GetByIdAsync(id, cancellationToken);
+            var entity = await GetByIdAsync(id, cancellationToken).ConfigureAwait(false);
             if (entity != null)
             {
                 _dbSet.Remove(entity);
-                await _context.SaveChangesAsync(cancellationToken);
+                await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             }
         }
     }

@@ -14,25 +14,29 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         public async Task<RequirementsAnalysis?> GetByAnalysisIdAsync(string analysisId, CancellationToken cancellationToken = default)
         {
             return await _context.RequirementsAnalyses
-                .FirstOrDefaultAsync(ra => ra.AnalysisId == analysisId, cancellationToken);
+                .FirstOrDefaultAsync(ra => ra.AnalysisId == analysisId, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         public async Task<RequirementsAnalysis?> GetByProjectIdAsync(int projectId, CancellationToken cancellationToken = default)
         {
             return await _context.RequirementsAnalyses
-                .FirstOrDefaultAsync(ra => ra.ProjectId == projectId, cancellationToken);
+                .FirstOrDefaultAsync(ra => ra.ProjectId == projectId, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         public new async Task<RequirementsAnalysis?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
             return await _context.RequirementsAnalyses
-                .FirstOrDefaultAsync(ra => ra.Id == id, cancellationToken);
+                .FirstOrDefaultAsync(ra => ra.Id == id, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         public async Task<int?> GetEntityIdByAnalysisIdAsync(string analysisId, CancellationToken cancellationToken = default)
         {
             var entity = await _context.RequirementsAnalyses
-                .FirstOrDefaultAsync(ra => ra.AnalysisId == analysisId, cancellationToken);
+                .FirstOrDefaultAsync(ra => ra.AnalysisId == analysisId, cancellationToken)
+                .ConfigureAwait(false);
             return entity?.Id;
         }
     }

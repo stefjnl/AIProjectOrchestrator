@@ -23,36 +23,36 @@ public class ProjectService : IProjectService
 
     public async Task<IEnumerable<Project>> GetAllProjectsAsync()
     {
-        return await _projectRepository.GetAllAsync();
+        return await _projectRepository.GetAllAsync().ConfigureAwait(false);
     }
 
     public async Task<Project?> GetProjectByIdAsync(int id)
     {
-        return await _projectRepository.GetByIdAsync(id);
+        return await _projectRepository.GetByIdAsync(id).ConfigureAwait(false);
     }
 
     public async Task<Project?> GetProjectAsync(int id, CancellationToken cancellationToken = default)
     {
-        return await _projectRepository.GetByIdAsync(id, cancellationToken);
+        return await _projectRepository.GetByIdAsync(id, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<Project> CreateProjectAsync(Project project)
     {
-        return await _projectRepository.AddAsync(project);
+        return await _projectRepository.AddAsync(project).ConfigureAwait(false);
     }
 
     public async Task<Project> UpdateProjectAsync(Project project)
     {
-        await _projectRepository.UpdateAsync(project);
+        await _projectRepository.UpdateAsync(project).ConfigureAwait(false);
         return project;
     }
 
     public async Task DeleteProjectAsync(int id)
     {
         // First delete all reviews associated with this project to maintain referential integrity
-        await _reviewService.DeleteReviewsByProjectIdAsync(id);
+        await _reviewService.DeleteReviewsByProjectIdAsync(id).ConfigureAwait(false);
         
         // Then delete the project itself
-        await _projectRepository.DeleteAsync(id);
+        await _projectRepository.DeleteAsync(id).ConfigureAwait(false);
     }
 }
