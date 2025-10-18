@@ -2,12 +2,17 @@ using AIProjectOrchestrator.Domain.Entities;
 
 namespace AIProjectOrchestrator.Domain.Interfaces
 {
-    public interface IProjectPlanningRepository : IRepository<ProjectPlanning>
+    /// <summary>
+    /// Repository for ProjectPlanning entities (int ID).
+    /// Follows Interface Segregation Principle by using IFullRepository.
+    /// Includes domain-specific query methods for planning workflow operations.
+    /// </summary>
+    public interface IProjectPlanningRepository : IFullRepository<ProjectPlanning, int>
     {
+        // IFullRepository provides: GetByIdAsync(int), GetAllAsync, AddAsync, UpdateAsync, DeleteAsync(int)
+        
+        // Domain-specific query methods
         Task<ProjectPlanning?> GetByPlanningIdAsync(string planningId, CancellationToken cancellationToken = default);
-        new Task<ProjectPlanning?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
-
-        // Get planning by project for workflow state
         Task<ProjectPlanning?> GetByProjectIdAsync(int projectId, CancellationToken cancellationToken = default);
     }
 }

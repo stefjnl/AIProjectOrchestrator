@@ -3,10 +3,13 @@ using AIProjectOrchestrator.Domain.Interfaces;
 
 namespace AIProjectOrchestrator.Domain.Interfaces
 {
-    public interface IPromptTemplateRepository : IRepository<PromptTemplate>
+    /// <summary>
+    /// Repository for PromptTemplate entities (Guid ID).
+    /// Follows Interface Segregation Principle by using IFullRepository with Guid as ID type.
+    /// </summary>
+    public interface IPromptTemplateRepository : IFullRepository<PromptTemplate, Guid>
     {
-        Task<PromptTemplate?> GetByIdAsync(Guid id);
-        Task DeleteAsync(Guid id);
-        Task<PromptTemplate> UpdateAsync(PromptTemplate promptTemplate);
+        // IFullRepository provides: GetByIdAsync(Guid), GetAllAsync, AddAsync, UpdateAsync, DeleteAsync(Guid)
+        // All methods are provided by the base interface with proper Guid ID type
     }
 }

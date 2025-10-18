@@ -1,60 +1,48 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using AIProjectOrchestrator.Domain.Models;
 using AIProjectOrchestrator.Domain.Services;
 using AIProjectOrchestrator.Domain.Models.Code;
-using AIProjectOrchestrator.Domain.Models.Stories;
-using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Domain.Models.Review;
-using AIProjectOrchestrator.Infrastructure.AI;
-using AIProjectOrchestrator.Domain.Entities;
 
 namespace AIProjectOrchestrator.Application.Services
 {
+    /// <summary>
+    /// Service for coordinating code generation.
+    /// Refactored to follow Single Responsibility Principle (SRP) with reduced dependencies.
+    /// Dependencies reduced from 11 to 5 by extracting responsibilities to focused services.
+    /// </summary>
     public class CodeGenerationService : ICodeGenerationService
     {
-        private readonly IStoryGenerationService _storyGenerationService;
-        private readonly IProjectPlanningService _projectPlanningService;
-        private readonly IRequirementsAnalysisService _requirementsAnalysisService;
+        private readonly IWorkflowDependencyValidator _dependencyValidator;
+        private readonly ICodeGenerationOrchestrator _orchestrator;
+        private readonly ICodeGenerationStateManager _stateManager;
+        private readonly IContextRetriever _contextRetriever;
         private readonly IInstructionService _instructionService;
         private readonly IReviewService _reviewService;
-        private readonly ITestGenerator _testGenerator;
-        private readonly IImplementationGenerator _implementationGenerator;
-        private readonly ICodeValidator _codeValidator;
-        private readonly IContextRetriever _contextRetriever;
         private readonly IFileOrganizer _fileOrganizer;
         private readonly ILogger<CodeGenerationService> _logger;
-        private readonly ConcurrentDictionary<Guid, CodeGenerationResponse> _generationResults = new();
 
         public CodeGenerationService(
-            IStoryGenerationService storyGenerationService,
-            IProjectPlanningService projectPlanningService,
-            IRequirementsAnalysisService requirementsAnalysisService,
+            IWorkflowDependencyValidator dependencyValidator,
+            ICodeGenerationOrchestrator orchestrator,
+            ICodeGenerationStateManager stateManager,
+            IContextRetriever contextRetriever,
             IInstructionService instructionService,
             IReviewService reviewService,
-            ITestGenerator testGenerator,
-            IImplementationGenerator implementationGenerator,
-            ICodeValidator codeValidator,
-            IContextRetriever contextRetriever,
             IFileOrganizer fileOrganizer,
             ILogger<CodeGenerationService> logger)
         {
-            _storyGenerationService = storyGenerationService;
-            _projectPlanningService = projectPlanningService;
-            _requirementsAnalysisService = requirementsAnalysisService;
+            _dependencyValidator = dependencyValidator;
+            _orchestrator = orchestrator;
+            _stateManager = stateManager;
+            _contextRetriever = contextRetriever;
             _instructionService = instructionService;
             _reviewService = reviewService;
-            _testGenerator = testGenerator;
-            _implementationGenerator = implementationGenerator;
-            _codeValidator = codeValidator;
-            _contextRetriever = contextRetriever;
             _fileOrganizer = fileOrganizer;
             _logger = logger;
         }
@@ -76,126 +64,88 @@ namespace AIProjectOrchestrator.Application.Services
                     throw new ArgumentException("Story generation ID is required");
                 }
 
-                // Set status to processing
+                // Initialize response and save initial state
                 var response = new CodeGenerationResponse
                 {
                     GenerationId = generationId,
                     Status = CodeGenerationStatus.Processing,
                     CreatedAt = DateTime.UtcNow
                 };
-                _generationResults[generationId] = response;
+                await _stateManager.SaveStateAsync(generationId, response);
 
-                // Validate four-stage dependencies (stories approved)
-                // This validation logic will be extracted to a separate service in future iterations
-                var stories = await _storyGenerationService.GetApprovedStoriesAsync(request.StoryGenerationId, cancellationToken);
-                if (stories == null || !stories.Any())
+                // Step 1: Validate dependencies using extracted service
+                _logger.LogDebug("Validating workflow dependencies for generation {GenerationId}", generationId);
+                var validation = await _dependencyValidator.ValidateDependenciesAsync(
+                    request.StoryGenerationId,
+                    WorkflowStage.CodeGeneration,
+                    cancellationToken);
+
+                if (!validation.IsValid)
                 {
-                    _logger.LogWarning("Code generation failed: Stories not found or not approved for story generation {StoryGenerationId}",
-                        request.StoryGenerationId);
-                    throw new InvalidOperationException("Stories not found or not approved");
+                    _logger.LogWarning("Code generation {GenerationId} failed dependency validation: {ErrorMessage}",
+                        generationId, validation.ErrorMessage);
+                    response.Status = CodeGenerationStatus.Failed;
+                    await _stateManager.SaveStateAsync(generationId, response);
+                    throw new InvalidOperationException(validation.ErrorMessage);
                 }
 
-                var planningId = await _storyGenerationService.GetPlanningIdAsync(request.StoryGenerationId, cancellationToken);
-                if (!planningId.HasValue)
-                {
-                    _logger.LogWarning("Code generation failed: Planning ID not found for story generation {StoryGenerationId}",
-                        request.StoryGenerationId);
-                    throw new InvalidOperationException("Planning ID not found");
-                }
+                // Step 2: Retrieve comprehensive context from all upstream services
+                _logger.LogDebug("Retrieving comprehensive context for generation {GenerationId}", generationId);
+                var comprehensiveContext = await _contextRetriever.RetrieveComprehensiveContextAsync(
+                    request.StoryGenerationId, cancellationToken);
 
-                var planningStatus = await _projectPlanningService.GetPlanningStatusAsync(planningId.Value, cancellationToken);
-                if (planningStatus != AIProjectOrchestrator.Domain.Models.ProjectPlanningStatus.Approved)
-                {
-                    _logger.LogWarning("Code generation failed: Project planning {PlanningId} is not approved",
-                        planningId.Value);
-                    throw new InvalidOperationException("Project planning is not approved");
-                }
-
-                var requirementsAnalysisId = await _projectPlanningService.GetRequirementsAnalysisIdAsync(
-                    planningId.Value, cancellationToken);
-                if (!requirementsAnalysisId.HasValue)
-                {
-                    _logger.LogWarning("Code generation failed: Requirements analysis ID not found for planning {PlanningId}",
-                        planningId.Value);
-                    throw new InvalidOperationException("Requirements analysis ID not found");
-                }
-
-                var requirementsStatus = await _requirementsAnalysisService.GetAnalysisStatusAsync(
-                    requirementsAnalysisId.Value, cancellationToken);
-                if (requirementsStatus != AIProjectOrchestrator.Domain.Models.RequirementsAnalysisStatus.Approved)
-                {
-                    _logger.LogWarning("Code generation failed: Requirements analysis {RequirementsAnalysisId} is not approved",
-                        requirementsAnalysisId.Value);
-                    throw new InvalidOperationException("Requirements analysis is not approved");
-                }
-
-                // Retrieve comprehensive context from all upstream services
-                var context = await _contextRetriever.RetrieveComprehensiveContextAsync(request.StoryGenerationId, cancellationToken);
-
-                // Analyze stories and select optimal AI model
-                response.Status = CodeGenerationStatus.SelectingModel;
-                var selectedModel = "qwen3-coder"; // Simplified model selection - could be enhanced later
-                _logger.LogInformation("Code generation {GenerationId}: Selected model: {SelectedModel}", generationId, selectedModel);
+                // Step 3: Select AI model and load instructions
+                await _stateManager.UpdateStatusAsync(generationId, CodeGenerationStatus.SelectingModel);
+                var selectedModel = "qwen3-coder"; // Simplified model selection
+                _logger.LogInformation("Code generation {GenerationId}: Selected model: {SelectedModel}",
+                    generationId, selectedModel);
                 response.SelectedModel = selectedModel;
 
-                // Load model-specific instructions
-                _logger.LogDebug("Loading instructions for code generation {GenerationId}", generationId);
-                // Map the model name to the correct instruction file name
                 string instructionFileName = selectedModel.ToLower() switch
                 {
                     "qwen3-coder" => "CodeGenerator_Qwen3Coder",
                     _ => $"CodeGenerator_{selectedModel}"
                 };
 
-                // Log the instruction file name for debugging
-                _logger.LogInformation("Code generation {GenerationId}: Using instruction file name: {InstructionFileName}, selected model: {SelectedModel}",
-                    generationId, instructionFileName, selectedModel);
-
-                // Double-check the mapping
-                if (instructionFileName == "CodeGenerator_qwen3-coder")
-                {
-                    _logger.LogWarning("Code generation {GenerationId}: WARNING - instructionFileName is still using lowercase version!", generationId);
-                    instructionFileName = "CodeGenerator_Qwen3Coder";
-                    _logger.LogInformation("Code generation {GenerationId}: Corrected instruction file name to: {InstructionFileName}", generationId, instructionFileName);
-                }
-
                 var instructionContent = await _instructionService.GetInstructionAsync(instructionFileName, cancellationToken);
-
                 if (!instructionContent.IsValid)
                 {
                     _logger.LogError("Code generation {GenerationId} failed: Invalid instruction content - {ValidationMessage}",
                         generationId, instructionContent.ValidationMessage);
                     response.Status = CodeGenerationStatus.Failed;
+                    await _stateManager.SaveStateAsync(generationId, response);
                     throw new InvalidOperationException($"Failed to load valid instructions: {instructionContent.ValidationMessage}");
                 }
 
-                // Generate tests first (TDD approach)
-                response.Status = CodeGenerationStatus.GeneratingTests;
-                var testFiles = await _testGenerator.GenerateTestFilesAsync(instructionContent.Content, context, selectedModel, cancellationToken);
+                // Step 4: Orchestrate code generation using extracted orchestrator
+                await _stateManager.UpdateStatusAsync(generationId, CodeGenerationStatus.GeneratingTests);
+                
+                var generationContext = new CodeGenerationContext
+                {
+                    GenerationId = generationId,
+                    StoryGenerationId = request.StoryGenerationId,
+                    ComprehensiveContext = comprehensiveContext,
+                    SelectedModel = selectedModel,
+                    InstructionContent = instructionContent.Content,
+                    PlanningId = validation.PlanningId,
+                    RequirementsAnalysisId = validation.RequirementsAnalysisId
+                };
 
-                // Generate implementation code
-                response.Status = CodeGenerationStatus.GeneratingCode;
-                var codeFiles = await _implementationGenerator.GenerateImplementationAsync(instructionContent.Content, context, testFiles, selectedModel, cancellationToken);
+                _logger.LogDebug("Orchestrating code generation for {GenerationId}", generationId);
+                var result = await _orchestrator.OrchestrateGenerationAsync(generationContext, cancellationToken);
 
-                // Validate generated code quality
-                response.Status = CodeGenerationStatus.ValidatingOutput;
-                var allFiles = testFiles.Concat(codeFiles).ToList();
-                await _codeValidator.ValidateGeneratedCodeAsync(allFiles, cancellationToken);
-
-                // Organize files by project structure
-                var organizedFiles = _fileOrganizer.OrganizeGeneratedFiles(allFiles);
-
-                // Submit for review
+                // Step 5: Submit for review
+                await _stateManager.UpdateStatusAsync(generationId, CodeGenerationStatus.PendingReview);
                 _logger.LogDebug("Submitting AI response for review in code generation {GenerationId}", generationId);
-                var correlationId = Guid.NewGuid().ToString();
+                
                 var reviewRequest = new SubmitReviewRequest
                 {
                     ServiceName = "CodeGeneration",
-                    Content = _fileOrganizer.SerializeCodeArtifacts(organizedFiles),
-                    CorrelationId = correlationId,
+                    Content = _fileOrganizer.SerializeCodeArtifacts(result.OrganizedFiles),
+                    CorrelationId = Guid.NewGuid().ToString(),
                     PipelineStage = "Implementation",
-                    OriginalRequest = null, // Not applicable for code generation
-                    AIResponse = null, // Not applicable for code generation
+                    OriginalRequest = null,
+                    AIResponse = null,
                     Metadata = new Dictionary<string, object>
                     {
                         { "GenerationId", generationId },
@@ -205,11 +155,12 @@ namespace AIProjectOrchestrator.Application.Services
 
                 var reviewResponse = await _reviewService.SubmitForReviewAsync(reviewRequest, cancellationToken);
 
-                // Update response with results
-                response.GeneratedFiles = organizedFiles.Where(f => f.FileType != "Test").ToList() ?? new List<CodeArtifact>();
-                response.TestFiles = organizedFiles.Where(f => f.FileType == "Test").ToList() ?? new List<CodeArtifact>();
+                // Step 6: Update final response
+                response.GeneratedFiles = result.GeneratedFiles;
+                response.TestFiles = result.TestFiles;
                 response.ReviewId = reviewResponse.ReviewId;
                 response.Status = CodeGenerationStatus.PendingReview;
+                await _stateManager.SaveStateAsync(generationId, response);
 
                 _logger.LogInformation("Code generation {GenerationId} completed successfully. Review ID: {ReviewId}",
                     generationId, reviewResponse.ReviewId);
@@ -219,72 +170,62 @@ namespace AIProjectOrchestrator.Application.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Code generation {GenerationId} failed with exception", generationId);
-                if (_generationResults.TryGetValue(generationId, out var response))
-                {
-                    response.Status = CodeGenerationStatus.Failed;
-                }
+                await _stateManager.UpdateStatusAsync(generationId, CodeGenerationStatus.Failed);
                 throw;
             }
         }
 
-        public Task<CodeGenerationStatus> GetStatusAsync(Guid codeGenerationId, CancellationToken cancellationToken = default)
+        public async Task<CodeGenerationStatus> GetStatusAsync(Guid codeGenerationId, CancellationToken cancellationToken = default)
         {
-            if (_generationResults.TryGetValue(codeGenerationId, out var result))
-            {
-                return Task.FromResult(result.Status);
-            }
-
-            // If we don't have the status in memory, it might have been cleaned up
-            // In a production system, we would check a persistent store
-            return Task.FromResult(CodeGenerationStatus.Failed);
+            return await _stateManager.GetStatusAsync(codeGenerationId);
         }
 
-        public Task<CodeArtifactsResult> GetGeneratedCodeAsync(Guid codeGenerationId, CancellationToken cancellationToken = default)
+        public async Task<CodeArtifactsResult> GetGeneratedCodeAsync(Guid codeGenerationId, CancellationToken cancellationToken = default)
         {
-            if (_generationResults.TryGetValue(codeGenerationId, out var result))
+            var state = await _stateManager.GetStateAsync(codeGenerationId);
+            if (state == null)
             {
-                var allFiles = new List<CodeArtifact>();
-                if (result.GeneratedFiles != null)
-                    allFiles.AddRange(result.GeneratedFiles);
-                if (result.TestFiles != null)
-                    allFiles.AddRange(result.TestFiles);
-
-                // Calculate file types distribution
-                var fileTypes = new Dictionary<string, int>();
-                foreach (var file in allFiles)
-                {
-                    if (fileTypes.ContainsKey(file.FileType))
-                        fileTypes[file.FileType]++;
-                    else
-                        fileTypes[file.FileType] = 1;
-                }
-
-                // Calculate total size
-                long totalSize = 0;
-                foreach (var file in allFiles)
-                {
-                    totalSize += Encoding.UTF8.GetByteCount(file.Content);
-                }
-
-                return Task.FromResult(new CodeArtifactsResult
+                _logger.LogWarning("Code generation state not found for {CodeGenerationId}", codeGenerationId);
+                return new CodeArtifactsResult
                 {
                     GenerationId = codeGenerationId,
-                    Artifacts = allFiles,
-                    GeneratedAt = result.CreatedAt,
-                    PackageName = $"GeneratedCode_{codeGenerationId}",
-                    TotalSizeBytes = totalSize,
-                    FileCount = allFiles.Count,
-                    FileTypes = fileTypes
-                });
+                    Artifacts = new List<CodeArtifact>()
+                };
             }
 
-            // If we don't have the result in memory, it might have been cleaned up
-            // In a production system, we would check a persistent store
-            return Task.FromResult(new CodeArtifactsResult
+            var allFiles = new List<CodeArtifact>();
+            if (state.GeneratedFiles != null)
+                allFiles.AddRange(state.GeneratedFiles);
+            if (state.TestFiles != null)
+                allFiles.AddRange(state.TestFiles);
+
+            // Calculate file types distribution
+            var fileTypes = new Dictionary<string, int>();
+            foreach (var file in allFiles)
+            {
+                if (fileTypes.ContainsKey(file.FileType))
+                    fileTypes[file.FileType]++;
+                else
+                    fileTypes[file.FileType] = 1;
+            }
+
+            // Calculate total size
+            long totalSize = 0;
+            foreach (var file in allFiles)
+            {
+                totalSize += Encoding.UTF8.GetByteCount(file.Content);
+            }
+
+            return new CodeArtifactsResult
             {
                 GenerationId = codeGenerationId,
-                Artifacts = new List<CodeArtifact>()
-            });
+                Artifacts = allFiles,
+                GeneratedAt = state.CreatedAt,
+                PackageName = $"GeneratedCode_{codeGenerationId}",
+                TotalSizeBytes = totalSize,
+                FileCount = allFiles.Count,
+                FileTypes = fileTypes
+            };
         }
 
         public async Task<bool> CanGenerateCodeAsync(
@@ -293,13 +234,18 @@ namespace AIProjectOrchestrator.Application.Services
         {
             try
             {
-                // Check that stories exist and are approved by checking the status
-                var status = await _storyGenerationService.GetGenerationStatusAsync(storyGenerationId, cancellationToken);
-                return status == AIProjectOrchestrator.Domain.Models.Stories.StoryGenerationStatus.Approved;
+                // Validate dependencies to check if stories are approved
+                var validation = await _dependencyValidator.ValidateDependenciesAsync(
+                    storyGenerationId,
+                    WorkflowStage.CodeGeneration,
+                    cancellationToken);
+                
+                return validation.IsValid;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error checking if code can be generated for story generation {StoryGenerationId}", storyGenerationId);
+                _logger.LogError(ex, "Error checking if code can be generated for story generation {StoryGenerationId}",
+                    storyGenerationId);
                 return false;
             }
         }
@@ -308,10 +254,19 @@ namespace AIProjectOrchestrator.Application.Services
             Guid generationId,
             CancellationToken cancellationToken = default)
         {
-            if (!_generationResults.TryGetValue(generationId, out var result) || result.Status != CodeGenerationStatus.Approved)
+            var state = await _stateManager.GetStateAsync(generationId);
+            if (state == null || state.Status != CodeGenerationStatus.Approved)
+            {
+                _logger.LogWarning("Cannot get ZIP for generation {GenerationId} - state not found or not approved",
+                    generationId);
                 return null;
+            }
 
-            return await _fileOrganizer.GetGeneratedFilesZipAsync(generationId, result.GeneratedFiles ?? new List<CodeArtifact>(), result.TestFiles ?? new List<CodeArtifact>(), cancellationToken);
+            return await _fileOrganizer.GetGeneratedFilesZipAsync(
+                generationId,
+                state.GeneratedFiles ?? new List<CodeArtifact>(),
+                state.TestFiles ?? new List<CodeArtifact>(),
+                cancellationToken);
         }
     }
 }

@@ -11,7 +11,7 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
 {
     public class RepositoryTests : IAsyncLifetime
     {
-        private readonly IRepository<Project> _repository;
+        private readonly IFullRepository<Project, int> _repository;
         private readonly AppDbContext _context;
 
         public RepositoryTests()
@@ -63,30 +63,11 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             result.Should().BeNull();
         }
 
-        [Fact(Skip = "GetByStringIdAsync has implementation issues with expression translation")]
-        public async Task GetByStringId_WithValidId_ReturnsEntity()
-        {
-            // Arrange
-            var project = EntityBuilders.BuildProject();
-            var addedEntity = await _repository.AddAsync(project, CancellationToken.None);
-
-            // Act
-            var result = await _repository.GetByStringIdAsync(addedEntity.Id.ToString(), CancellationToken.None);
-
-            // Assert
-            result.Should().NotBeNull();
-            result?.Id.Should().Be(addedEntity.Id);
-        }
-
-        [Fact(Skip = "GetByStringIdAsync has implementation issues with expression translation")]
-        public async Task GetByStringId_WithInvalidId_ReturnsNull()
-        {
-            // Act
-            var result = await _repository.GetByStringIdAsync("999", CancellationToken.None);
-
-            // Assert
-            result.Should().BeNull();
-        }
+        // GetByStringIdAsync method removed - it had performance issues:
+        // 1. Used reflection which doesn't translate to SQL
+        // 2. Loaded entire table into memory with ToListAsync()
+        // 3. Never used in production code
+        // Tests were already skipped due to implementation issues
 
         [Fact]
         public async Task GetAll_ReturnsAllEntities()

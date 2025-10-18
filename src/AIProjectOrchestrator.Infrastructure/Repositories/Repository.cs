@@ -5,7 +5,13 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AIProjectOrchestrator.Infrastructure.Repositories
 {
-    public class Repository<T> : IRepository<T> where T : class
+    /// <summary>
+    /// Base repository implementation for entities with integer IDs.
+    /// Implements IFullRepository following Interface Segregation Principle (ISP).
+    /// For entities with Guid IDs, use PromptTemplateRepository as a reference.
+    /// </summary>
+    /// <typeparam name="T">The entity type</typeparam>
+    public class Repository<T> : IFullRepository<T, int> where T : class
     {
         protected readonly AppDbContext _context;
         protected readonly DbSet<T> _dbSet;
@@ -22,33 +28,9 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         /// <param name="id">The ID of the entity</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>The entity or null if not found</returns>
-        public async Task<T?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
+        public virtual async Task<T?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
         {
             return await _dbSet.FindAsync(new object[] { id }, cancellationToken);
-        }
-
-        /// <summary>
-        /// Gets an entity by its string ID
-        /// </summary>
-        /// <param name="id">The string ID of the entity</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>The entity or null if not found</returns>
-        public async Task<T?> GetByStringIdAsync(string id, CancellationToken cancellationToken = default)
-        {
-            // This is a generic implementation that assumes the entity has an "Id" property of type string
-            // For specific entities, we'll override this in specialized repositories
-            var property = typeof(T).GetProperty(PropertyNameConstants.Id) ?? typeof(T).GetProperty(PropertyNameConstants.ReviewId);
-            if (property != null)
-            {
-                var entities = await _dbSet.ToListAsync(cancellationToken);
-                return entities.FirstOrDefault(e =>
-                {
-                    var propertyValue = property.GetValue(e);
-                    return propertyValue != null && propertyValue.ToString() == id;
-                });
-            }
-            
-            throw new InvalidOperationException($"Entity {typeof(T).Name} does not have an Id property");
         }
 
         /// <summary>
@@ -56,7 +38,7 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         /// </summary>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Collection of all entities</returns>
-        public async Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default)
+        public virtual async Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default)
         {
             return await _dbSet.ToListAsync(cancellationToken);
         }
@@ -67,7 +49,7 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         /// <param name="entity">The entity to add</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>The added entity</returns>
-        public async Task<T> AddAsync(T entity, CancellationToken cancellationToken = default)
+        public virtual async Task<T> AddAsync(T entity, CancellationToken cancellationToken = default)
         {
             await _dbSet.AddAsync(entity, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
@@ -80,7 +62,7 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         /// <param name="entity">The entity to update</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Task representing the update operation</returns>
-        public async Task UpdateAsync(T entity, CancellationToken cancellationToken = default)
+        public virtual async Task UpdateAsync(T entity, CancellationToken cancellationToken = default)
         {
             _dbSet.Update(entity);
             await _context.SaveChangesAsync(cancellationToken);
@@ -92,7 +74,7 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
         /// <param name="id">The ID of the entity to delete</param>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Task representing the delete operation</returns>
-        public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
+        public virtual async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
         {
             var entity = await GetByIdAsync(id, cancellationToken);
             if (entity != null)
@@ -101,5 +83,16 @@ namespace AIProjectOrchestrator.Infrastructure.Repositories
                 await _context.SaveChangesAsync(cancellationToken);
             }
         }
+
+        // REMOVED: GetByStringIdAsync method
+        // This method had serious performance issues:
+        // 1. Used reflection which doesn't translate to SQL
+        // 2. Called ToListAsync() to load ENTIRE table into memory
+        // 3. Then filtered in C# code - very inefficient
+        // 4. Was never used in production code (0 usages found)
+        // 5. All tests for this method were marked as [Skip] due to implementation issues
+        // 
+        // If string-based lookups are needed, create domain-specific methods
+        // like GetByAnalysisIdAsync, GetByGenerationIdAsync, etc.
     }
 }

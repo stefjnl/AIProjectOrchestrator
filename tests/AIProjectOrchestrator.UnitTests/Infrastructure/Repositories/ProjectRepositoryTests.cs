@@ -50,12 +50,12 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             addedEntity.Name = "Updated Name";
 
             // Act
-            var result = await _repository.UpdateAsync(addedEntity);
+            await _repository.UpdateAsync(addedEntity);
 
             // Assert
-            result.Should().NotBeNull();
-            result.Name.Should().Be("Updated Name");
-            result.UpdatedDate.Should().BeAfter(originalUpdatedDate);
+            addedEntity.Should().NotBeNull();
+            addedEntity.Name.Should().Be("Updated Name");
+            addedEntity.UpdatedDate.Should().BeAfter(originalUpdatedDate);
             
             var updatedEntity = await _context.Projects.FindAsync(addedEntity.Id);
             updatedEntity.Should().NotBeNull();
@@ -89,30 +89,11 @@ namespace AIProjectOrchestrator.UnitTests.Infrastructure.Repositories
             result.Should().BeNull();
         }
 
-        [Fact(Skip = "GetByStringIdAsync has implementation issues with expression translation")]
-        public async Task GetByStringIdAsync_WithValidId_ReturnsEntity()
-        {
-            // Arrange
-            var project = EntityBuilders.BuildProject();
-            var addedEntity = await _repository.AddAsync(project);
-
-            // Act
-            var result = await _repository.GetByStringIdAsync(addedEntity.Id.ToString());
-
-            // Assert
-            result.Should().NotBeNull();
-            result?.Id.Should().Be(addedEntity.Id);
-        }
-
-        [Fact(Skip = "GetByStringIdAsync has implementation issues with expression translation")]
-        public async Task GetByStringIdAsync_WithInvalidId_ReturnsNull()
-        {
-            // Act
-            var result = await _repository.GetByStringIdAsync("999");
-
-            // Assert
-            result.Should().BeNull();
-        }
+        // GetByStringIdAsync method removed - it had performance issues:
+        // 1. Used reflection which doesn't translate to SQL
+        // 2. Loaded entire table into memory with ToListAsync()
+        // 3. Never used in production code
+        // Tests were already skipped due to implementation issues
 
         [Fact]
         public async Task GetAllAsync_ReturnsAllEntities()
