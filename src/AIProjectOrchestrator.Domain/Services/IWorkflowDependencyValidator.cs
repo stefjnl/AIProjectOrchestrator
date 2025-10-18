@@ -49,12 +49,12 @@ namespace AIProjectOrchestrator.Domain.Services
         /// <summary>
         /// Planning ID (if applicable)
         /// </summary>
-        public int? PlanningId { get; set; }
+        public Guid? PlanningId { get; set; }
 
         /// <summary>
         /// Requirements Analysis ID (if applicable)
         /// </summary>
-        public int? RequirementsAnalysisId { get; set; }
+        public Guid? RequirementsAnalysisId { get; set; }
 
         /// <summary>
         /// Creates a successful validation result

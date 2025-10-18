@@ -11,6 +11,7 @@ using AIProjectOrchestrator.Domain.Models.Code;
 using AIProjectOrchestrator.Domain.Models.AI;
 using AIProjectOrchestrator.Domain.Entities;
 using AIProjectOrchestrator.Domain.Services;
+using AIProjectOrchestrator.Domain.Common;
 using AIProjectOrchestrator.Infrastructure.AI.Providers;
 
 namespace AIProjectOrchestrator.Application.Services;
@@ -48,7 +49,7 @@ public class ImplementationGenerator : IImplementationGenerator
         _logger.LogInformation("Implementation generation context size: {ContextSize} bytes", contextSize);
 
         // Warn if context size is approaching limits
-        if (contextSize > 100000) // Roughly 25K tokens
+        if (contextSize > AIConstants.MaxContextSizeBytes) // Roughly 25K tokens
         {
             _logger.LogWarning("Implementation generation context size is large: {ContextSize} bytes", contextSize);
         }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AIProjectOrchestrator.Domain.Models.Code;
+using AIProjectOrchestrator.Domain.Models;
 
 namespace AIProjectOrchestrator.Domain.Services
 {
@@ -25,7 +26,7 @@ namespace AIProjectOrchestrator.Domain.Services
         /// <summary>
         /// Comprehensive context retrieved from upstream services
         /// </summary>
-        public string ComprehensiveContext { get; set; } = string.Empty;
+        public ComprehensiveContext ComprehensiveContext { get; set; } = new();
 
         /// <summary>
         /// Selected AI model for code generation
@@ -40,12 +41,12 @@ namespace AIProjectOrchestrator.Domain.Services
         /// <summary>
         /// Planning ID from dependency validation
         /// </summary>
-        public int? PlanningId { get; set; }
+        public Guid? PlanningId { get; set; }
 
         /// <summary>
         /// Requirements Analysis ID from dependency validation
         /// </summary>
-        public int? RequirementsAnalysisId { get; set; }
+        public Guid? RequirementsAnalysisId { get; set; }
     }
 
     /// <summary>

@@ -19,6 +19,7 @@ using AIProjectOrchestrator.Infrastructure.Repositories;
 using AIProjectOrchestrator.Application.Interfaces;
 using AIProjectOrchestrator.Domain.Services;
 using AIProjectOrchestrator.Domain.Configuration;
+using AIProjectOrchestrator.Domain.Common;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
 using AIProjectOrchestrator.Domain.Models.AI;
@@ -225,7 +226,7 @@ builder.Services.AddHttpClient<LMStudioClient>()
         var settings = serviceProvider.GetRequiredService<IOptions<AIProjectOrchestrator.Domain.Configuration.AIProviderCredentials>>().Value.LMStudio;
         client.BaseAddress = new Uri(settings.BaseUrl);
         // Set a longer base timeout to handle large prompts - we'll manage individual request timeouts in the client
-        client.Timeout = TimeSpan.FromSeconds(Math.Max(settings.TimeoutSeconds, 120)); // Minimum 2 minutes, max from config
+        client.Timeout = TimeSpan.FromSeconds(Math.Max(settings.TimeoutSeconds, AIConstants.MinimumTimeoutSeconds)); // Minimum 2 minutes, max from config
     })
     .ConfigurePrimaryHttpMessageHandler(() => 
     {
@@ -254,7 +255,7 @@ builder.Services.AddHttpClient<OpenRouterClient>()
         var baseUrl = settings.BaseUrl.TrimEnd('/') + "/";
         client.BaseAddress = new Uri(baseUrl);
         // Set a longer base timeout to handle large prompts - we'll manage individual request timeouts in the client
-        client.Timeout = TimeSpan.FromSeconds(Math.Max(settings.TimeoutSeconds, 120)); // Minimum 2 minutes, max from config
+        client.Timeout = TimeSpan.FromSeconds(Math.Max(settings.TimeoutSeconds, AIConstants.MinimumTimeoutSeconds)); // Minimum 2 minutes, max from config
     })
     .ConfigurePrimaryHttpMessageHandler(() => 
     {
@@ -282,7 +283,7 @@ builder.Services.AddHttpClient<NanoGptClient>()
         var settings = serviceProvider.GetRequiredService<IOptions<AIProjectOrchestrator.Domain.Configuration.AIProviderCredentials>>().Value.NanoGpt;
         client.BaseAddress = new Uri(settings.BaseUrl);
         // Set a longer base timeout to handle large prompts - we'll manage individual request timeouts in the client
-        client.Timeout = TimeSpan.FromSeconds(Math.Max(settings.TimeoutSeconds, 120)); // Minimum 2 minutes, max from config
+        client.Timeout = TimeSpan.FromSeconds(Math.Max(settings.TimeoutSeconds, AIConstants.MinimumTimeoutSeconds)); // Minimum 2 minutes, max from config
     })
     .ConfigurePrimaryHttpMessageHandler(() => 
     {

@@ -121,7 +121,7 @@ namespace AIProjectOrchestrator.Application.Services
         /// <summary>
         /// Validates StoryGeneration dependencies: Planning must be approved
         /// </summary>
-        private async Task<DependencyValidationResult> ValidateStoryGenerationDependenciesAsync(
+        private Task<DependencyValidationResult> ValidateStoryGenerationDependenciesAsync(
             Guid entityId,
             CancellationToken cancellationToken)
         {
@@ -129,30 +129,30 @@ namespace AIProjectOrchestrator.Application.Services
             // In a real implementation, we'd need to handle this properly
             _logger.LogWarning("StoryGeneration validation not fully implemented - requires planning ID mapping");
             
-            return new DependencyValidationResult
+            return Task.FromResult(new DependencyValidationResult
             {
                 IsValid = true,
                 EntityId = entityId,
                 Stage = WorkflowStage.StoryGeneration
-            };
+            });
         }
 
         /// <summary>
         /// Validates ProjectPlanning dependencies: RequirementsAnalysis must be approved
         /// </summary>
-        private async Task<DependencyValidationResult> ValidateProjectPlanningDependenciesAsync(
+        private Task<DependencyValidationResult> ValidateProjectPlanningDependenciesAsync(
             Guid entityId,
             CancellationToken cancellationToken)
         {
             // For ProjectPlanning, entityId needs to map to requirements analysis ID
             _logger.LogWarning("ProjectPlanning validation not fully implemented - requires requirements analysis ID mapping");
             
-            return new DependencyValidationResult
+            return Task.FromResult(new DependencyValidationResult
             {
                 IsValid = true,
                 EntityId = entityId,
                 Stage = WorkflowStage.ProjectPlanning
-            };
+            });
         }
 
         /// <summary>
@@ -177,7 +177,7 @@ namespace AIProjectOrchestrator.Application.Services
         /// Helper method to validate project planning status
         /// </summary>
         private async Task<DependencyValidationResult> ValidateProjectPlanningStatusAsync(
-            int planningId,
+            Guid planningId,
             CancellationToken cancellationToken)
         {
             var planningStatus = await _projectPlanningService.GetPlanningStatusAsync(planningId, cancellationToken);

@@ -13,6 +13,7 @@ using System.Text;
 using AIProjectOrchestrator.Domain.Interfaces;
 using AIProjectOrchestrator.Domain.Entities;
 using AIProjectOrchestrator.Domain.Configuration;
+using AIProjectOrchestrator.Domain.Common;
 using AIProjectOrchestrator.Infrastructure.Data;
 
 namespace AIProjectOrchestrator.Application.Services
@@ -113,7 +114,7 @@ namespace AIProjectOrchestrator.Application.Services
                 _logger.LogInformation("Project planning {PlanningId} context size: {ContextSize} bytes", planningId, contextSize);
 
                 // Warn if context size is approaching limits
-                if (contextSize > 100000) // Roughly 25K tokens
+                if (contextSize > AIConstants.MaxContextSizeBytes) // Roughly 25K tokens
                 {
                     _logger.LogWarning("Project planning {PlanningId} context size is large: {ContextSize} bytes", planningId, contextSize);
                 }
